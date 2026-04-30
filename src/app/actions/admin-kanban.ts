@@ -1,8 +1,10 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidateTag } from 'next/cache'
+import { sendTaskAssignmentEmail } from '@/lib/email'
 
 export interface AdminTask {
   id: string
@@ -14,6 +16,7 @@ export interface AdminTask {
   assigned_to?: string
   created_by: string
   department_id?: string
+  project_id?: string
   start_date?: string
   due_date?: string
   completed_at?: string
@@ -44,6 +47,7 @@ export interface TaskPayload {
   type: string
   assigned_to?: string
   department_id?: string
+  project_id?: string
   start_date?: string
   due_date?: string
   estimated_hours?: number
@@ -59,71 +63,45 @@ async function getSupabaseClient() {
 
 export async function fetchTasks(): Promise<{ data: AdminTask[] | null; error: string | null }> {
   try {
-    console.log('Server Action: Fetching tasks...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('admin_tasks')
       .select('*')
       .order('kanban_position', { ascending: true })
 
-    if (error) {
-      console.error('Error fetching tasks:', error)
-      return { data: null, error: error.message }
-    }
-
-    console.log('Server Action: Tasks fetched successfully:', data?.length || 0)
+    if (error) return { data: null, error: error.message }
     return { data: data || [], error: null }
-  } catch (error) {
-    console.error('Server Action: Error in fetchTasks:', error)
+  } catch {
     return { data: null, error: 'Failed to fetch tasks' }
   }
 }
 
 export async function fetchDepartments(): Promise<{ data: Department[] | null; error: string | null }> {
   try {
-    console.log('Server Action: Fetching departments...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('departments')
       .select('id, name')
       .order('name')
 
-    if (error) {
-      console.error('Error fetching departments:', error)
-      return { data: null, error: error.message }
-    }
-
-    console.log('Server Action: Departments fetched successfully:', data?.length || 0)
-    console.log('Server Action: Departments:', data)
+    if (error) return { data: null, error: error.message }
     return { data: data || [], error: null }
-  } catch (error) {
-    console.error('Server Action: Error in fetchDepartments:', error)
+  } catch {
     return { data: null, error: 'Failed to fetch departments' }
   }
 }
 
 export async function fetchUsers(): Promise<{ data: User[] | null; error: string | null }> {
   try {
-    console.log('Server Action: Fetching users...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('profiles')
       .select('id, first_name, last_name')
-      .eq('role', 'admin')
       .order('first_name')
 
-    if (error) {
-      console.error('Error fetching users:', error)
-      return { data: null, error: error.message }
-    }
-
-    console.log('Server Action: Users fetched successfully:', data?.length || 0)
+    if (error) return { data: null, error: error.message }
     return { data: data || [], error: null }
-  } catch (error) {
-    console.error('Server Action: Error in fetchUsers:', error)
+  } catch {
     return { data: null, error: 'Failed to fetch users' }
   }
 }
@@ -134,102 +112,86 @@ export async function moveTask(
   newPosition: number
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log('Server Action: Moving task...', { taskId, newStatus, newPosition })
     const supabase = await getSupabaseClient()
-    
-    // Get the current task details
+    const adminClient = createAdminClient()
+
     const { data: currentTask, error: fetchError } = await supabase
       .from('admin_tasks')
-      .select('status, kanban_position')
+      .select('status, kanban_position, title, assigned_to')
       .eq('id', taskId)
       .single()
 
-    if (fetchError || !currentTask) {
-      console.error('Error fetching current task:', fetchError)
-      return { success: false, error: 'Task not found' }
-    }
+    if (fetchError || !currentTask) return { success: false, error: 'Task not found' }
 
-    // If moving within the same column, adjust positions of other tasks
     if (currentTask.status === newStatus) {
-      // Get all tasks in the column sorted by position
-      const { data: columnTasks, error: columnError } = await supabase
+      const { data: columnTasks } = await supabase
         .from('admin_tasks')
         .select('id, kanban_position')
         .eq('status', newStatus)
         .order('kanban_position')
 
-      if (columnError) {
-        console.error('Error fetching column tasks:', columnError)
-        return { success: false, error: 'Failed to fetch column tasks' }
-      }
-
       if (columnTasks) {
-        // Find current and new indices
         const currentIndex = columnTasks.findIndex(t => t.id === taskId)
         const targetTask = columnTasks.find(t => Math.abs(t.kanban_position - newPosition) < 0.1)
-        
+
         if (targetTask && currentIndex !== -1) {
           const newIndex = columnTasks.findIndex(t => t.id === targetTask.id)
-          
-          // Adjust positions of tasks between old and new position
           if (currentIndex !== newIndex) {
             const updates: { id: string; position: number }[] = []
-            
             if (currentIndex < newIndex) {
-              // Moving down - shift tasks up
               for (let i = currentIndex + 1; i <= newIndex; i++) {
-                updates.push({
-                  id: columnTasks[i].id,
-                  position: columnTasks[i - 1].kanban_position
-                })
+                updates.push({ id: columnTasks[i].id, position: columnTasks[i - 1].kanban_position })
               }
             } else {
-              // Moving up - shift tasks down
               for (let i = newIndex; i < currentIndex; i++) {
-                updates.push({
-                  id: columnTasks[i].id,
-                  position: columnTasks[i + 1].kanban_position
-                })
+                updates.push({ id: columnTasks[i].id, position: columnTasks[i + 1].kanban_position })
               }
             }
-
-            // Update positions in batch
             for (const update of updates) {
-              await supabase
-                .from('admin_tasks')
-                .update({ kanban_position: update.position })
-                .eq('id', update.id)
+              await supabase.from('admin_tasks').update({ kanban_position: update.position }).eq('id', update.id)
             }
           }
         }
       }
     }
 
-    // Update the main task
     const { error } = await supabase
       .from('admin_tasks')
       .update({
         status: newStatus,
         kanban_position: newPosition,
-        ...(newStatus === 'completed' && currentTask.status !== 'completed' && { 
-          completed_at: new Date().toISOString() 
-        }),
-        ...(newStatus !== 'completed' && currentTask.status === 'completed' && { 
-          completed_at: null 
-        }),
+        ...(newStatus === 'completed' && currentTask.status !== 'completed' && { completed_at: new Date().toISOString() }),
+        ...(newStatus !== 'completed' && currentTask.status === 'completed' && { completed_at: null }),
       })
       .eq('id', taskId)
 
-    if (error) {
-      console.error('Error moving task:', error)
-      return { success: false, error: error.message }
+    if (error) return { success: false, error: error.message }
+
+    // Send status update email if assignee exists and status actually changed
+    if (currentTask.assigned_to && currentTask.status !== newStatus) {
+      try {
+        const { data: assignee } = await adminClient.from('profiles').select('email, first_name, last_name').eq('id', currentTask.assigned_to).single()
+        if (assignee?.email) {
+          const name = `${assignee.first_name || ''} ${assignee.last_name || ''}`.trim() || assignee.email
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+          await sendTaskAssignmentEmail({
+            toEmail: assignee.email,
+            toName: name,
+            assignedBy: 'Admin',
+            taskTitle: currentTask.title,
+            priority: 'medium',
+            dashboardUrl: `${appUrl}/admin?tab=assets`,
+            taskDescription: `Your task status has been updated to: ${newStatus.replace('_', ' ')}`,
+          })
+        }
+      } catch (emailErr) {
+        console.error('Status update email failed (non-fatal):', emailErr)
+      }
     }
 
-    console.log('Server Action: Task moved successfully')
     revalidateTag('admin-tasks')
     return { success: true, error: null }
-  } catch (error) {
-    console.error('Server Action: Error in moveTask:', error)
+  } catch {
     return { success: false, error: 'Failed to move task' }
   }
 }
@@ -239,61 +201,96 @@ export async function saveTask(
   taskId?: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log('Server Action: Saving task...', { taskId, taskData })
     const supabase = await getSupabaseClient()
+    const adminClient = createAdminClient()
+
+    let previousAssignee: string | null = null
 
     if (taskId) {
-      // Update existing task
-      const { error } = await supabase
+      // Fetch current assignee before update to detect change
+      const { data: existing } = await adminClient
         .from('admin_tasks')
-        .update(taskData)
+        .select('assigned_to')
         .eq('id', taskId)
+        .single()
+      previousAssignee = existing?.assigned_to || null
 
-      if (error) {
-        console.error('Error updating task:', error)
-        return { success: false, error: error.message }
-      }
+      const { error } = await supabase.from('admin_tasks').update(taskData).eq('id', taskId)
+      if (error) return { success: false, error: error.message }
     } else {
-      // Create new task
-      const { error } = await supabase
-        .from('admin_tasks')
-        .insert([taskData])
+      const { error } = await supabase.from('admin_tasks').insert([taskData])
+      if (error) return { success: false, error: error.message }
+    }
 
-      if (error) {
-        console.error('Error creating task:', error)
-        return { success: false, error: error.message }
+    // Send email if assigned_to changed or was set on creation
+    const newAssignee = taskData.assigned_to || null
+    const assigneeChanged = newAssignee && newAssignee !== previousAssignee
+
+    if (assigneeChanged) {
+      try {
+        const { data: assigneeProfile } = await adminClient
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', newAssignee)
+          .single()
+
+        const { data: creatorProfile } = await adminClient
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', taskData.created_by)
+          .single()
+
+        let projectName: string | undefined
+        if (taskData.project_id) {
+          const { data: project } = await adminClient
+            .from('projects')
+            .select('name')
+            .eq('id', taskData.project_id)
+            .single()
+          projectName = project?.name
+        }
+
+        if (assigneeProfile?.email) {
+          const assigneeName = `${assigneeProfile.first_name || ''} ${assigneeProfile.last_name || ''}`.trim() || assigneeProfile.email
+          const assignedBy = creatorProfile
+            ? `${creatorProfile.first_name || ''} ${creatorProfile.last_name || ''}`.trim() || 'Admin'
+            : 'Admin'
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+          await sendTaskAssignmentEmail({
+            toEmail: assigneeProfile.email,
+            toName: assigneeName,
+            assignedBy,
+            taskTitle: taskData.title,
+            taskDescription: taskData.description,
+            priority: taskData.priority,
+            dueDate: taskData.due_date
+              ? new Date(taskData.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : undefined,
+            projectName,
+            dashboardUrl: `${appUrl}/admin?tab=assets`,
+          })
+        }
+      } catch (emailErr) {
+        console.error('Email notification failed (non-fatal):', emailErr)
       }
     }
 
-    console.log('Server Action: Task saved successfully')
     revalidateTag('admin-tasks')
     return { success: true, error: null }
-  } catch (error) {
-    console.error('Server Action: Error in saveTask:', error)
+  } catch {
     return { success: false, error: 'Failed to save task' }
   }
 }
 
 export async function deleteTask(taskId: string): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log('Server Action: Deleting task...', { taskId })
     const supabase = await getSupabaseClient()
-    
-    const { error } = await supabase
-      .from('admin_tasks')
-      .delete()
-      .eq('id', taskId)
-
-    if (error) {
-      console.error('Error deleting task:', error)
-      return { success: false, error: error.message }
-    }
-
-    console.log('Server Action: Task deleted successfully')
+    const { error } = await supabase.from('admin_tasks').delete().eq('id', taskId)
+    if (error) return { success: false, error: error.message }
     revalidateTag('admin-tasks')
     return { success: true, error: null }
-  } catch (error) {
-    console.error('Server Action: Error in deleteTask:', error)
+  } catch {
     return { success: false, error: 'Failed to delete task' }
   }
 }

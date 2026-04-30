@@ -23,8 +23,9 @@ export async function generateClientSummary(clientData: any, forceRegenerate = f
             }
         }
 
-        if (!process.env.GROQ_API_KEY) {
-            return { summary: null, error: 'GROQ_API_KEY is not set' }
+        const groqKey = process.env.GROQ_API_KEY
+        if (!groqKey || groqKey.startsWith('placeholder')) {
+            return { summary: null, error: 'GROQ_API_KEY is not configured. Add a real key to .env.local.' }
         }
 
         const prompt = `
@@ -73,11 +74,11 @@ export async function generateClientSummary(clientData: any, forceRegenerate = f
             summary,
             error: null
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error generating AI summary:', error)
         return {
             summary: null,
-            error: 'Failed to generate summary. Please try again later.'
+            error: error?.message || 'Failed to generate summary. Please try again later.'
         }
     }
 }

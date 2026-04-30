@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 
 interface ClientAssetsProps {
     clientId: string
-    departmentId: string // Used for filtering or context if needed, though client_id is primary
+    departmentId: string
 }
 
 interface Breadcrumb {
@@ -42,15 +42,9 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
         try {
             const result = await getClientRootFolder(clientId)
             if (result.success && result.data) {
-                // Folder exists (Clients -> ClientName) has been created
                 setClientRootId(result.data)
                 setCurrentFolderId(result.data)
                 setBreadcrumbs([{ id: result.data, name: 'Client Root' }])
-            } else {
-                // Not created yet. We stay at "null" effectively, or maybe we show empty?
-                // If we stay at null, getAssets(clientId) will return empty because files are inside folders?
-                // Actually, if folder doesn't exist, likely NO files exist either.
-                // So empty is correct.
             }
         } catch (error) {
             console.error(error)
@@ -65,27 +59,8 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
 
     // Main Asset Loader
     const loadAssets = async (folderId: string | null) => {
-        // If we haven't initialized the root folder yet, and we are asking for "null" (global root),
-        // we might get nothing if files are deep. 
-        // But if folderId IS the clientRootId, we get the files.
         setLoading(true)
         try {
-            // We pass clientId so files are filtered (if we are creating subfolders manually).
-            // But if we are inside the Client Folder structure (which doesn't have client_id),
-            // getAssets will only return items that satisfy both parentId AND clientId constraints?
-
-            // Wait. The folder "Clients/Coca Cola" does NOT have `client_id`.
-            // But the files INSIDE it DO have `client_id`?
-            // Yes, `uploadFile` sets `client_id`.
-            // So `getAssets(parentId=FolderID, clientId=X)` works for files.
-
-            // What about subfolders created manually?
-            // `createFolder` keeps `client_id`.
-            // So subfolders will also be returned.
-
-            // What if we are at root (null) because folder doesn't exist?
-            // `getAssets(null, X)` -> returns nothing. Correct.
-
             const result = await getAssets(undefined, folderId, clientId)
             if (result.success && result.data) {
                 setAssets(result.data)
@@ -99,13 +74,11 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
         }
     }
 
-    // Reload assets when currentFolderId changes
     useEffect(() => {
         if (currentFolderId || clientRootId === null) {
-            // Only load if we have a folder ID OR if we've confirmed root is null (empty)
             loadAssets(currentFolderId)
         }
-    }, [currentFolderId, clientId]) // Depend on folder change
+    }, [currentFolderId, clientId])
 
     // Navigation Handlers
     const handleNavigate = (folderId: string) => {
@@ -123,8 +96,7 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
     }
 
     const handleUp = () => {
-        if (currentFolderId === clientRootId) return // Can't go up past client root
-
+        if (currentFolderId === clientRootId) return
         if (breadcrumbs.length > 1) {
             handleBreadcrumbClick(breadcrumbs.length - 2)
         }
@@ -135,17 +107,8 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
         if (!newFolderName.trim()) return
         setCreatingFolder(true)
         try {
-            // Pass clientId to createFolder
             const result = await createFolder(newFolderName, currentFolderId, clientId)
             if (result.success) {
-                // If this is the FIRST item and creates the structure?
-                // createFolder might trigger auto-creation logic if we are at root?
-                // Actually `createFolder` logic in assets.ts needs review if it auto-creates parents?
-                // It does NOT. `uploadFile` does.
-                // But if I create a folder manually at root (null), I want it to go into Client Structure?
-                // Maybe I should update `createFolder` too?
-                // For now, let's assume user uploads first.
-
                 setIsCreateFolderOpen(false)
                 setNewFolderName('')
                 loadAssets(currentFolderId)
@@ -161,12 +124,9 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
         for (const file of files) {
             const formData = new FormData()
             formData.append('file', file)
-            // Pass clientId to uploadFile
             await uploadFile(formData, currentFolderId, clientId)
         }
         setIsUploadOpen(false)
-
-        // After upload, ensure we know the root ID (if it was just created)
         if (!clientRootId) {
             await initializeClientFolder()
         } else {
@@ -191,7 +151,6 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
 
                 {/* Breadcrumbs */}
                 <div className="flex items-center space-x-2 text-sm overflow-x-auto no-scrollbar">
-                    {/* Show Up button only if we are deeper than Client Root */}
                     {breadcrumbs.length > 1 && (
                         <Button variant="ghost" size="icon" onClick={handleUp} className="mr-2 h-8 w-8 text-gray-400 hover:text-white">
                             <ArrowLeft className="h-4 w-4" />
@@ -261,7 +220,7 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
                 )}
             </div>
 
-            {/* Dialogs */}
+            {/* Create Folder Dialog */}
             <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
                 <DialogContent className="bg-gray-800 border-gray-700 text-white">
                     <DialogHeader>
@@ -286,6 +245,7 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
                 </DialogContent>
             </Dialog>
 
+            {/* File Upload Overlay */}
             {isUploadOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <AssetUploader onUpload={handleFileUpload} onClose={() => setIsUploadOpen(false)} />

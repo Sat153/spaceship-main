@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     PenTool, Sparkles, CalendarDays, Send, Loader2, Plus,
-    FileText, Clock, CheckCircle, XCircle, Edit2, Trash2, ExternalLink
+    FileText, Clock, CheckCircle, XCircle, Edit2, Trash2, ExternalLink, ShieldCheck, Bell
 } from 'lucide-react'
 import {
     getContentPosts,
@@ -22,6 +22,7 @@ import {
     getClientsForContent,
     ContentPost
 } from '@/app/actions/content-posts'
+import { sendApprovalRequest } from '@/app/actions/approval'
 
 
 interface Client {
@@ -37,9 +38,10 @@ const PLATFORMS = [
     { id: 'youtube', label: '▶️ YouTube', color: 'bg-red-600' },
 ]
 
-const STATUS_CONFIG: Record<ContentPost['status'], { label: string; color: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
     draft: { label: 'Draft', color: 'bg-gray-500', icon: FileText },
     pending_review: { label: 'Pending Review', color: 'bg-yellow-500', icon: Clock },
+    awaiting_approval: { label: 'Awaiting Approval', color: 'bg-purple-500', icon: ShieldCheck },
     approved: { label: 'Approved', color: 'bg-green-500', icon: CheckCircle },
     rejected: { label: 'Rejected', color: 'bg-red-500', icon: XCircle },
     published: { label: 'Published', color: 'bg-blue-500', icon: Send },
@@ -62,6 +64,11 @@ export default function ContentCreator() {
     const [isGenerating, setIsGenerating] = useState(false)
     const [aiPrompt, setAiPrompt] = useState('')
     const [creating, setCreating] = useState(false)
+    const [sendingApproval, setSendingApproval] = useState<string | null>(null)
+    const [editingPost, setEditingPost] = useState<ContentPost | null>(null)
+    const [editTitle, setEditTitle] = useState('')
+    const [editBody, setEditBody] = useState('')
+    const [savingEdit, setSavingEdit] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -170,6 +177,36 @@ export default function ContentCreator() {
             if (result.success) {
                 fetchData()
             }
+        }
+    }
+
+    const openEdit = (post: ContentPost) => {
+        setEditingPost(post)
+        setEditTitle(post.title || '')
+        setEditBody(post.body)
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editingPost || !editBody.trim()) return
+        setSavingEdit(true)
+        const result = await updateContentPost(editingPost.id, { title: editTitle || undefined, body: editBody.trim() })
+        setSavingEdit(false)
+        if (result.success) {
+            setEditingPost(null)
+            fetchData()
+        } else {
+            alert('Failed to save changes')
+        }
+    }
+
+    const handleSendForApproval = async (id: string) => {
+        setSendingApproval(id)
+        const result = await sendApprovalRequest(id)
+        setSendingApproval(null)
+        if (result.success) {
+            fetchData()
+        } else {
+            alert(result.error || 'Failed to send approval request')
         }
     }
 
@@ -301,6 +338,12 @@ export default function ContentCreator() {
                                                         )}
                                                         <p className="text-gray-300 text-sm line-clamp-2">{post.body}</p>
 
+                                                        {post.review_notes && (
+                                                            <div className={`mt-2 px-3 py-2 rounded-lg text-xs border ${post.status === 'rejected' ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-blue-500/10 border-blue-500/20 text-blue-300'}`}>
+                                                                <span className="font-semibold">{post.status === 'rejected' ? 'Rejected' : 'Feedback'}: </span>{post.review_notes}
+                                                            </div>
+                                                        )}
+
                                                         <div className="flex items-center gap-2 mt-3">
                                                             {post.platforms.map(platform => {
                                                                 const p = PLATFORMS.find(pl => pl.id === platform)
@@ -321,12 +364,24 @@ export default function ContentCreator() {
                                                     </div>
 
                                                     <div className="flex items-center gap-1">
+                                                        {(post.status === 'draft' || post.status === 'pending_review') && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => openEdit(post)}
+                                                                className="text-gray-400 hover:text-white"
+                                                                title="Edit content"
+                                                            >
+                                                                <Edit2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                         {post.status === 'draft' && (
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
                                                                 onClick={() => handleSubmitForReview(post.id)}
                                                                 className="text-yellow-400 hover:text-yellow-300"
+                                                                title="Submit for internal review"
                                                             >
                                                                 <Send className="h-4 w-4" />
                                                             </Button>
@@ -336,8 +391,22 @@ export default function ContentCreator() {
                                                                 <Button
                                                                     size="sm"
                                                                     variant="ghost"
+                                                                    onClick={() => handleSendForApproval(post.id)}
+                                                                    disabled={sendingApproval === post.id}
+                                                                    className="text-purple-400 hover:text-purple-300"
+                                                                    title="Send to Akhilesh Ji for final approval"
+                                                                >
+                                                                    {sendingApproval === post.id
+                                                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                                        : <ShieldCheck className="h-4 w-4" />
+                                                                    }
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
                                                                     onClick={() => handleApprove(post.id)}
                                                                     className="text-green-400 hover:text-green-300"
+                                                                    title="Approve internally"
                                                                 >
                                                                     <CheckCircle className="h-4 w-4" />
                                                                 </Button>
@@ -346,10 +415,26 @@ export default function ContentCreator() {
                                                                     variant="ghost"
                                                                     onClick={() => handleReject(post.id)}
                                                                     className="text-red-400 hover:text-red-300"
+                                                                    title="Reject"
                                                                 >
                                                                     <XCircle className="h-4 w-4" />
                                                                 </Button>
                                                             </>
+                                                        )}
+                                                        {post.status === 'approved' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => handleSendForApproval(post.id)}
+                                                                disabled={sendingApproval === post.id}
+                                                                className="text-orange-400 hover:text-orange-300"
+                                                                title="Send to Akhilesh Ji for final approval"
+                                                            >
+                                                                {sendingApproval === post.id
+                                                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                                    : <Bell className="h-4 w-4" />
+                                                                }
+                                                            </Button>
                                                         )}
                                                         <Button
                                                             size="sm"
@@ -528,6 +613,52 @@ export default function ContentCreator() {
                                     <Plus className="h-4 w-4 mr-2" />
                                 )}
                                 Create Post
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Post Modal */}
+            <Dialog open={!!editingPost} onOpenChange={(open) => { if (!open) setEditingPost(null) }}>
+                <DialogContent className="bg-gray-900 border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <Edit2 className="h-5 w-5 text-blue-400" />
+                            Edit Post
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Title</label>
+                            <input
+                                type="text"
+                                value={editTitle}
+                                onChange={e => setEditTitle(e.target.value)}
+                                placeholder="Post title (optional)"
+                                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Content *</label>
+                            <Textarea
+                                value={editBody}
+                                onChange={e => setEditBody(e.target.value)}
+                                placeholder="Post content..."
+                                className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 min-h-[200px] resize-none"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                            <Button variant="ghost" onClick={() => setEditingPost(null)} className="text-gray-400">
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSaveEdit}
+                                disabled={savingEdit || !editBody.trim()}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                                {savingEdit ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Save Changes
                             </Button>
                         </div>
                     </div>

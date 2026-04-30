@@ -8,17 +8,20 @@ import { revalidatePath } from 'next/cache'
 export interface Asset {
     id: string
     name: string
-    type: 'file' | 'folder'
+    type: 'file' | 'folder' | 'doc'
     parent_id: string | null
     department_id: string
     url: string | null
     size: number
     mime_type: string | null
+    content?: string | null
     created_at: string
     updated_at: string
     created_by: string
     departments?: { name: string } | null
     client_id?: string | null
+    event_name?: string | null
+    event_date?: string | null
 }
 
 import { getAdminDepartmentId } from '@/lib/admin-helper'
@@ -44,14 +47,9 @@ async function getCallerInfo() {
 
 export async function getAssets(departmentId?: string, parentId: string | null = null, clientId?: string) {
     try {
-        const cookieStore = await cookies()
-        const supabase = createClient(cookieStore)
+        const admin = createAdminClient()
 
-        // RLS policies on 'assets' table should automatically filter for the user.
-        // Super Admins RLS policy allows seeing all.
-        // Department Users RLS policy limits to their department.
-
-        let query = supabase
+        let query = admin
             .from('assets')
             .select('*, departments(name)')
             .order('type', { ascending: false }) // Folders first
@@ -178,19 +176,18 @@ export async function getClientRootFolder(clientId: string) {
     }
 }
 
-export async function createFolder(name: string, parentId: string | null, clientId?: string) {
+export async function createFolder(name: string, parentId: string | null, clientId?: string, eventName?: string, eventDate?: string) {
     try {
         const info = await getCallerInfo()
         if (!info || !info.profile) return { success: false, error: 'Unauthorized' }
 
         const { user, profile } = info
-        const supabase = createClient(await cookies())
+        const admin = createAdminClient()
 
         // Determine effective department:
         let targetDepartmentId = profile.department_id
 
         if (clientId) {
-            const admin = createAdminClient()
             const { data: client, error: clientError } = await admin
                 .from('clients')
                 .select('department_id')
@@ -202,18 +199,39 @@ export async function createFolder(name: string, parentId: string | null, client
             }
         }
 
-        const { data, error } = await supabase
-            .from('assets')
-            .insert({
-                name,
-                type: 'folder',
-                parent_id: parentId, // RLS + Constraint will ensure parent exists and is accessible
-                department_id: targetDepartmentId,
-                created_by: user.id,
-                client_id: clientId || null
-            })
-            .select()
-            .single()
+        const baseInsert: Record<string, any> = {
+            name,
+            type: 'folder',
+            parent_id: parentId,
+            department_id: targetDepartmentId,
+            created_by: user.id,
+            client_id: clientId || null,
+        }
+
+        // Try with event fields first; fall back to base insert if columns don't exist yet
+        let data: any = null
+        let error: any = null
+
+        if (eventName || eventDate) {
+            const withEvents = { ...baseInsert }
+            if (eventName) withEvents.event_name = eventName
+            if (eventDate) withEvents.event_date = eventDate
+
+            const res = await admin.from('assets').insert(withEvents).select().single()
+            data = res.data
+            error = res.error
+
+            // If columns don't exist yet, retry without event fields
+            if (error && (error.code === '42703' || error.message?.includes('column'))) {
+                const fallback = await admin.from('assets').insert(baseInsert).select().single()
+                data = fallback.data
+                error = fallback.error
+            }
+        } else {
+            const res = await admin.from('assets').insert(baseInsert).select().single()
+            data = res.data
+            error = res.error
+        }
 
         if (error) throw error
 
@@ -238,8 +256,7 @@ export async function uploadFile(
         if (!info || !info.profile) return { success: false, error: 'Unauthorized' }
         const { user, profile } = info
 
-        const supabase = createClient(await cookies()) // Use RLS-scoped client for Insert
-        const adminSupabase = createAdminClient() // Use Admin for Storage if RLS is tricky on storage buckets
+        const adminSupabase = createAdminClient()
 
         // Determine effective department:
         let targetDepartmentId = profile.department_id
@@ -256,29 +273,22 @@ export async function uploadFile(
             if (!clientError && client) {
                 targetDepartmentId = client.department_id
 
-                // Auto-create folder structure: "Clients" -> "{Client Name}"
                 try {
-                    // 1. Ensure "Clients" root folder exists in that department
                     const clientsFolderId = await getOrCreateFolder(
-                        supabase,
+                        adminSupabase,
                         'Clients',
                         null,
                         targetDepartmentId,
                         user.id
                     )
-
-                    // 2. Ensure specific Client folder exists within "Clients"
                     const clientFolderId = await getOrCreateFolder(
-                        supabase,
+                        adminSupabase,
                         client.name,
                         clientsFolderId,
                         targetDepartmentId,
                         user.id
                     )
-
-                    // 3. Force the file to go into this folder
                     targetParentId = clientFolderId
-
                 } catch (folderError) {
                     console.error('Error auto-creating client folders:', folderError)
                     return { success: false, error: 'Failed to organize client folder' }
@@ -287,12 +297,11 @@ export async function uploadFile(
         }
 
         // 1. Upload to Supabase Storage
-        // Path format: department_id/random_filename
         const fileExt = file.name.split('.').pop()
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
         const filePath = `${targetDepartmentId}/${fileName}`
 
-        const { error: uploadError } = await adminSupabase // Using admin for storage to ensure write access to bucket
+        const { error: uploadError } = await adminSupabase
             .storage
             .from('team-assets')
             .upload(filePath, file, {
@@ -302,19 +311,18 @@ export async function uploadFile(
 
         if (uploadError) throw uploadError
 
-        // Get public URL
         const { data: { publicUrl } } = adminSupabase
             .storage
             .from('team-assets')
             .getPublicUrl(filePath)
 
         // 2. Insert into Database
-        const { data, error: dbError } = await supabase
+        const { data, error: dbError } = await adminSupabase
             .from('assets')
             .insert({
                 name: file.name,
                 type: 'file',
-                parent_id: targetParentId, // Use the potentially modified parent ID
+                parent_id: targetParentId,
                 department_id: targetDepartmentId,
                 url: publicUrl,
                 size: file.size,
@@ -339,12 +347,86 @@ export async function uploadFile(
     }
 }
 
+export async function getClientIdByName(name: string): Promise<{ id: string | null }> {
+    try {
+        const admin = createAdminClient()
+        const { data } = await admin
+            .from('clients')
+            .select('id')
+            .eq('name', name)
+            .single()
+        return { id: data?.id ?? null }
+    } catch {
+        return { id: null }
+    }
+}
+
+export async function createDoc(name: string, content: string, parentId: string | null, clientId?: string) {
+    try {
+        const info = await getCallerInfo()
+        if (!info || !info.profile) return { success: false, error: 'Unauthorized' }
+        const { user, profile } = info
+        const admin = createAdminClient()
+
+        let targetDepartmentId = profile.department_id
+
+        if (clientId) {
+            const { data: client } = await admin.from('clients').select('department_id').eq('id', clientId).single()
+            if (client) targetDepartmentId = client.department_id
+        }
+
+        // If parent folder exists, inherit its department
+        if (!targetDepartmentId && parentId) {
+            const { data: parentFolder } = await admin.from('assets').select('department_id').eq('id', parentId).single()
+            if (parentFolder) targetDepartmentId = parentFolder.department_id
+        }
+
+        // Admin fallback: use first department
+        if (!targetDepartmentId) {
+            const { data: firstDept } = await admin.from('departments').select('id').order('name').limit(1).single()
+            if (firstDept) targetDepartmentId = firstDept.id
+        }
+
+        const { data, error } = await admin.from('assets').insert({
+            name,
+            type: 'doc',
+            content,
+            parent_id: parentId,
+            department_id: targetDepartmentId,
+            created_by: user.id,
+            client_id: clientId || null,
+        }).select().single()
+
+        if (error) {
+            console.error('createDoc DB error:', error)
+            return { success: false, error: error.message }
+        }
+        revalidatePath('/admin')
+        return { success: true, data }
+    } catch (error: any) {
+        console.error('Error creating doc:', error)
+        return { success: false, error: error?.message || 'Failed to create document' }
+    }
+}
+
+export async function updateDoc(id: string, name: string, content: string) {
+    try {
+        const admin = createAdminClient()
+        const { error } = await admin.from('assets').update({ name, content, updated_at: new Date().toISOString() }).eq('id', id)
+        if (error) throw error
+        revalidatePath('/admin')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating doc:', error)
+        return { success: false, error: 'Failed to update document' }
+    }
+}
+
 export async function deleteAsset(id: string) {
     try {
-        const supabase = createClient(await cookies())
+        const admin = createAdminClient()
 
-        // Get asset details first to delete from storage if it's a file
-        const { data: asset, error: fetchError } = await supabase
+        const { data: asset, error: fetchError } = await admin
             .from('assets')
             .select('*')
             .eq('id', id)
@@ -352,24 +434,17 @@ export async function deleteAsset(id: string) {
 
         if (fetchError || !asset) return { success: false, error: 'Asset not found' }
 
-        // RLS prevents deleting others' assets automatically via `delete()` on `supabase` client
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await admin
             .from('assets')
             .delete()
             .eq('id', id)
 
         if (deleteError) throw deleteError
 
-        // If it was a file, delete from Storage
         if (asset.type === 'file' && asset.url) {
-            const adminSupabase = createAdminClient()
-            // Extract path from URL or reconstruct it?
-            // This is tricky if we just stored the full public URL. 
-            // Better to store path? Or parse it.
-            // URL: .../storage/v1/object/public/team-assets/DEPT_ID/FILENAME
             const pathPart = asset.url.split('/team-assets/')[1]
             if (pathPart) {
-                await adminSupabase.storage.from('team-assets').remove([pathPart])
+                await admin.storage.from('team-assets').remove([pathPart])
             }
         }
 

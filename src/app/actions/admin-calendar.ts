@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidateTag } from 'next/cache'
 
@@ -67,8 +68,8 @@ async function getSupabaseClient() {
 export async function fetchEvents(): Promise<{ data: AdminEvent[] | null; error: string | null }> {
   try {
     console.log('Server Action: Fetching events...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
+
     const { data, error } = await supabase
       .from('admin_events')
       .select('*')
@@ -90,8 +91,8 @@ export async function fetchEvents(): Promise<{ data: AdminEvent[] | null; error:
 export async function fetchDepartments(): Promise<{ data: Department[] | null; error: string | null }> {
   try {
     console.log('Server Action: Fetching departments...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
+
     const { data, error } = await supabase
       .from('departments')
       .select('id, name')
@@ -113,12 +114,11 @@ export async function fetchDepartments(): Promise<{ data: Department[] | null; e
 export async function fetchUsers(): Promise<{ data: User[] | null; error: string | null }> {
   try {
     console.log('Server Action: Fetching users...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
+
     const { data, error } = await supabase
       .from('profiles')
       .select('id, first_name, last_name')
-      .eq('role', 'admin')
       .order('first_name')
 
     if (error) {
@@ -137,8 +137,8 @@ export async function fetchUsers(): Promise<{ data: User[] | null; error: string
 export async function fetchClients(): Promise<{ data: Client[] | null; error: string | null }> {
   try {
     console.log('Server Action: Fetching clients...')
-    const supabase = await getSupabaseClient()
-    
+    const supabase = createAdminClient()
+
     const { data, error } = await supabase
       .from('clients')
       .select('id, name')

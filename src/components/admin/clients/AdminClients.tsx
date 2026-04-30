@@ -32,6 +32,7 @@ import {
   Edit3,
   Trash2,
   X,
+  ArrowLeft,
   CheckCircle2,
   AlertCircle,
   SortAsc,
@@ -50,6 +51,7 @@ import ClientNewsPanel from "@/components/admin/clients/ClientNewsPanel"
 import ClientTwitterFeed from "@/components/admin/clients/ClientTwitterFeed"
 import ClientDemographics from "@/components/admin/clients/ClientDemographics"
 import ManifestoPriorities from "@/components/admin/clients/ManifestoPriorities"
+import ClientCampaigns from "@/components/admin/clients/ClientCampaigns"
 
 interface AdminClientsProps {
   user: any
@@ -323,6 +325,18 @@ export default function AdminClients({ user }: AdminClientsProps) {
     return typeConfig[type as keyof typeof typeConfig] || '🏢'
   }
 
+  const getClientTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      politician: 'from-orange-500/20 to-red-500/10 border-orange-500/30',
+      corporate: 'from-blue-500/20 to-cyan-500/10 border-blue-500/30',
+      ngo: 'from-green-500/20 to-emerald-500/10 border-green-500/30',
+      government_body: 'from-purple-500/20 to-violet-500/10 border-purple-500/30',
+      startup: 'from-yellow-500/20 to-orange-500/10 border-yellow-500/30',
+      nonprofit: 'from-pink-500/20 to-rose-500/10 border-pink-500/30',
+    }
+    return colors[type] || colors.corporate
+  }
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -334,10 +348,98 @@ export default function AdminClients({ user }: AdminClientsProps) {
     )
   }
 
+  // ── FOLDER GRID (landing view) ──────────────────────────────────────
+  if (!selectedClient && !isCreatingClient) {
+    return (
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-800 bg-gray-800/50">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Building2 className="h-4 w-4" />
+              <span className="text-white font-semibold text-lg">Clients</span>
+            </div>
+            <span className="text-gray-600 text-sm">{filteredClients.length} {filteredClients.length === 1 ? 'client' : 'clients'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                placeholder="Search clients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder:text-gray-500 text-sm focus:outline-none focus:border-blue-500 w-56"
+              />
+            </div>
+            {profile?.role === 'admin' && (
+              <Button onClick={() => setIsCreatingClient(true)} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-1" /> Add Client
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Folder Grid */}
+        <div className="flex-1 overflow-auto p-6">
+          {filteredClients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full">
+              <Building2 className="h-16 w-16 text-gray-600 mb-4" />
+              <p className="text-white font-medium mb-1">{searchQuery ? 'No clients found' : 'No clients yet'}</p>
+              <p className="text-gray-400 text-sm">{searchQuery ? 'Try a different search' : 'Add your first client to get started'}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredClients.map((client) => (
+                <div
+                  key={client.id}
+                  onClick={() => setSelectedClient(client)}
+                  className={`group relative bg-gradient-to-br ${getClientTypeColor(client.client_type)} border rounded-xl p-4 cursor-pointer hover:scale-105 hover:shadow-lg hover:shadow-black/30 transition-all duration-200`}
+                >
+                  {/* Folder tab */}
+                  <div className="absolute -top-2 left-4 w-12 h-2 bg-gray-700 rounded-t-md border border-gray-600 border-b-0" />
+
+                  <div className="flex flex-col items-center text-center space-y-3 pt-2">
+                    {/* Folder icon */}
+                    <div className="relative">
+                      <div className="text-4xl group-hover:scale-110 transition-transform duration-200">
+                        {getClientTypeIcon(client.client_type)}
+                      </div>
+                    </div>
+
+                    {/* Name */}
+                    <div className="w-full">
+                      <p className="text-white font-semibold text-sm leading-tight truncate" title={client.name}>
+                        {client.name}
+                      </p>
+                      {client.industry && (
+                        <p className="text-gray-400 text-xs mt-0.5 truncate">{client.industry}</p>
+                      )}
+                    </div>
+
+                    {/* Status dot */}
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                        client.status === 'active' ? 'bg-green-400' :
+                        client.status === 'prospect' ? 'bg-yellow-400' :
+                        client.status === 'on_hold' ? 'bg-orange-400' :
+                        'bg-gray-400'
+                      }`} />
+                      <span className="text-gray-400 text-xs capitalize">{client.status.replace('_', ' ')}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full">
-      {/* Center Panel - Clients List */}
-      <div className="flex-1 flex flex-col max-w-md border-r border-gray-700">
+      {/* Full-width panel for create / detail */}
+      <div className="flex-1 flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-gray-700">
           <div className="flex items-center justify-between mb-4">
@@ -677,13 +779,13 @@ export default function AdminClients({ user }: AdminClientsProps) {
           <div className="h-full overflow-y-auto">
             <div className="p-6 border-b border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Create New Client</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsCreatingClient(false)}
-                  className="text-gray-400 hover:text-white"
-                >
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={() => setIsCreatingClient(false)} className="text-gray-400 hover:text-white p-1">
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <h3 className="text-xl font-bold text-white">Create New Client</h3>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setIsCreatingClient(false)} className="text-gray-400 hover:text-white">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -1393,8 +1495,12 @@ export default function AdminClients({ user }: AdminClientsProps) {
             {/* Header - Always Visible */}
             <div className="p-6 border-b border-gray-700 bg-gray-900/50">
               <div className="flex items-start justify-between">
+
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); setIsEditMode(false); setEditingClient(null) }} className="text-gray-400 hover:text-white p-1 mr-1">
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
                     <span className="text-2xl">{getClientTypeIcon(selectedClient.client_type)}</span>
                     <div>
                       <h2 className="text-2xl font-bold text-white">{selectedClient.name}</h2>
@@ -1505,6 +1611,12 @@ export default function AdminClients({ user }: AdminClientsProps) {
                       className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-400 rounded-none h-10 px-0 pb-2"
                     >
                       Overview
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="campaigns"
+                      className="bg-transparent border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-400 rounded-none h-10 px-0 pb-2"
+                    >
+                      Campaigns
                     </TabsTrigger>
                     <TabsTrigger
                       value="files"
@@ -1793,6 +1905,10 @@ export default function AdminClients({ user }: AdminClientsProps) {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="campaigns" className="flex-1 overflow-y-auto mt-0">
+                  <ClientCampaigns clientId={selectedClient.id} />
+                </TabsContent>
+
                 <TabsContent value="files" className="flex-1 overflow-hidden py-4 mt-0">
                   <ClientAssets clientId={selectedClient.id} departmentId={selectedClient.department_id} />
                 </TabsContent>
@@ -1837,17 +1953,7 @@ export default function AdminClients({ user }: AdminClientsProps) {
               </Tabs>
             </div>
           </div>
-        ) : (
-          /* Empty State */
-          <div className="flex flex-col items-center justify-center h-full p-8">
-            <Users className="h-24 w-24 text-gray-500 mb-6" />
-            <h3 className="text-xl font-semibold text-white mb-2">Select a client</h3>
-            <p className="text-gray-400 text-center">
-              Choose a client from the list to view their details, or create a new client to get started.
-            </p>
-          </div>
-        )
-        }
+        ) : null}
       </div>
     </div>
   )

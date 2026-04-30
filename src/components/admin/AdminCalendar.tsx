@@ -157,7 +157,7 @@ export default function AdminCalendar() {
       title: `📝 ${post.title || 'Scheduled Post'}`,
       start_date: new Date(post.scheduled_for),
       end_date: new Date(post.scheduled_for),
-      color: post.status === 'approved' ? '#22c55e' : '#eab308', // green if approved, yellow otherwise
+      color: (post.status === 'approval' || post.status === 'posted') ? '#22c55e' : '#eab308',
       all_day: false,
     }));
 

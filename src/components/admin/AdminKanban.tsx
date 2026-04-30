@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Filter, Search } from "lucide-react";
+import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { KanbanBoard, KanbanColumn, KanbanTask } from "@/components/ui/kanban-board";
 import { TaskModal, TaskModalData } from "@/components/ui/task-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +19,8 @@ import {
   type AdminTask,
   type TaskPayload
 } from "@/app/actions/admin-kanban";
-import { useAdminTasks, useAdminDepartments, useAdminUsers } from "@/hooks/useSWR";
-
+import { createProject, deleteProject } from "@/app/actions/projects";
+import { useAdminTasks, useAdminDepartments, useAdminUsers, useAdminProjects, useAdminClients } from "@/hooks/useSWR";
 
 interface TaskStats {
   total: number;
@@ -37,15 +39,20 @@ const kanbanColumns: KanbanColumn[] = [
   { id: 'cancelled', title: 'Cancelled', status: 'cancelled', color: '#EF4444' },
 ];
 
+const STATUS_COLORS: Record<string, string> = {
+  active: 'bg-green-500/10 text-green-400 border-green-500/20',
+  completed: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  on_hold: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+}
+
 export default function AdminKanban() {
   const { user } = useAuth();
 
-  // Use SWR hooks for cached data fetching
   const { tasks, isLoading: tasksLoading, refresh: refreshTasks } = useAdminTasks();
   const { departments } = useAdminDepartments();
   const { users } = useAdminUsers();
-
-  const loading = tasksLoading;
+  const { projects, refresh: refreshProjects } = useAdminProjects();
+  const { clients } = useAdminClients();
 
   const [isTaskModalOpen, setIsTaskModalOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<AdminTask | null>(null);
@@ -53,37 +60,33 @@ export default function AdminKanban() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterPriority, setFilterPriority] = React.useState<string>("all");
   const [filterAssignee, setFilterAssignee] = React.useState<string>("all");
+  const [filterProject, setFilterProject] = React.useState<string>("all");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  // Calculate stats using useMemo to avoid infinite loops
+
+  // Project management state
+  const [isProjectModalOpen, setIsProjectModalOpen] = React.useState(false);
+  const [newProjectName, setNewProjectName] = React.useState("");
+  const [newProjectDesc, setNewProjectDesc] = React.useState("");
+  const [newProjectClientId, setNewProjectClientId] = React.useState("no_client");
+  const [projectCreating, setProjectCreating] = React.useState(false);
+  const [showProjectList, setShowProjectList] = React.useState(false);
+
   const stats = React.useMemo(() => {
     return tasks.reduce((acc, task) => {
       acc.total++;
       acc[task.status as keyof Omit<TaskStats, 'total'>]++;
       return acc;
-    }, {
-      total: 0,
-      todo: 0,
-      in_progress: 0,
-      review: 0,
-      completed: 0,
-      cancelled: 0,
-    } as TaskStats);
+    }, { total: 0, todo: 0, in_progress: 0, review: 0, completed: 0, cancelled: 0 } as TaskStats);
   }, [tasks]);
 
   const handleTaskMove = React.useCallback(async (taskId: string, newStatus: string, newPosition: number) => {
     try {
       const result = await moveTask(taskId, newStatus, newPosition);
-      if (result.error) {
-        console.error('Error moving task:', result.error);
-        throw new Error(result.error);
-      }
-      // Refresh tasks to ensure consistency
+      if (result.error) throw new Error(result.error);
       await refreshTasks();
-    } catch (error) {
-      console.error('Error in handleTaskMove:', error);
-      // Refresh to restore correct state
+    } catch {
       await refreshTasks();
-      throw error;
+      throw new Error('Failed to move task');
     }
   }, [refreshTasks]);
 
@@ -114,11 +117,11 @@ export default function AdminKanban() {
     estimated_hours: task.estimated_hours,
     tags: task.tags,
     department_id: task.department_id,
+    project_id: task.project_id,
   }), []);
 
   const handleSaveTask = React.useCallback(async (taskData: TaskModalData) => {
     if (!user) return;
-
     setIsSubmitting(true);
     try {
       const payload: TaskPayload = {
@@ -129,25 +132,23 @@ export default function AdminKanban() {
         type: taskData.type,
         assigned_to: taskData.assigned_to,
         department_id: taskData.department_id,
+        project_id: taskData.project_id,
         start_date: taskData.start_date?.toISOString(),
         due_date: taskData.due_date?.toISOString(),
         estimated_hours: taskData.estimated_hours,
         tags: taskData.tags,
         created_by: user.id,
-        kanban_position: 0, // Will be adjusted by the database
+        kanban_position: 0,
       };
 
       const result = await saveTask(payload, taskData.id);
-      if (result.error) {
-        console.error('Error saving task:', result.error);
-        throw new Error(result.error);
-      }
+      if (result.error) throw new Error(result.error);
 
       await refreshTasks();
       setIsTaskModalOpen(false);
       setSelectedTask(null);
     } catch (error) {
-      console.error('Error in handleSaveTask:', error);
+      console.error('Error saving task:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -156,26 +157,51 @@ export default function AdminKanban() {
   const handleDeleteTask = React.useCallback(async (taskId: string) => {
     try {
       const result = await deleteTask(taskId);
-      if (result.error) {
-        console.error('Error deleting task:', result.error);
-        throw new Error(result.error);
-      }
-
+      if (result.error) throw new Error(result.error);
       await refreshTasks();
       setIsTaskModalOpen(false);
       setSelectedTask(null);
     } catch (error) {
-      console.error('Error in handleDeleteTask:', error);
+      console.error('Error deleting task:', error);
       throw error;
     }
   }, [refreshTasks]);
 
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim() || !user) return;
+    setProjectCreating(true);
+    try {
+      const result = await createProject({
+        name: newProjectName.trim(),
+        description: newProjectDesc.trim() || undefined,
+        client_id: newProjectClientId === 'no_client' ? undefined : newProjectClientId,
+        created_by: user.id,
+      });
+      if (result.error) { alert(result.error); return; }
+      await refreshProjects();
+      setIsProjectModalOpen(false);
+      setNewProjectName("");
+      setNewProjectDesc("");
+      setNewProjectClientId("no_client");
+    } finally {
+      setProjectCreating(false);
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (!confirm("Delete this project? Tasks linked to it will not be deleted.")) return;
+    await deleteProject(id);
+    if (filterProject === id) setFilterProject("all");
+    await refreshProjects();
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (task.description?.toLowerCase().includes(searchTerm.toLowerCase()));
+      task.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPriority = filterPriority === "all" || task.priority === filterPriority;
     const matchesAssignee = filterAssignee === "all" || task.assigned_to === filterAssignee;
-    return matchesSearch && matchesPriority && matchesAssignee;
+    const matchesProject = filterProject === "all" || task.project_id === filterProject;
+    return matchesSearch && matchesPriority && matchesAssignee && matchesProject;
   });
 
   const kanbanTasks: KanbanTask[] = filteredTasks.map(task => ({
@@ -187,8 +213,7 @@ export default function AdminKanban() {
     type: task.type,
     assignedTo: task.assigned_to ? {
       id: task.assigned_to,
-      name: users.find(u => u.id === task.assigned_to)?.first_name + " " +
-        users.find(u => u.id === task.assigned_to)?.last_name || "Unknown",
+      name: `${users.find(u => u.id === task.assigned_to)?.first_name || ''} ${users.find(u => u.id === task.assigned_to)?.last_name || ''}`.trim() || "Unknown",
     } : undefined,
     dueDate: task.due_date ? new Date(task.due_date) : undefined,
     tags: task.tags,
@@ -197,13 +222,15 @@ export default function AdminKanban() {
     kanban_position: task.kanban_position,
   }));
 
-  if (loading) {
+  if (tasksLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-white">Loading kanban board...</div>
       </div>
     );
   }
+
+  const activeProject = projects.find((p: any) => p.id === filterProject);
 
   return (
     <div className="h-full bg-black text-white">
@@ -212,78 +239,119 @@ export default function AdminKanban() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white">Kanban Board</h1>
-            <p className="text-gray-400">Manage tasks and reminders</p>
+            <p className="text-gray-400">Manage tasks and track progress</p>
           </div>
-          <Button
-            onClick={() => handleAddTask('todo')}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowProjectList(v => !v)}
+              className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800"
+            >
+              <FolderKanban className="h-4 w-4 mr-2" />
+              Projects
+              <ChevronDown className={`h-3.5 w-3.5 ml-2 transition-transform ${showProjectList ? 'rotate-180' : ''}`} />
+            </Button>
+            <Button
+              onClick={() => handleAddTask('todo')}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Task
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          <Card className="bg-gray-900 border-gray-700">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Total Tasks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-white">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gray-900 border-gray-700">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">To Do</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-400">{stats.todo}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gray-900 border-gray-700">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">In Progress</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-400">{stats.in_progress}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gray-900 border-gray-700">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Review</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-400">{stats.review}</div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gray-900 border-gray-700">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Completed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-400">{stats.completed}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="flex space-x-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-gray-900 border-gray-700 text-white"
-              />
+        {/* Projects Panel */}
+        {showProjectList && (
+          <div className="mb-6 bg-gray-900 border border-gray-700 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white">Projects</h3>
+              <Button size="sm" onClick={() => setIsProjectModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs">
+                <Plus className="h-3.5 w-3.5 mr-1" /> New Project
+              </Button>
             </div>
+            {projects.length === 0 ? (
+              <p className="text-gray-500 text-sm">No projects yet. Create one to group your tasks.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {projects.map((p: any) => (
+                  <div
+                    key={p.id}
+                    onClick={() => { setFilterProject(filterProject === p.id ? 'all' : p.id); setShowProjectList(false); }}
+                    className={`group flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      filterProject === p.id
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                      {p.clients?.name && <p className="text-xs text-gray-400 mt-0.5">{p.clients.name}</p>}
+                      {p.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{p.description}</p>}
+                      <span className={`inline-flex mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${STATUS_COLORS[p.status] || STATUS_COLORS.active}`}>
+                        {p.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
+                      className="opacity-0 group-hover:opacity-100 ml-2 text-gray-500 hover:text-red-400 transition-all flex-shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-5 gap-4 mb-6">
+          {[
+            { label: 'Total', value: stats.total, color: 'text-white' },
+            { label: 'To Do', value: stats.todo, color: 'text-gray-400' },
+            { label: 'In Progress', value: stats.in_progress, color: 'text-blue-400' },
+            { label: 'Review', value: stats.review, color: 'text-purple-400' },
+            { label: 'Completed', value: stats.completed, color: 'text-green-400' },
+          ].map(s => (
+            <Card key={s.label} className="bg-gray-900 border-gray-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-400">{s.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex-1 min-w-48 relative">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-gray-900 border-gray-700 text-white"
+            />
+          </div>
+
+          {/* Active project filter badge */}
+          {filterProject !== 'all' && activeProject && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-md text-sm text-blue-300">
+              <FolderKanban className="h-3.5 w-3.5" />
+              {activeProject.name}
+              <button onClick={() => setFilterProject('all')} className="ml-1 hover:text-white">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-48 bg-gray-900 border-gray-700 text-white">
+            <SelectTrigger className="w-44 bg-gray-900 border-gray-700 text-white">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by priority" />
+              <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-700">
               <SelectItem value="all">All Priorities</SelectItem>
@@ -293,22 +361,35 @@ export default function AdminKanban() {
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
+
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger className="w-48 bg-gray-900 border-gray-700 text-white">
-              <SelectValue placeholder="Filter by assignee" />
+            <SelectTrigger className="w-44 bg-gray-900 border-gray-700 text-white">
+              <SelectValue placeholder="Assignee" />
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-700">
               <SelectItem value="all">All Assignees</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name}
+              {users.map((u: any) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.first_name} {u.last_name}
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-44 bg-gray-900 border-gray-700 text-white">
+              <SelectValue placeholder="Project" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-gray-700">
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map((p: any) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Kanban Board */}
+        {/* Board */}
         <div className="bg-gray-900 rounded-lg border border-gray-700 p-4">
           <KanbanBoard
             columns={kanbanColumns}
@@ -328,8 +409,70 @@ export default function AdminKanban() {
           onDelete={handleDeleteTask}
           departments={departments}
           users={users}
+          projects={projects}
           isLoading={isSubmitting}
         />
+
+        {/* New Project Modal */}
+        <Dialog open={isProjectModalOpen} onOpenChange={setIsProjectModalOpen}>
+          <DialogContent className="bg-gray-900 border-gray-700 text-white sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderKanban className="h-5 w-5 text-blue-400" />
+                New Project
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Project Name *</label>
+                <Input
+                  autoFocus
+                  placeholder="e.g. Nari Shakti Vardhan Event"
+                  value={newProjectName}
+                  onChange={e => setNewProjectName(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  onKeyDown={e => e.key === 'Enter' && handleCreateProject()}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Description</label>
+                <Textarea
+                  placeholder="What is this project about?"
+                  value={newProjectDesc}
+                  onChange={e => setNewProjectDesc(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Link to Client (optional)</label>
+                <Select value={newProjectClientId} onValueChange={setNewProjectClientId}>
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectItem value="no_client">No Client</SelectItem>
+                    {clients.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsProjectModalOpen(false)} className="text-gray-400 hover:text-white">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateProject}
+                disabled={!newProjectName.trim() || projectCreating}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {projectCreating ? 'Creating...' : 'Create Project'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

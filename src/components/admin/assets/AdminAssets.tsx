@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { Asset, getAssets, createFolder, uploadFile, deleteAsset } from "@/app/actions/assets"
+import { Asset, getAssets, createFolder, uploadFile, deleteAsset, createDoc, updateDoc } from "@/app/actions/assets"
 import { AssetGrid } from "./AssetGrid"
 import { AssetUploader } from "./AssetUploader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { ChevronRight, FolderPlus, Upload, Grid, List as ListIcon, Home, Loader2, ArrowLeft, RefreshCw } from "lucide-react"
+import { ChevronRight, FolderPlus, Upload, Grid, List as ListIcon, Home, Loader2, ArrowLeft, HardDrive, ScrollText } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Breadcrumb {
@@ -28,9 +28,17 @@ export default function AdminAssets() {
     const [isUploadOpen, setIsUploadOpen] = useState(false)
     const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
     const [newFolderName, setNewFolderName] = useState('')
+    const [newEventName, setNewEventName] = useState('')
+    const [newEventDate, setNewEventDate] = useState('')
     const [creatingFolder, setCreatingFolder] = useState(false)
 
-    // Initial Fetch & Refresh
+    // Doc state
+    const [isDocOpen, setIsDocOpen] = useState(false)
+    const [editingDoc, setEditingDoc] = useState<Asset | null>(null)
+    const [docTitle, setDocTitle] = useState('')
+    const [docContent, setDocContent] = useState('')
+    const [savingDoc, setSavingDoc] = useState(false)
+
     const loadAssets = async (folderId: string | null) => {
         setLoading(true)
         try {
@@ -51,9 +59,7 @@ export default function AdminAssets() {
         loadAssets(currentFolderId)
     }, [currentFolderId])
 
-    // Navigation Handlers
     const handleNavigate = (folderId: string) => {
-        // Find folder name for breadcrumb
         const folder = assets.find(a => a.id === folderId)
         if (folder) {
             setBreadcrumbs(prev => [...prev, { id: folder.id, name: folder.name }])
@@ -73,16 +79,17 @@ export default function AdminAssets() {
         }
     }
 
-    // Action Handlers
     const handleCreateFolder = async () => {
         if (!newFolderName.trim()) return
         setCreatingFolder(true)
         try {
-            const result = await createFolder(newFolderName, currentFolderId)
+            const result = await createFolder(newFolderName, currentFolderId, undefined, newEventName || undefined, newEventDate || undefined)
             if (result.success) {
                 setIsCreateFolderOpen(false)
                 setNewFolderName('')
-                loadAssets(currentFolderId) // Refresh
+                setNewEventName('')
+                setNewEventDate('')
+                loadAssets(currentFolderId)
             } else {
                 alert(result.error)
             }
@@ -92,7 +99,6 @@ export default function AdminAssets() {
     }
 
     const handleFileUpload = async (files: File[]) => {
-        // Process sequentially
         for (const file of files) {
             const formData = new FormData()
             formData.append('file', file)
@@ -112,29 +118,78 @@ export default function AdminAssets() {
         }
     }
 
+    const openNewDoc = () => {
+        setEditingDoc(null)
+        setDocTitle('')
+        setDocContent('')
+        setIsDocOpen(true)
+    }
+
+    const openExistingDoc = (asset: Asset) => {
+        setEditingDoc(asset)
+        setDocTitle(asset.name)
+        setDocContent(asset.content || '')
+        setIsDocOpen(true)
+    }
+
+    const handleSaveDoc = async () => {
+        if (!docTitle.trim()) return
+        setSavingDoc(true)
+        try {
+            let result
+            if (editingDoc) {
+                result = await updateDoc(editingDoc.id, docTitle, docContent)
+            } else {
+                result = await createDoc(docTitle, docContent, currentFolderId)
+            }
+            if (result.success) {
+                setIsDocOpen(false)
+                loadAssets(currentFolderId)
+            } else {
+                alert(result.error || 'Failed to save document')
+            }
+        } finally {
+            setSavingDoc(false)
+        }
+    }
+
     return (
-        <div className="space-y-6 h-full flex flex-col">
-            {/* Header / Toolbar */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+        <div className="space-y-5 h-full flex flex-col">
+
+            {/* Page Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <HardDrive className="h-6 w-6 text-blue-400" />
+                        Asset Library
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-0.5">Manage files, folders and client assets</p>
+                </div>
+            </div>
+
+            {/* Toolbar */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-800/60 p-3 rounded-xl border border-gray-700/80">
 
                 {/* Breadcrumbs */}
-                <div className="flex items-center space-x-2 text-sm overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1 text-sm overflow-x-auto no-scrollbar">
                     {breadcrumbs.length > 1 && (
-                        <Button variant="ghost" size="icon" onClick={handleUp} className="mr-2 h-8 w-8">
-                            <ArrowLeft className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={handleUp} className="h-7 w-7 mr-1 text-gray-400 hover:text-white flex-shrink-0">
+                            <ArrowLeft className="h-3.5 w-3.5" />
                         </Button>
                     )}
                     {breadcrumbs.map((crumb, index) => (
-                        <div key={crumb.id || 'root'} className="flex items-center">
-                            {index > 0 && <ChevronRight className="h-4 w-4 text-gray-500 mx-1" />}
+                        <div key={crumb.id || 'root'} className="flex items-center gap-1">
+                            {index > 0 && <ChevronRight className="h-3.5 w-3.5 text-gray-600 flex-shrink-0" />}
                             <button
                                 onClick={() => handleBreadcrumbClick(index)}
                                 className={cn(
-                                    "hover:text-white transition-colors",
-                                    index === breadcrumbs.length - 1 ? "text-white font-semibold" : "text-gray-400"
+                                    "px-2 py-1 rounded-md transition-colors whitespace-nowrap",
+                                    index === breadcrumbs.length - 1
+                                        ? "text-white font-semibold bg-gray-700"
+                                        : "text-gray-400 hover:text-white hover:bg-gray-700/50"
                                 )}
                             >
-                                {index === 0 ? <Home className="h-4 w-4" /> : crumb.name}
+                                {index === 0 ? <Home className="h-3.5 w-3.5" /> : crumb.name}
                             </button>
                         </div>
                     ))}
@@ -161,21 +216,25 @@ export default function AdminAssets() {
                         </Button>
                     </div>
 
-                    <Button variant="outline" size="sm" onClick={() => setIsCreateFolderOpen(true)} className="border-gray-600">
-                        <FolderPlus className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" onClick={() => setIsCreateFolderOpen(true)} className="border-gray-600 text-gray-300 hover:text-white hover:bg-gray-700">
+                        <FolderPlus className="h-4 w-4 mr-1.5" />
                         New Folder
                     </Button>
-                    <Button size="sm" onClick={() => setIsUploadOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                        <Upload className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" onClick={openNewDoc} className="border-emerald-700 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20">
+                        <ScrollText className="h-4 w-4 mr-1.5" />
+                        New Doc
+                    </Button>
+                    <Button size="sm" onClick={() => setIsUploadOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Upload className="h-4 w-4 mr-1.5" />
                         Upload
                     </Button>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 min-h-[400px]">
+            <div className="flex-1 min-h-[400px] overflow-auto">
                 {loading ? (
-                    <div className="flex justify-center items-center h-full">
+                    <div className="flex justify-center items-center h-40">
                         <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
                     </div>
                 ) : (
@@ -184,30 +243,55 @@ export default function AdminAssets() {
                         viewMode={viewMode}
                         onNavigate={handleNavigate}
                         onDelete={handleDelete}
+                        onOpenDoc={openExistingDoc}
                     />
                 )}
             </div>
 
-            {/* Dialogs */}
-            <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+            {/* Create Folder Dialog */}
+            <Dialog open={isCreateFolderOpen} onOpenChange={(open) => {
+                setIsCreateFolderOpen(open)
+                if (!open) { setNewFolderName(''); setNewEventName(''); setNewEventDate('') }
+            }}>
                 <DialogContent className="bg-gray-800 border-gray-700 text-white">
                     <DialogHeader>
                         <DialogTitle>Create New Folder</DialogTitle>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Input
-                            placeholder="Folder Name"
-                            value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-                            className="bg-gray-700 border-gray-600"
-                            autoFocus
-                        />
+                    <div className="py-4 space-y-3">
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Folder Name *</label>
+                            <Input
+                                placeholder="e.g. Campaign Photos"
+                                value={newFolderName}
+                                onChange={(e) => setNewFolderName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                                className="bg-gray-700 border-gray-600"
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Event Name <span className="text-gray-600">(optional)</span></label>
+                            <Input
+                                placeholder="e.g. Diwali Rally 2025"
+                                value={newEventName}
+                                onChange={(e) => setNewEventName(e.target.value)}
+                                className="bg-gray-700 border-gray-600"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Event Date <span className="text-gray-600">(optional)</span></label>
+                            <Input
+                                type="date"
+                                value={newEventDate}
+                                onChange={(e) => setNewEventDate(e.target.value)}
+                                className="bg-gray-700 border-gray-600"
+                            />
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsCreateFolderOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateFolder} disabled={creatingFolder}>
-                            {creatingFolder ? 'Creating...' : 'Create'}
+                        <Button onClick={handleCreateFolder} disabled={creatingFolder || !newFolderName.trim()}>
+                            {creatingFolder ? 'Creating...' : 'Create Folder'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -218,6 +302,50 @@ export default function AdminAssets() {
                     <AssetUploader onUpload={handleFileUpload} onClose={() => setIsUploadOpen(false)} />
                 </div>
             )}
+
+            {/* Doc Editor Dialog */}
+            <Dialog open={isDocOpen} onOpenChange={(open) => { if (!open) setIsDocOpen(false) }}>
+                <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-2xl w-full">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-emerald-400">
+                            <ScrollText className="h-5 w-5" />
+                            {editingDoc ? 'Edit Document' : 'New Document'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-3 space-y-3">
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Title *</label>
+                            <Input
+                                placeholder="e.g. Employee Inventory — Q1 2025"
+                                value={docTitle}
+                                onChange={(e) => setDocTitle(e.target.value)}
+                                className="bg-gray-700 border-gray-600 text-white"
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Content</label>
+                            <textarea
+                                placeholder="Write your notes here..."
+                                value={docContent}
+                                onChange={(e) => setDocContent(e.target.value)}
+                                rows={12}
+                                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm text-white placeholder:text-gray-500 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsDocOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={handleSaveDoc}
+                            disabled={savingDoc || !docTitle.trim()}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                            {savingDoc ? 'Saving...' : editingDoc ? 'Update' : 'Create'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

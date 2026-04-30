@@ -112,6 +112,7 @@ export async function getTeamMembers() {
         const adminDeptId = await getAdminDepartmentId()
 
         const isSuperAdmin =
+            callerProfile.role === 'admin' ||
             callerProfile.department_id === adminDept?.id ||
             (adminDeptId && callerProfile.department_id === adminDeptId)
 
@@ -227,5 +228,29 @@ export async function deleteTeamMember(userId: string): Promise<{ success: boole
     } catch (error) {
         console.error('Error in deleteTeamMember:', error)
         return { success: false, error: 'Failed to delete team member' }
+    }
+}
+
+// ============ UPDATE TEAM MEMBER ============
+export async function updateTeamMember(
+    userId: string,
+    updates: { first_name?: string; last_name?: string; department_id?: string; email?: string }
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const adminClient = createAdminClient()
+
+        // Update profiles table only (email here is the display/contact email)
+        const { error } = await adminClient
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId)
+
+        if (error) return { success: false, error: error.message }
+
+        revalidatePath('/admin')
+        return { success: true }
+    } catch (error) {
+        console.error('Error in updateTeamMember:', error)
+        return { success: false, error: 'Failed to update team member' }
     }
 }

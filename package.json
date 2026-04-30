@@ -44,11 +44,13 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
+    "resend": "^6.12.2",
     "swr": "^2.3.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "task-master-ai": "^0.19.0",
+    "twilio": "^6.0.0",
     "twitter-api-v2": "^1.28.0",
     "typescript": "^5.8.3",
     "zod": "^3.25.75"

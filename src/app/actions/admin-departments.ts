@@ -43,7 +43,15 @@ export async function getDepartmentStats(): Promise<{ success: boolean, data?: D
         }
 
         const ADMIN_DEPT_ID = adminDept.id
-        const userDeptId = user.user_metadata.department_id
+
+        // Read department_id from profiles table (not user_metadata)
+        const { data: userProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('department_id')
+            .eq('id', user.id)
+            .single()
+
+        const userDeptId = userProfile?.department_id
         const isSuperAdmin = userDeptId === ADMIN_DEPT_ID
 
         // 3. Fetch departments based on role
@@ -115,7 +123,13 @@ async function checkAdminPermission(): Promise<{ allowed: boolean; error?: strin
 
         if (!adminDept) return { allowed: false, error: 'Admin department not found' }
 
-        const userDeptId = user.user_metadata.department_id
+        const { data: userProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('department_id')
+            .eq('id', user.id)
+            .single()
+
+        const userDeptId = userProfile?.department_id
         if (userDeptId !== adminDept.id) {
             return { allowed: false, error: 'Only Admin department members can manage departments' }
         }

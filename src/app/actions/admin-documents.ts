@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidateTag } from 'next/cache'
 
@@ -52,7 +53,7 @@ async function getSupabaseClient() {
 export async function fetchDocuments(): Promise<{ data: Document[] | null; error: string | null }> {
   try {
     console.log('Server Action: Fetching documents...')
-    const supabase = await getSupabaseClient()
+    const supabase = createAdminClient()
 
     // Single query with Supabase relational join - much more efficient
     const { data: documentsData, error: documentsError } = await supabase
@@ -99,7 +100,7 @@ export async function fetchDocuments(): Promise<{ data: Document[] | null; error
 export async function fetchDepartments(): Promise<{ data: Department[] | null; error: string | null }> {
   try {
     console.log('Server Action: Fetching departments...')
-    const supabase = await getSupabaseClient()
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
       .from('departments')

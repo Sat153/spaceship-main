@@ -32,6 +32,7 @@ export interface TaskModalData {
   estimated_hours?: number;
   tags?: string[];
   department_id?: string;
+  project_id?: string;
 }
 
 export interface TaskModalProps {
@@ -42,6 +43,7 @@ export interface TaskModalProps {
   onDelete?: (taskId: string) => void;
   departments?: Array<{ id: string; name: string }>;
   users?: Array<{ id: string; first_name: string; last_name: string }>;
+  projects?: Array<{ id: string; name: string }>;
   isLoading?: boolean;
 }
 
@@ -53,6 +55,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onDelete,
   departments = [],
   users = [],
+  projects = [],
   isLoading = false,
 }) => {
   const [formData, setFormData] = React.useState<TaskModalData>({
@@ -62,6 +65,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
     priority: "medium",
     type: "task",
     tags: [],
+    project_id: undefined,
   });
 
   const [tagInput, setTagInput] = React.useState("");
@@ -73,6 +77,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         tags: task.tags || [],
         assigned_to: task.assigned_to || "unassigned",
         department_id: task.department_id || "no_department",
+        project_id: task.project_id || "no_project",
       });
     } else {
       setFormData({
@@ -84,6 +89,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         tags: [],
         assigned_to: "unassigned",
         department_id: "no_department",
+        project_id: "no_project",
       });
     }
     setTagInput("");
@@ -98,6 +104,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       ...formData,
       assigned_to: formData.assigned_to === "unassigned" ? undefined : formData.assigned_to,
       department_id: formData.department_id === "no_department" ? undefined : formData.department_id,
+      project_id: formData.project_id === "no_project" ? undefined : formData.project_id,
     };
     
     onSave(taskDataToSave);
@@ -258,6 +265,27 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   {departments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Project */}
+            <div className="col-span-2">
+              <Label className="text-white">Project</Label>
+              <Select
+                value={formData.project_id || "no_project"}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, project_id: value }))}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue placeholder="Select project (optional)" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="no_project">No Project</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

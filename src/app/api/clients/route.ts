@@ -142,22 +142,11 @@ export async function GET(request: NextRequest) {
       query = query.eq('department_id', departmentId)
     }
 
-    // --- RBAC LOGIC START ---
-    // Check if user is Super Admin (Admin Dept)
-    const { data: adminDept } = await supabase
-      .from('departments')
-      .select('id')
-      .eq('name', 'Admin')
-      .single()
-
-    const ADMIN_DEPT_ID = adminDept?.id
-    const isSuperAdmin = profile.department_id === ADMIN_DEPT_ID
-
-    // For non-Super Admins, ensure department isolation
+    // Admins see all clients; non-admins see only their department
+    const isSuperAdmin = profile.role === 'admin'
     if (!isSuperAdmin) {
       query = query.eq('department_id', profile.department_id)
     }
-    // --- RBAC LOGIC END ---
 
     // Apply pagination and ordering
     query = query
@@ -179,6 +168,7 @@ export async function GET(request: NextRequest) {
     if (!isSuperAdmin) {
       countQuery = countQuery.eq('department_id', profile.department_id)
     }
+
 
     const { count: totalCount } = await countQuery
 

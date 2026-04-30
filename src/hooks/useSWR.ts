@@ -405,6 +405,31 @@ export function useAdminUsers() {
     }
 }
 
+export function useAdminProjects() {
+    const { data, error, isLoading, mutate } = useSWR<{
+        data: any[] | null;
+        error: string | null;
+    }>(
+        'admin-projects',
+        async () => {
+            const { fetchProjects } = await import('@/app/actions/projects')
+            return fetchProjects()
+        },
+        {
+            revalidateOnFocus: false,
+            dedupingInterval: 60000,
+        }
+    )
+
+    return {
+        projects: data?.data || [],
+        isLoading,
+        isError: !!error || !!data?.error,
+        error: error || data?.error,
+        refresh: mutate,
+    }
+}
+
 export function useAdminClients() {
     const { data, error, isLoading, mutate } = useSWR<{
         data: any[] | null;
