@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 
 import { TwitterApi } from 'twitter-api-v2'
@@ -50,10 +51,11 @@ export async function getClientIntelligence(clientId: string): Promise<{
     data: ClientIntelligence[] | null
     error: string | null
 }> {
+    console.log('🔍 ACTION: getClientIntelligence')
     try {
-        const supabase = await getSupabaseClient()
+        const adminSupabase = createAdminClient()
 
-        const { data, error } = await supabase
+        const { data, error } = await adminSupabase
             .from('client_intelligence')
             .select('*')
             .eq('client_id', clientId)
@@ -79,20 +81,18 @@ export async function addClientIntelligence(data: CreateIntelligenceData): Promi
 }> {
     try {
         const supabase = await getSupabaseClient()
-
-        // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser()
         if (userError || !user) {
             return { data: null, error: 'Unauthorized' }
         }
 
-        const { data: result, error } = await supabase
+        const adminSupabase = createAdminClient()
+        const { data: result, error } = await adminSupabase
             .from('client_intelligence')
             .insert({
                 ...data,
-                created_by: user.id,
                 relevance_score: data.relevance_score ?? 1.0,
-                is_verified: data.is_verified ?? true, // Manual entries are verified by default
+                is_verified: data.is_verified ?? true,
             })
             .select()
             .single()
@@ -115,9 +115,9 @@ export async function deleteClientIntelligence(id: string): Promise<{
     error: string | null
 }> {
     try {
-        const supabase = await getSupabaseClient()
+        const adminSupabase = createAdminClient()
 
-        const { error } = await supabase
+        const { error } = await adminSupabase
             .from('client_intelligence')
             .delete()
             .eq('id', id)
@@ -140,9 +140,9 @@ export async function verifyIntelligence(id: string, isVerified: boolean): Promi
     error: string | null
 }> {
     try {
-        const supabase = await getSupabaseClient()
+        const adminSupabase = createAdminClient()
 
-        const { error } = await supabase
+        const { error } = await adminSupabase
             .from('client_intelligence')
             .update({ is_verified: isVerified })
             .eq('id', id)
@@ -162,9 +162,9 @@ export async function verifyIntelligence(id: string, isVerified: boolean): Promi
 // Get intelligence summary for AI chatbot context
 export async function getIntelligenceSummaryForAI(clientId: string): Promise<string> {
     try {
-        const supabase = await getSupabaseClient()
+        const adminSupabase = createAdminClient()
 
-        const { data, error } = await supabase
+        const { data, error } = await adminSupabase
             .from('client_intelligence')
             .select('title, content, summary, source_type, sentiment, published_at')
             .eq('client_id', clientId)
@@ -196,7 +196,7 @@ ${summaries}
     }
 }
 
-// Fetch news from NewsAPI and save to database
+// Fetch news via Google News RSS (free, no API key required)
 export async function fetchNewsForClient(
     clientId: string,
     clientName: string,
@@ -209,110 +209,105 @@ export async function fetchNewsForClient(
     try {
         const supabase = await getSupabaseClient()
 
-        // Get current user
         const { data: { user }, error: userError } = await supabase.auth.getUser()
         if (userError || !user) {
             return { data: null, error: 'Unauthorized' }
         }
 
-        // Check if API key is configured
-        const apiKey = process.env.NEWSAPI_KEY
-        if (!apiKey) {
-            return {
-                data: null,
-                error: 'NewsAPI key not configured. Add NEWSAPI_KEY to your .env.local file.',
-                message: 'Get a free API key from https://newsapi.org/register'
-            }
-        }
-
-        // Build search query - use client name + additional context
+        // Build search query
         const searchTerms = [clientName]
         if (additionalKeywords && additionalKeywords.length > 0) {
             searchTerms.push(...additionalKeywords)
         }
-        const query = encodeURIComponent(searchTerms.join(' OR '))
+        const query = encodeURIComponent(searchTerms.join(' '))
 
-        // Fetch from NewsAPI (Everything endpoint for broader search)
-        // Free tier: limited to articles from last month
-        const oneMonthAgo = new Date()
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-        const fromDate = oneMonthAgo.toISOString().split('T')[0]
+        // Google News RSS — free, no key, great Indian coverage
+        const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-IN&gl=IN&ceid=IN:en`
 
-        const newsUrl = `https://newsapi.org/v2/everything?q=${query}&from=${fromDate}&sortBy=publishedAt&pageSize=10&language=en&apiKey=${apiKey}`
-
-        const response = await fetch(newsUrl, {
-            headers: { 'User-Agent': 'SpaceshipCRM/1.0' }
+        const response = await fetch(rssUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SpaceshipCRM/1.0)' }
         })
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            console.error('NewsAPI error:', errorData)
-            return {
-                data: null,
-                error: `NewsAPI error: ${errorData.message || response.statusText}`
-            }
+            return { data: null, error: `Failed to fetch news: ${response.statusText}` }
         }
 
-        const newsData = await response.json()
+        const xml = await response.text()
 
-        if (!newsData.articles || newsData.articles.length === 0) {
+        // Parse RSS <item> blocks
+        const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || []
+
+        if (itemBlocks.length === 0) {
             return {
                 data: [],
                 error: null,
-                message: `No news found for "${clientName}" in the last month.`
+                message: `No news found for "${clientName}".`
             }
         }
 
-        // Process and save articles
+        const extractText = (block: string, tag: string): string => {
+            const m = block.match(new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`, 'i'))
+            return m ? m[1].trim() : ''
+        }
+
+        const articles = itemBlocks.slice(0, 15).map(block => ({
+            title: extractText(block, 'title'),
+            link: extractText(block, 'link'),
+            description: extractText(block, 'description'),
+            pubDate: extractText(block, 'pubDate'),
+            sourceName: extractText(block, 'source'),
+        })).filter(a => a.title && a.link)
+
+        if (articles.length === 0) {
+            return { data: [], error: null, message: `No news found for "${clientName}".` }
+        }
+
+        // Save to database — use admin client to bypass RLS on server-side writes
+        const adminSupabase = createAdminClient()
+
+        // Fetch existing URLs for this client to avoid duplicates
+        const { data: existing } = await adminSupabase
+            .from('client_intelligence')
+            .select('source_url')
+            .eq('client_id', clientId)
+        const existingUrls = new Set((existing || []).map(r => r.source_url).filter(Boolean))
+
+        const newArticles = articles.filter(a => !existingUrls.has(a.link))
         const savedArticles: ClientIntelligence[] = []
-        const errors: string[] = []
 
-        for (const article of newsData.articles) {
-            // Skip articles without proper content
-            if (!article.title || article.title === '[Removed]') continue
+        for (const article of newArticles) {
+            const { data: saved, error: saveError } = await adminSupabase
+                .from('client_intelligence')
+                .insert({
+                    client_id: clientId,
+                    source_type: 'news',
+                    source_name: article.sourceName || 'Google News',
+                    source_url: article.link,
+                    title: article.title,
+                    content: article.description?.replace(/<[^>]+>/g, '').substring(0, 500) || null,
+                    published_at: article.pubDate ? new Date(article.pubDate).toISOString() : new Date().toISOString(),
+                    fetched_at: new Date().toISOString(),
+                    is_verified: false,
+                    relevance_score: 0.7,
+                })
+                .select()
+                .single()
 
-            try {
-                // Use upsert to avoid duplicates
-                const { data: saved, error: saveError } = await supabase
-                    .from('client_intelligence')
-                    .upsert({
-                        client_id: clientId,
-                        source_type: 'news',
-                        source_name: article.source?.name || 'Unknown Source',
-                        source_url: article.url,
-                        title: article.title,
-                        content: article.description || article.content?.substring(0, 500),
-                        image_url: article.urlToImage,
-                        published_at: article.publishedAt,
-                        is_verified: false, // Needs human verification
-                        relevance_score: 0.7, // Default score, AI can refine later
-                        created_by: user.id,
-                        metadata: {
-                            author: article.author,
-                            fetched_via: 'newsapi'
-                        }
-                    }, {
-                        onConflict: 'client_id,source_url'
-                    })
-                    .select()
-                    .single()
-
-                if (saved) {
-                    savedArticles.push(saved)
-                }
-                if (saveError && !saveError.message.includes('duplicate')) {
-                    errors.push(saveError.message)
-                }
-            } catch (err) {
-                console.error('Error saving article:', err)
+            if (saveError) {
+                console.error('Error saving article:', saveError.message, saveError.code)
+            } else if (saved) {
+                savedArticles.push(saved)
             }
         }
 
-        return {
-            data: savedArticles,
-            error: null,
-            message: `Fetched ${savedArticles.length} articles for "${clientName}". Review and verify them.`
-        }
+        const skipped = articles.length - newArticles.length
+        const msg = savedArticles.length > 0
+            ? `Fetched ${savedArticles.length} new articles for "${clientName}".${skipped > 0 ? ` (${skipped} already saved)` : ''}`
+            : skipped > 0
+                ? `All ${skipped} articles already saved for "${clientName}". You're up to date.`
+                : `No new articles found for "${clientName}".`
+
+        return { data: savedArticles, error: null, message: msg }
     } catch (error) {
         console.error('Error in fetchNewsForClient:', error)
         return { data: null, error: 'Failed to fetch news. Please try again.' }

@@ -11,6 +11,8 @@ import AdminKanban from "@/components/admin/AdminKanban"
 import AdminTeamMembers from "@/components/admin/team/AdminTeamMembers"
 import AdminAssets from "@/components/admin/assets/AdminAssets"
 import ContentCreator from "@/components/admin/content/ContentCreator"
+import MessagingBank from "@/components/admin/content/MessagingBank"
+import AdminSettings from "@/components/admin/settings/AdminSettings"
 import ChatPanel from "@/components/user/ChatPanel"
 import { useAuth } from "@/lib/auth"
 import { supabase } from "@/lib/supabase"
@@ -431,21 +433,6 @@ function AdminDashboardContent() {
     )
   }
 
-  const renderSettings = () => (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight mb-1">Settings</h1>
-        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>Configure system-wide preferences</p>
-      </div>
-      <GlassCard>
-        <div className="p-6">
-          <h3 className="text-sm font-semibold text-white mb-2">System Configuration</h3>
-          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Settings interface coming soon...</p>
-        </div>
-      </GlassCard>
-    </div>
-  )
-
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview()
@@ -454,15 +441,16 @@ function AdminDashboardContent() {
       case 'assets': return <AdminAssets />
       case 'clients': return <AdminClients key={activeTab} user={user} />
       case 'content': return <ContentCreator key={activeTab} />
+      case 'messaging': return <MessagingBank key={activeTab} />
       case 'documents': return <AdminDocuments key={activeTab} user={user} />
       case 'calendar': return <AdminCalendar key={activeTab} />
       case 'kanban': return <AdminKanban key={activeTab} />
-      case 'settings': return renderSettings()
+      case 'settings': return <AdminSettings />
       default: return renderOverview()
     }
   }
 
-  const fullBleedTabs = ['documents', 'clients', 'content', 'calendar', 'kanban', 'messages']
+  const fullBleedTabs = ['documents', 'clients', 'content', 'messaging', 'calendar', 'kanban', 'messages']
 
   return (
     <AdminRoute>

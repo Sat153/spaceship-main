@@ -100,8 +100,8 @@ export async function POST(request: NextRequest) {
             },
           })
         }
-      } catch (error) {
-        console.error('Error scraping page:', error)
+      } catch (err) {
+        console.error('Error scraping page:', err)
       }
     }
 
@@ -120,8 +120,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-  } catch (error) {
-    console.error('Error downloading image:', error)
+  } catch (err) {
+    console.error('Error downloading image:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

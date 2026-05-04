@@ -1930,6 +1930,13 @@ export default function AdminClients({ user }: AdminClientsProps) {
                     clientId={selectedClient.id}
                     clientName={selectedClient.name}
                     twitterHandle={selectedClient.social_twitter}
+                    onHandleSave={async (handle) => {
+                      const result = await updateClient(selectedClient.id, { social_twitter: handle })
+                      if (result) {
+                        setSelectedClient({ ...selectedClient, social_twitter: handle })
+                        refetch()
+                      }
+                    }}
                   />
                 </TabsContent>
 

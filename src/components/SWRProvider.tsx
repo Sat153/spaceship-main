@@ -11,24 +11,22 @@ export default function SWRProvider({ children }: SWRProviderProps) {
     return (
         <SWRConfig
             value={{
-                // Revalidate on focus after 5 minutes
-                revalidateOnFocus: true,
-                focusThrottleInterval: 300000, // 5 minutes
+                // Never revalidate just because the window got focus
+                revalidateOnFocus: false,
 
-                // Don't revalidate on reconnect too aggressively
+                // Reconnect revalidation is fine (network came back)
                 revalidateOnReconnect: true,
 
-                // Dedupe requests within 2 seconds
-                dedupingInterval: 2000,
+                // 30-second global dedup — individual hooks can override higher
+                dedupingInterval: 30000,
 
                 // Keep previous data while revalidating
                 keepPreviousData: true,
 
-                // Retry failed requests 3 times
+                // Retry failed requests up to 3 times
                 errorRetryCount: 3,
                 errorRetryInterval: 5000,
 
-                // Global error handler
                 onError: (error, key) => {
                     console.error(`SWR Error [${key}]:`, error)
                 },

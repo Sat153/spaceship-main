@@ -43,13 +43,15 @@ export default function AdminAssets() {
         setLoading(true)
         try {
             const result = await getAssets(undefined, folderId)
-            if (result.success && result.data) {
+            if (result && result.success && result.data) {
                 setAssets(result.data)
             } else {
-                console.error(result.error)
+                console.error(result?.error || 'getAssets returned undefined')
+                setAssets([])
             }
         } catch (error) {
             console.error(error)
+            setAssets([])
         } finally {
             setLoading(false)
         }

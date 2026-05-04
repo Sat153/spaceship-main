@@ -46,7 +46,7 @@ function CampaignMedia({ folderId, clientId, label }: { folderId: string; client
         setLoading(false)
     }, [currentFolder, clientId])
 
-    useEffect(() => { load() }, [load])
+    useEffect(() => { load() }, [currentFolder, clientId])
 
     const handleNavigate = (id: string) => {
         const folder = assets.find(a => a.id === id)
@@ -231,7 +231,7 @@ export default function ClientCampaigns({ clientId }: { clientId: string }) {
         setLoading(false)
     }, [clientId])
 
-    useEffect(() => { load() }, [load])
+    useEffect(() => { load() }, [clientId])
 
     const handleCreate = async () => {
         if (!newName.trim()) return

@@ -51,6 +51,7 @@ async function getSupabaseClient() {
 }
 
 export async function fetchDocuments(): Promise<{ data: Document[] | null; error: string | null }> {
+  console.log('🔍 ACTION: fetchDocuments')
   try {
     console.log('Server Action: Fetching documents...')
     const supabase = createAdminClient()

@@ -7,9 +7,11 @@ import {
     Calendar,
     Heart,
     MessageCircle,
-    Repeat2
+    Repeat2,
+    Save
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
     getClientIntelligence,
     fetchTwitterDataForClient,
@@ -20,13 +22,16 @@ interface ClientTwitterFeedProps {
     clientId: string
     clientName: string
     twitterHandle?: string
+    onHandleSave?: (handle: string) => Promise<void>
 }
 
-export default function ClientTwitterFeed({ clientId, clientName, twitterHandle }: ClientTwitterFeedProps) {
+export default function ClientTwitterFeed({ clientId, clientName, twitterHandle, onHandleSave }: ClientTwitterFeedProps) {
     const [tweets, setTweets] = useState<ClientIntelligence[]>([])
     const [loading, setLoading] = useState(true)
     const [isFetching, setIsFetching] = useState(false)
     const [fetchMessage, setFetchMessage] = useState<string | null>(null)
+    const [handleInput, setHandleInput] = useState('')
+    const [isSavingHandle, setIsSavingHandle] = useState(false)
 
     const fetchTweets = async () => {
         setLoading(true)
@@ -127,7 +132,37 @@ export default function ClientTwitterFeed({ clientId, clientName, twitterHandle 
                         @{twitterHandle.replace('@', '')} • Tweets are auto-verified
                     </p>
                 )}
-                {!twitterHandle && (
+                {!twitterHandle && onHandleSave && (
+                    <div className="flex items-center gap-2 mt-2">
+                        <Input
+                            placeholder="Enter Twitter handle (e.g. ganesh_joshi)"
+                            value={handleInput}
+                            onChange={(e) => setHandleInput(e.target.value.replace('@', ''))}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && handleInput.trim()) {
+                                    setIsSavingHandle(true)
+                                    onHandleSave(handleInput.trim()).finally(() => setIsSavingHandle(false))
+                                }
+                            }}
+                            className="bg-gray-800 border-gray-600 text-white text-sm h-8"
+                        />
+                        <Button
+                            size="sm"
+                            className="h-8 bg-blue-600 hover:bg-blue-700 shrink-0"
+                            disabled={!handleInput.trim() || isSavingHandle}
+                            onClick={async () => {
+                                if (!handleInput.trim()) return
+                                setIsSavingHandle(true)
+                                await onHandleSave(handleInput.trim())
+                                setIsSavingHandle(false)
+                            }}
+                        >
+                            <Save className="h-3 w-3 mr-1" />
+                            {isSavingHandle ? 'Saving...' : 'Save'}
+                        </Button>
+                    </div>
+                )}
+                {!twitterHandle && !onHandleSave && (
                     <p className="text-sm text-yellow-400 mt-1">
                         ⚠️ No Twitter handle configured for this client
                     </p>

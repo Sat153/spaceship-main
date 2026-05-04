@@ -66,6 +66,7 @@ async function getSupabaseClient() {
 }
 
 export async function fetchEvents(): Promise<{ data: AdminEvent[] | null; error: string | null }> {
+  console.log('🔍 ACTION: fetchEvents')
   try {
     console.log('Server Action: Fetching events...')
     const supabase = createAdminClient()

@@ -72,6 +72,7 @@ export async function inviteTeamMember(params: InviteMemberParams) {
 
 
 export async function getTeamMembers() {
+    console.log('🔍 ACTION: getTeamMembers')
     try {
         if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
             console.error('Missing SUPABASE_SERVICE_ROLE_KEY')

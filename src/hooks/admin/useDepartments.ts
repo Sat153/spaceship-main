@@ -42,11 +42,13 @@ export function useDepartments() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   useEffect(() => {
     fetchDepartments()
-  }, [fetchDepartments])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   return {
     departments,

@@ -114,7 +114,8 @@ export default function AdminCalendar() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, refreshEvents]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, refreshEvents]);
 
   const handleDeleteEvent = React.useCallback(async (eventId: string) => {
     try {

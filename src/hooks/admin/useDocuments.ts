@@ -161,36 +161,13 @@ export function useDocuments() {
   }
 
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const fetchWithRetry = async () => {
-      try {
-        console.log('useDocuments: Attempting to fetch data, user:', user ? 'available' : 'null');
-        
-        if (user) {
-          await fetchDocuments();
-        } else if (retryCount < maxRetries) {
-          console.log(`useDocuments: User not available, retrying in ${1000 * (retryCount + 1)}ms...`);
-          retryCount++;
-          setTimeout(fetchWithRetry, 1000 * retryCount);
-        } else {
-          console.error('useDocuments: Max retries reached, user still not available');
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('useDocuments: Error in fetchWithRetry:', error);
-        if (retryCount < maxRetries) {
-          retryCount++;
-          setTimeout(fetchWithRetry, 1000 * retryCount);
-        } else {
-          setLoading(false);
-        }
-      }
-    };
-    
-    fetchWithRetry();
-  }, [user, fetchDocuments])
+    if (!user) return
+    fetchDocuments().catch(err => {
+      console.error('useDocuments: Error loading documents:', err)
+      setLoading(false)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   return {
     documents,

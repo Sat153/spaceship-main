@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
     ArrowRight, Loader2, FileText, CheckCircle,
-    XCircle, Eye, UserCheck, RotateCcw, Send, Trash2, MessageSquare, X, Bell
+    XCircle, Eye, UserCheck, RotateCcw, Send, Trash2, MessageSquare, X, Bell, Zap
 } from 'lucide-react'
 import {
     getContentPosts, submitForReview, approveContentPost,
@@ -195,6 +195,16 @@ export default function AnySegen() {
                                                     <span className="text-xs text-gray-400">{post.client_name}</span>
                                                 </div>
 
+                                                {post.priority === 'urgent' && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600/20 border border-red-500/30 text-red-400 text-xs rounded mb-1.5">
+                                                        <Zap className="h-3 w-3" /> URGENT
+                                                    </span>
+                                                )}
+                                                {post.priority === 'high' && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-600/20 border border-orange-500/30 text-orange-400 text-xs rounded mb-1.5">
+                                                        High Priority
+                                                    </span>
+                                                )}
                                                 {post.title && (
                                                     <h3 className="text-white font-medium mb-1 truncate">{post.title}</h3>
                                                 )}

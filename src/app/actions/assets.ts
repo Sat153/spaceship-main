@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { getAdminDepartmentId } from '@/lib/admin-helper'
 
 export interface Asset {
     id: string
@@ -23,8 +24,6 @@ export interface Asset {
     event_name?: string | null
     event_date?: string | null
 }
-
-import { getAdminDepartmentId } from '@/lib/admin-helper'
 
 // Helper to check permission (mostly relies on RLS, but strictly enforcing Dept ID on write is good)
 async function getCallerInfo() {
@@ -46,12 +45,13 @@ async function getCallerInfo() {
 }
 
 export async function getAssets(departmentId?: string, parentId: string | null = null, clientId?: string) {
+    console.log('🔍 ACTION: getAssets')
     try {
         const admin = createAdminClient()
 
         let query = admin
             .from('assets')
-            .select('*, departments(name)')
+            .select('*')
             .order('type', { ascending: false }) // Folders first
             .order('name', { ascending: true })
 
@@ -129,6 +129,7 @@ async function getOrCreateFolder(
 
 // New helper to find the folder for a specific client
 export async function getClientRootFolder(clientId: string) {
+    console.log('🔍 ACTION: getClientRootFolder')
     try {
         const info = await getCallerInfo()
         if (!info || !info.profile) return { success: false, error: 'Unauthorized' }

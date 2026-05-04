@@ -62,6 +62,7 @@ async function getSupabaseClient() {
 }
 
 export async function fetchTasks(): Promise<{ data: AdminTask[] | null; error: string | null }> {
+  console.log('🔍 ACTION: fetchTasks')
   try {
     const supabase = createAdminClient()
     const { data, error } = await supabase

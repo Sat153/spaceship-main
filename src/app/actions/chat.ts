@@ -50,6 +50,7 @@ export async function getMyRooms(): Promise<{
     data?: ChatRoom[];
     error?: string
 }> {
+    console.log('🔍 ACTION: getMyRooms')
     try {
         const supabase = await getSupabaseClient()
 

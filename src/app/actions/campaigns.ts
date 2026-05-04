@@ -45,6 +45,7 @@ async function getOrCreateFolder(admin: any, name: string, parentId: string | nu
 }
 
 export async function getCampaigns(clientId: string): Promise<{ data: Campaign[] | null; error: string | null }> {
+    console.log('🔍 ACTION: getCampaigns')
     try {
         const admin = createAdminClient()
         const { data, error } = await admin.from('campaigns').select('*').eq('client_id', clientId).order('created_at', { ascending: false })

@@ -78,13 +78,15 @@ export default function UserDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [profile])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id])
 
   useEffect(() => {
     if (profile?.department_id) {
       fetchDocuments()
     }
-  }, [profile?.department_id, fetchDocuments])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.department_id])
 
   const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

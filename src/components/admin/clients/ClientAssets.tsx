@@ -55,7 +55,7 @@ export default function ClientAssets({ clientId, departmentId }: ClientAssetsPro
 
     useEffect(() => {
         initializeClientFolder()
-    }, [initializeClientFolder])
+    }, [clientId])
 
     // Main Asset Loader
     const loadAssets = async (folderId: string | null) => {

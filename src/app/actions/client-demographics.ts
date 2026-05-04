@@ -96,6 +96,7 @@ export async function getClientDemographics(clientId: string): Promise<{
     data: ClientDemographics | null
     error: string | null
 }> {
+    console.log('🔍 ACTION: getClientDemographics')
     try {
         const supabase = await getSupabaseClient()
 
@@ -197,6 +198,7 @@ export async function getManifestoPriorities(clientId: string): Promise<{
     data: ManifestoPriority[] | null
     error: string | null
 }> {
+    console.log('🔍 ACTION: getManifestoPriorities')
     try {
         const supabase = await getSupabaseClient()
 

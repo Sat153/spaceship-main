@@ -155,7 +155,8 @@ export function useClients(filters: ClientFilters = {}, autoFetch = true) {
     } finally {
       setLoading(false)
     }
-  }, [user, profile, filters.search, filters.status, filters.client_type, filters.department_id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, profile?.id, filters.search, filters.status, filters.client_type, filters.department_id])
 
   const createClient = async (clientData: CreateClientData): Promise<Client | null> => {
     if (!user) throw new Error('User not authenticated')
@@ -253,9 +254,11 @@ export function useClients(filters: ClientFilters = {}, autoFetch = true) {
   // Auto-fetch on mount and when filters change
   useEffect(() => {
     if (autoFetch && user && profile) {
-      fetchClients(1, pagination.limit)
+      fetchClients(1, 20)
     }
-  }, [autoFetch, user, profile, fetchClients, pagination.limit])
+    // Use stable IDs instead of object refs to prevent re-fetch loops
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFetch, user?.id, profile?.id])
 
   const refetch = useCallback(() => {
     fetchClients(pagination.page, pagination.limit)
@@ -304,13 +307,15 @@ export function useClient(clientId: string | null) {
     } finally {
       setLoading(false)
     }
-  }, [clientId, user])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, user?.id])
 
   useEffect(() => {
     if (clientId && user) {
       fetchClient()
     }
-  }, [clientId, user, fetchClient])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, user?.id])
 
   return {
     client,

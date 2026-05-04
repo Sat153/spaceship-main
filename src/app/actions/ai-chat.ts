@@ -26,6 +26,7 @@ export interface ChatMessage {
 // ============ PERSISTENCE FUNCTIONS ============
 
 export async function loadChatHistory(clientId: string): Promise<{ success: boolean; messages?: ChatMessage[]; error?: string }> {
+    console.log('🔍 ACTION: loadChatHistory')
     try {
         const supabase = createClient(await cookies())
         const { data: { user } } = await supabase.auth.getUser()

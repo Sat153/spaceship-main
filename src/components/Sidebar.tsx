@@ -17,6 +17,7 @@ import {
   PenTool,
   ChevronLeft,
   ChevronRight,
+  BookMarked,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
@@ -42,6 +43,7 @@ const adminMenuItems = [
   { id: 'assets', label: 'Asset Library', icon: FileText, color: 'from-amber-400 to-orange-500' },
   { id: 'clients', label: 'Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
   { id: 'content', label: 'Content', icon: PenTool, color: 'from-pink-400 to-rose-500' },
+  { id: 'messaging', label: 'Messaging Bank', icon: BookMarked, color: 'from-yellow-400 to-amber-500' },
   { id: 'documents', label: 'KB Documents', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
   { id: 'calendar', label: 'Calendar', icon: Calendar, color: 'from-violet-400 to-indigo-500' },
   { id: 'kanban', label: 'Kanban Board', icon: Kanban, color: 'from-orange-400 to-red-500' },

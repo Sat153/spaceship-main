@@ -119,36 +119,13 @@ export default function AdminDocuments({ user }: AdminDocumentsProps) {
   }, [fetchDocumentsData, fetchDepartmentsData])
 
   React.useEffect(() => {
-    let retryCount = 0
-    const maxRetries = 3
-    
-    const fetchWithRetry = async () => {
-      try {
-        console.log('AdminDocuments: Attempting to fetch data, user:', authUser ? 'available' : 'null')
-        
-        if (authUser) {
-          await fetchInitialData()
-        } else if (retryCount < maxRetries) {
-          console.log(`AdminDocuments: User not available, retrying in ${1000 * (retryCount + 1)}ms...`)
-          retryCount++
-          setTimeout(fetchWithRetry, 1000 * retryCount)
-        } else {
-          console.error('AdminDocuments: Max retries reached, user still not available')
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error('AdminDocuments: Error in fetchWithRetry:', error)
-        if (retryCount < maxRetries) {
-          retryCount++
-          setTimeout(fetchWithRetry, 1000 * retryCount)
-        } else {
-          setLoading(false)
-        }
-      }
-    }
-    
-    fetchWithRetry()
-  }, [authUser, fetchInitialData])
+    if (!authUser) return
+    fetchInitialData().catch(err => {
+      console.error('AdminDocuments: Error loading data:', err)
+      setLoading(false)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.id])
 
   const handleCreateDocument = async () => {
     if (!newDoc.title || !newDoc.content || !newDoc.department_id) return

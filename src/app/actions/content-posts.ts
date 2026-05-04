@@ -21,6 +21,7 @@ export interface ContentPost {
     review_notes: string | null
     ai_generated: boolean
     prompt_used: string | null
+    priority: 'low' | 'normal' | 'high' | 'urgent'
     created_at: string
     updated_at: string
     // Joined data
@@ -38,6 +39,7 @@ export interface CreateContentPostData {
     is_scheduled?: boolean
     ai_generated?: boolean
     prompt_used?: string
+    priority?: 'low' | 'normal' | 'high' | 'urgent'
 }
 
 export interface UpdateContentPostData {
@@ -48,6 +50,7 @@ export interface UpdateContentPostData {
     is_scheduled?: boolean
     status?: ContentPost['status']
     review_notes?: string
+    priority?: ContentPost['priority']
 }
 
 // ============ HELPER ============
@@ -161,6 +164,7 @@ export async function createContentPost(data: CreateContentPostData): Promise<{
                 status: 'draft',
                 ai_generated: data.ai_generated || false,
                 prompt_used: data.prompt_used || null,
+                priority: data.priority || 'normal',
             })
             .select(`
                 *,

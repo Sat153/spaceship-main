@@ -29,6 +29,7 @@ interface TaskStats {
   review: number;
   completed: number;
   cancelled: number;
+  overdue: number;
 }
 
 const kanbanColumns: KanbanColumn[] = [
@@ -72,11 +73,17 @@ export default function AdminKanban() {
   const [showProjectList, setShowProjectList] = React.useState(false);
 
   const stats = React.useMemo(() => {
+    const now = new Date()
     return tasks.reduce((acc, task) => {
       acc.total++;
-      acc[task.status as keyof Omit<TaskStats, 'total'>]++;
+      acc[task.status as keyof Omit<TaskStats, 'total' | 'overdue'>]++;
+      const isOverdue = task.due_date &&
+        new Date(task.due_date) < now &&
+        task.status !== 'completed' &&
+        task.status !== 'cancelled'
+      if (isOverdue) acc.overdue++
       return acc;
-    }, { total: 0, todo: 0, in_progress: 0, review: 0, completed: 0, cancelled: 0 } as TaskStats);
+    }, { total: 0, todo: 0, in_progress: 0, review: 0, completed: 0, cancelled: 0, overdue: 0 } as TaskStats);
   }, [tasks]);
 
   const handleTaskMove = React.useCallback(async (taskId: string, newStatus: string, newPosition: number) => {
@@ -152,7 +159,8 @@ export default function AdminKanban() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, refreshTasks, newTaskStatus]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, refreshTasks, newTaskStatus]);
 
   const handleDeleteTask = React.useCallback(async (taskId: string) => {
     try {
@@ -306,17 +314,18 @@ export default function AdminKanban() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-6 gap-4 mb-6">
           {[
             { label: 'Total', value: stats.total, color: 'text-white' },
             { label: 'To Do', value: stats.todo, color: 'text-gray-400' },
             { label: 'In Progress', value: stats.in_progress, color: 'text-blue-400' },
             { label: 'Review', value: stats.review, color: 'text-purple-400' },
             { label: 'Completed', value: stats.completed, color: 'text-green-400' },
+            { label: 'Overdue', value: stats.overdue, color: stats.overdue > 0 ? 'text-red-400' : 'text-gray-600' },
           ].map(s => (
-            <Card key={s.label} className="bg-gray-900 border-gray-700">
+            <Card key={s.label} className={`border-gray-700 ${s.label === 'Overdue' && stats.overdue > 0 ? 'bg-red-900/20 border-red-700/40' : 'bg-gray-900'}`}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">{s.label}</CardTitle>
+                <CardTitle className={`text-sm font-medium ${s.label === 'Overdue' && stats.overdue > 0 ? 'text-red-400' : 'text-gray-400'}`}>{s.label}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>

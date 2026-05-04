@@ -39,6 +39,7 @@ export async function getClientShares(clientId: string): Promise<{
     data?: ClientShare[];
     error?: string
 }> {
+    console.log('🔍 ACTION: getClientShares')
     try {
         const supabase = await getSupabaseClient()
 
@@ -118,6 +119,7 @@ export async function getShareableUsers(clientId: string): Promise<{
     data?: ShareableUser[];
     error?: string
 }> {
+    console.log('🔍 ACTION: getShareableUsers')
     try {
         const supabase = await getSupabaseClient()
 
