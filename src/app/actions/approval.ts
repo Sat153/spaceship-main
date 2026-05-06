@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendApprovalWhatsApp } from '@/lib/whatsapp'
+import { sendApprovalWhatsApp, getWhatsAppNumber } from '@/lib/whatsapp'
 import { revalidateTag } from 'next/cache'
 
 export async function sendApprovalRequest(postId: string): Promise<{ success: boolean; error: string | null }> {
@@ -10,7 +10,7 @@ export async function sendApprovalRequest(postId: string): Promise<{ success: bo
 
     const { data: post, error: postError } = await supabase
       .from('content_posts')
-      .select('id, title, body, status, platforms, client_id, clients:client_id(name)')
+      .select('id, title, body, status, platforms, priority, client_id, created_by, clients:client_id(name)')
       .eq('id', postId)
       .single()
 
@@ -22,9 +22,10 @@ export async function sendApprovalRequest(postId: string): Promise<{ success: bo
 
     // Insert a fresh token with a 30-minute reminder deadline
     const reminderDeadline = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const recipientPhone = await getWhatsAppNumber()
     const { data: tokenRow, error: tokenError } = await supabase
       .from('approval_tokens')
-      .insert({ post_id: postId, reminder_deadline: reminderDeadline })
+      .insert({ post_id: postId, reminder_deadline: reminderDeadline, recipient_phone: recipientPhone })
       .select('token')
       .single()
 
@@ -39,11 +40,24 @@ export async function sendApprovalRequest(postId: string): Promise<{ success: bo
     // Always log the URL so you can test directly from terminal
     console.log('\n🔗 APPROVAL LINK (open this to test):', approvalUrl, '\n')
 
+    // Fetch creator name
+    let createdByName = 'Team'
+    if (post.created_by) {
+      const { data: creator } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', post.created_by)
+        .single()
+      if (creator) createdByName = [creator.first_name, creator.last_name].filter(Boolean).join(' ')
+    }
+
     const waResult = await sendApprovalWhatsApp({
       postTitle: post.title || 'Untitled Post',
       clientName: (post.clients as any)?.name || 'Unknown Client',
       platforms: post.platforms || [],
-      approvalUrl,
+      body: post.body || '',
+      priority: post.priority || 'normal',
+      createdBy: createdByName,
     })
     if (waResult.error) {
       console.error('[Approval] WhatsApp send failed:', waResult.error)

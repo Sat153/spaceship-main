@@ -10,7 +10,7 @@ import AdminCalendar from "@/components/admin/AdminCalendar"
 import AdminKanban from "@/components/admin/AdminKanban"
 import AdminTeamMembers from "@/components/admin/team/AdminTeamMembers"
 import AdminAssets from "@/components/admin/assets/AdminAssets"
-import ContentCreator from "@/components/admin/content/ContentCreator"
+import ContentHub from "@/components/admin/content/ContentHub"
 import MessagingBank from "@/components/admin/content/MessagingBank"
 import AdminSettings from "@/components/admin/settings/AdminSettings"
 import ChatPanel from "@/components/user/ChatPanel"
@@ -440,7 +440,7 @@ function AdminDashboardContent() {
       case 'messages': return <ChatPanel />
       case 'assets': return <AdminAssets />
       case 'clients': return <AdminClients key={activeTab} user={user} />
-      case 'content': return <ContentCreator key={activeTab} />
+      case 'content': return <ContentHub key={activeTab} />
       case 'messaging': return <MessagingBank key={activeTab} />
       case 'documents': return <AdminDocuments key={activeTab} user={user} />
       case 'calendar': return <AdminCalendar key={activeTab} />

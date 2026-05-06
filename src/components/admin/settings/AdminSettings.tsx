@@ -107,7 +107,7 @@ function ProfileSection() {
 // ─── Approval Settings Tab ──────────────────────────────────────────────────
 
 function ApprovalSection() {
-    const [approvalEmail, setApprovalEmail] = useState('')
+    const [whatsappNumber, setWhatsappNumber] = useState('')
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -115,16 +115,16 @@ function ApprovalSection() {
 
     useEffect(() => {
         getSystemSettings().then(({ data }) => {
-            setApprovalEmail(data['approval_email'] || '')
+            setWhatsappNumber(data['akhilesh_whatsapp'] || '')
             setLoading(false)
         })
     }, [])
 
     const handleSave = async () => {
-        if (!approvalEmail.trim()) return
+        if (!whatsappNumber.trim()) return
         setSaving(true)
         setError(null)
-        const res = await upsertSystemSetting('approval_email', approvalEmail.trim())
+        const res = await upsertSystemSetting('akhilesh_whatsapp', whatsappNumber.trim())
         if (res.success) {
             setSaved(true)
             setTimeout(() => setSaved(false), 3000)
@@ -139,24 +139,24 @@ function ApprovalSection() {
     return (
         <SectionCard
             title="Approval Workflow"
-            description="Configure where content approval notifications are sent. When a post reaches 'Pending Review', an email is dispatched to this address."
+            description="WhatsApp number to notify when a content post is pending Akhilesh Ji's approval."
         >
             <div className="space-y-1 max-w-md">
-                <label className="text-xs text-gray-400">Akhilesh Ji&apos;s Approval Email</label>
+                <label className="text-xs text-gray-400">Akhilesh Ji&apos;s WhatsApp Number</label>
                 <Input
-                    type="email"
-                    placeholder="approval@example.com"
-                    value={approvalEmail}
-                    onChange={e => setApprovalEmail(e.target.value)}
+                    type="tel"
+                    placeholder="+91XXXXXXXXXX"
+                    value={whatsappNumber}
+                    onChange={e => setWhatsappNumber(e.target.value)}
                     className="bg-gray-800 border-gray-700 text-white"
                 />
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                    This overrides the default configured in environment variables.
+                    Include country code — e.g. +916377353765
                 </p>
             </div>
             {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="flex items-center gap-3 pt-1">
-                <Button onClick={handleSave} disabled={saving || !approvalEmail.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button onClick={handleSave} disabled={saving || !whatsappNumber.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
                     {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save'}
                 </Button>
                 <SaveBanner saved={saved} />
