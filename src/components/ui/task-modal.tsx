@@ -42,7 +42,7 @@ export interface TaskModalProps {
   onSave: (task: TaskModalData) => void;
   onDelete?: (taskId: string) => void;
   departments?: Array<{ id: string; name: string }>;
-  users?: Array<{ id: string; first_name: string; last_name: string }>;
+  users?: Array<{ id: string; first_name: string; last_name: string; department_id?: string | null }>;
   projects?: Array<{ id: string; name: string }>;
   isLoading?: boolean;
 }
@@ -69,6 +69,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
   });
 
   const [tagInput, setTagInput] = React.useState("");
+
+  // Filter users by selected department
+  const filteredUsers = React.useMemo(() => {
+    const deptId = formData.department_id
+    if (!deptId || deptId === 'no_department') return users
+    return users.filter(u => u.department_id === deptId)
+  }, [users, formData.department_id]);
 
   React.useEffect(() => {
     if (task) {
@@ -231,7 +238,14 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
             {/* Assigned To */}
             <div>
-              <Label className="text-white">Assigned To</Label>
+              <Label className="text-white">
+                Assigned To
+                {formData.department_id && formData.department_id !== 'no_department' && (
+                  <span className="ml-2 text-xs text-gray-400 font-normal">
+                    ({filteredUsers.length} in dept)
+                  </span>
+                )}
+              </Label>
               <Select
                 value={formData.assigned_to || ""}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value || undefined }))}
@@ -241,7 +255,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700">
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.first_name} {user.last_name}
                     </SelectItem>
@@ -255,7 +269,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
               <Label className="text-white">Department</Label>
               <Select
                 value={formData.department_id || ""}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, department_id: value || undefined }))}
+                onValueChange={(value) => setFormData(prev => {
+                  // Clear assigned_to if selected user is not in the new department
+                  const userStillValid = value === 'no_department' ||
+                    !prev.assigned_to || prev.assigned_to === 'unassigned' ||
+                    users.find(u => u.id === prev.assigned_to)?.department_id === value
+                  return {
+                    ...prev,
+                    department_id: value || undefined,
+                    assigned_to: userStillValid ? prev.assigned_to : 'unassigned',
+                  }
+                })}
               >
                 <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                   <SelectValue placeholder="Select department" />
@@ -292,6 +316,26 @@ const TaskModal: React.FC<TaskModalProps> = ({
               </Select>
             </div>
 
+            {/* Start Date */}
+            <div>
+              <Label htmlFor="start_date" className="text-white">Start Date</Label>
+              <Input
+                id="start_date"
+                type="datetime-local"
+                value={formData.start_date ? format(formData.start_date, "yyyy-MM-dd'T'HH:mm") : ""}
+                onChange={(e) => {
+                  const start = e.target.value ? new Date(e.target.value) : undefined
+                  setFormData(prev => {
+                    const hours = start && prev.due_date
+                      ? Math.max(0, Math.round((prev.due_date.getTime() - start.getTime()) / 36e5 * 10) / 10)
+                      : prev.estimated_hours
+                    return { ...prev, start_date: start, estimated_hours: hours }
+                  })
+                }}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+
             {/* Due Date */}
             <div>
               <Label htmlFor="due_date" className="text-white">Due Date</Label>
@@ -299,29 +343,40 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 id="due_date"
                 type="datetime-local"
                 value={formData.due_date ? format(formData.due_date, "yyyy-MM-dd'T'HH:mm") : ""}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  due_date: e.target.value ? new Date(e.target.value) : undefined 
-                }))}
+                onChange={(e) => {
+                  const due = e.target.value ? new Date(e.target.value) : undefined
+                  setFormData(prev => {
+                    const start = prev.start_date
+                    const hours = due && start
+                      ? Math.max(0, Math.round((due.getTime() - start.getTime()) / 36e5 * 10) / 10)
+                      : prev.estimated_hours
+                    return { ...prev, due_date: due, estimated_hours: hours }
+                  })
+                }}
                 className="bg-gray-800 border-gray-700 text-white"
               />
             </div>
 
-            {/* Estimated Hours */}
-            <div>
-              <Label htmlFor="estimated_hours" className="text-white">Estimated Hours</Label>
+            {/* Estimated Hours — auto-calculated, still editable */}
+            <div className="col-span-2">
+              <Label htmlFor="estimated_hours" className="text-white">
+                Estimated Hours
+                {formData.start_date && formData.due_date && (
+                  <span className="ml-2 text-xs text-blue-400 font-normal">auto-calculated</span>
+                )}
+              </Label>
               <Input
                 id="estimated_hours"
                 type="number"
                 min="0"
                 step="0.5"
                 value={formData.estimated_hours || ""}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  estimated_hours: e.target.value ? parseFloat(e.target.value) : undefined 
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  estimated_hours: e.target.value ? parseFloat(e.target.value) : undefined
                 }))}
                 className="bg-gray-800 border-gray-700 text-white"
-                placeholder="0"
+                placeholder="Set start & due date to auto-calculate"
               />
             </div>
 

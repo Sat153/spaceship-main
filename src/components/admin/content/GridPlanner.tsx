@@ -77,6 +77,7 @@ function AssetThumb({ url, name, mime }: { url: string | null; name: string; mim
 
 function SlotCell({
     item, position, onAdd, onRemove, onCaptionChange, platformColor,
+    onDragStart, onDragOver, onDrop, isDragOver,
 }: {
     item: GridPlanItem | undefined
     position: number
@@ -84,6 +85,10 @@ function SlotCell({
     onRemove: () => void
     onCaptionChange: (val: string) => void
     platformColor: string
+    onDragStart: () => void
+    onDragOver: (e: React.DragEvent) => void
+    onDrop: () => void
+    isDragOver: boolean
 }) {
     const [showCaption, setShowCaption] = useState(false)
     const [caption, setCaption] = useState(item?.caption ?? '')
@@ -103,12 +108,23 @@ function SlotCell({
     return (
         <div className="space-y-1.5">
             <div
-                className="relative group rounded-lg overflow-hidden"
+                className="relative group rounded-lg overflow-hidden transition-all"
+                draggable={!!item}
+                onDragStart={item ? onDragStart : undefined}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                onDragEnd={() => {}}
                 style={{
                     aspectRatio: '1/1',
-                    border: item ? `2px solid ${platformColor}` : '1.5px dashed rgba(255,255,255,0.12)',
-                    background: item ? 'transparent' : 'rgba(255,255,255,0.02)',
+                    border: isDragOver
+                        ? `2px solid ${platformColor}`
+                        : item
+                            ? `2px solid ${platformColor}`
+                            : '1.5px dashed rgba(255,255,255,0.12)',
+                    background: isDragOver ? `${platformColor}22` : item ? 'transparent' : 'rgba(255,255,255,0.02)',
                     minHeight: 80,
+                    cursor: item ? 'grab' : 'default',
+                    transform: isDragOver ? 'scale(1.03)' : 'scale(1)',
                 }}
             >
                 {item ? (
@@ -262,6 +278,8 @@ function PlanEditor({
     const [error, setError] = useState<string | null>(null)
     const [pickerOpen, setPickerOpen] = useState(false)
     const [pickerTarget, setPickerTarget] = useState<{ platform: string; position: number } | null>(null)
+    const [dragSource, setDragSource] = useState<{ platform: string; position: number } | null>(null)
+    const [dragOver, setDragOver] = useState<{ platform: string; position: number } | null>(null)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -290,17 +308,65 @@ function PlanEditor({
 
     const handleAssetSelect = async (asset: MediaAsset) => {
         if (!pickerTarget) return
-        await upsertGridPlanItem(planId, pickerTarget.platform, pickerTarget.position, {
-            id: asset.id,
-            url: asset.url,
-            name: asset.name,
+        const { platform, position } = pickerTarget
+        // Optimistic update
+        setPlan(prev => {
+            if (!prev) return prev
+            const items = prev.items ? prev.items.filter(i => !(i.platform === platform && i.position === position)) : []
+            const newItem: GridPlanItem = {
+                id: `temp-${Date.now()}`, grid_plan_id: planId,
+                asset_id: asset.id, asset_url: asset.url, asset_name: asset.name,
+                platform, position, caption: null, created_at: new Date().toISOString(),
+            }
+            return { ...prev, items: [...items, newItem] }
         })
-        load()
+        await upsertGridPlanItem(planId, platform, position, { id: asset.id, url: asset.url, name: asset.name })
     }
 
     const handleRemove = async (platform: string, position: number) => {
+        // Optimistic update
+        setPlan(prev => {
+            if (!prev) return prev
+            return { ...prev, items: prev.items?.filter(i => !(i.platform === platform && i.position === position)) ?? [] }
+        })
         await upsertGridPlanItem(planId, platform, position, null)
-        load()
+    }
+
+    const handleDrop = async (targetPlatform: string, targetPosition: number) => {
+        if (!dragSource) return
+        const { platform: srcPlatform, position: srcPosition } = dragSource
+        setDragSource(null); setDragOver(null)
+        if (srcPlatform === targetPlatform && srcPosition === targetPosition) return
+
+        const srcItem = getItem(srcPlatform, srcPosition)
+        const tgtItem = getItem(targetPlatform, targetPosition)
+        if (!srcItem) return
+
+        // Optimistic update — swap in local state immediately, no re-fetch
+        setPlan(prev => {
+            if (!prev) return prev
+            const items = prev.items ? [...prev.items] : []
+            const srcIdx = items.findIndex(i => i.platform === srcPlatform && i.position === srcPosition)
+            const tgtIdx = items.findIndex(i => i.platform === targetPlatform && i.position === targetPosition)
+
+            if (srcIdx !== -1) {
+                items[srcIdx] = { ...items[srcIdx], platform: targetPlatform, position: targetPosition }
+            }
+            if (tgtIdx !== -1) {
+                items[tgtIdx] = { ...items[tgtIdx], platform: srcPlatform, position: srcPosition }
+            }
+            return { ...prev, items }
+        })
+
+        // Sync to server in background
+        await Promise.all([
+            upsertGridPlanItem(planId, targetPlatform, targetPosition,
+                { id: srcItem.asset_id!, url: srcItem.asset_url, name: srcItem.asset_name! }, srcItem.caption ?? undefined),
+            tgtItem
+                ? upsertGridPlanItem(planId, srcPlatform, srcPosition,
+                    { id: tgtItem.asset_id!, url: tgtItem.asset_url, name: tgtItem.asset_name! }, tgtItem.caption ?? undefined)
+                : upsertGridPlanItem(planId, srcPlatform, srcPosition, null),
+        ])
     }
 
     const handleSendForReview = async () => {
@@ -410,6 +476,10 @@ function PlanEditor({
                                     onAdd={() => openPicker(platform.id, pos)}
                                     onRemove={() => handleRemove(platform.id, pos)}
                                     onCaptionChange={() => {}}
+                                    onDragStart={() => setDragSource({ platform: platform.id, position: pos })}
+                                    onDragOver={e => { e.preventDefault(); setDragOver({ platform: platform.id, position: pos }) }}
+                                    onDrop={() => handleDrop(platform.id, pos)}
+                                    isDragOver={dragOver?.platform === platform.id && dragOver?.position === pos}
                                 />
                             ))}
                         </div>

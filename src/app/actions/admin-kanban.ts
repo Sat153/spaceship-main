@@ -97,7 +97,7 @@ export async function fetchUsers(): Promise<{ data: User[] | null; error: string
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, department_id')
       .order('first_name')
 
     if (error) return { data: null, error: error.message }
