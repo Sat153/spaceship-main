@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import Groq from 'groq-sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// Initialize Groq client
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY || ''
-})
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' })
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
 
 // Platform-specific guidelines
 const PLATFORM_GUIDELINES: Record<string, string> = {
@@ -202,18 +202,38 @@ ${selectedPlatforms.map((p: string) => `**${p.charAt(0).toUpperCase() + p.slice(
 
 Now create a post based on this request:`
 
-        // Generate content using Groq
-        const completion = await groq.chat.completions.create({
-            model: 'llama-3.1-8b-instant',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: prompt }
-            ],
-            max_tokens: 800,
-            temperature: 0.7,
-        })
+        // Generate content — Gemini primary, Groq fallback
+        let generatedContent = ''
 
-        const generatedContent = completion.choices[0]?.message?.content?.trim() || ''
+        if (process.env.GOOGLE_API_KEY) {
+            try {
+                const result = await geminiModel.generateContent(systemPrompt + '\n\n' + prompt)
+                generatedContent = result.response.text().trim()
+            } catch (geminiErr: any) {
+                console.warn('[Content Gen] Gemini failed, falling back to Groq:', geminiErr.message)
+                const completion = await groq.chat.completions.create({
+                    model: 'llama-3.1-8b-instant',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: prompt }
+                    ],
+                    max_tokens: 800,
+                    temperature: 0.7,
+                })
+                generatedContent = completion.choices[0]?.message?.content?.trim() || ''
+            }
+        } else {
+            const completion = await groq.chat.completions.create({
+                model: 'llama-3.1-8b-instant',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: prompt }
+                ],
+                max_tokens: 800,
+                temperature: 0.7,
+            })
+            generatedContent = completion.choices[0]?.message?.content?.trim() || ''
+        }
 
         return NextResponse.json({
             success: true,
