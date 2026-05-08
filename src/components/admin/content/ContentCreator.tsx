@@ -69,6 +69,7 @@ export default function ContentCreator() {
     const [editTitle, setEditTitle] = useState('')
     const [editBody, setEditBody] = useState('')
     const [savingEdit, setSavingEdit] = useState(false)
+    const [viewingPost, setViewingPost] = useState<ContentPost | null>(null)
 
     useEffect(() => {
         fetchData()
@@ -364,6 +365,15 @@ export default function ContentCreator() {
                                                     </div>
 
                                                     <div className="flex items-center gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => setViewingPost(post)}
+                                                            className="text-gray-400 hover:text-white"
+                                                            title="View full content"
+                                                        >
+                                                            <ExternalLink className="h-4 w-4" />
+                                                        </Button>
                                                         {(post.status === 'draft' || post.status === 'pending_review') && (
                                                             <Button
                                                                 size="sm"
@@ -662,6 +672,57 @@ export default function ContentCreator() {
                             </Button>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* View Full Content Modal */}
+            <Dialog open={!!viewingPost} onOpenChange={(open) => { if (!open) setViewingPost(null) }}>
+                <DialogContent className="bg-gray-900 border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            {viewingPost?.title || 'Full Content'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {viewingPost && (
+                        <div className="space-y-4 pt-1">
+                            {/* Meta */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {(() => {
+                                    const cfg = STATUS_CONFIG[viewingPost.status]
+                                    const Icon = cfg?.icon
+                                    return (
+                                        <span className={`px-2 py-0.5 text-xs rounded flex items-center gap-1 ${cfg?.color}`}>
+                                            {Icon && <Icon className="h-3 w-3" />}
+                                            {cfg?.label}
+                                        </span>
+                                    )
+                                })()}
+                                <span className="text-xs text-gray-400">for {viewingPost.client_name}</span>
+                                {viewingPost.platforms.map(platform => {
+                                    const p = PLATFORMS.find(pl => pl.id === platform)
+                                    return p ? (
+                                        <span key={platform} className={`px-2 py-0.5 text-xs rounded ${p.color}`}>{p.label}</span>
+                                    ) : null
+                                })}
+                            </div>
+                            {/* Full body */}
+                            <div className="bg-gray-800 rounded-lg p-4">
+                                <p className="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{viewingPost.body}</p>
+                            </div>
+                            {/* Review notes */}
+                            {viewingPost.review_notes && (
+                                <div className={`px-3 py-2 rounded-lg text-xs border ${viewingPost.status === 'rejected' ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-blue-500/10 border-blue-500/20 text-blue-300'}`}>
+                                    <span className="font-semibold">{viewingPost.status === 'rejected' ? 'Rejected' : 'Feedback'}: </span>
+                                    {viewingPost.review_notes}
+                                </div>
+                            )}
+                            {/* Footer */}
+                            <p className="text-xs text-gray-500">
+                                Created by {viewingPost.created_by_name || 'Unknown'} · {new Date(viewingPost.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>
