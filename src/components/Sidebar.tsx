@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   BookMarked,
+  X,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
@@ -26,6 +27,8 @@ interface SidebarProps {
   activeTab: string
   onTabChange: (tab: string) => void
   userRole?: 'admin' | 'user'
+  isMobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
 const userMenuItems = [
@@ -50,7 +53,7 @@ const adminMenuItems = [
   { id: 'settings', label: 'Settings', icon: Settings, color: 'from-slate-400 to-gray-500' },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, userRole }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen, onMobileClose }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { profile, signOut } = useAuth()
   const router = useRouter()
@@ -63,14 +66,32 @@ export default function Sidebar({ activeTab, onTabChange, userRole }: SidebarPro
     }
   }
 
+  const handleTabChange = (tab: string) => {
+    onTabChange(tab)
+    onMobileClose?.()
+  }
+
   const menuItems = userRole === 'admin' ? adminMenuItems : userMenuItems
   const initials = `${profile?.first_name?.[0] ?? ''}${profile?.last_name?.[0] ?? ''}`.toUpperCase()
 
   return (
+    <>
+      {/* Mobile backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
     <div
-      className={`relative flex flex-col h-screen transition-all duration-300 ease-in-out ${
-        isCollapsed ? 'w-[72px]' : 'w-[240px]'
-      }`}
+      className={`
+        flex flex-col h-screen transition-all duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50
+        md:relative md:translate-x-0 md:z-auto
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}
+      `}
       style={{
         background: 'linear-gradient(180deg, #0d0d14 0%, #0a0a11 100%)',
         borderRight: '1px solid rgba(255,255,255,0.06)',
@@ -99,6 +120,12 @@ export default function Sidebar({ activeTab, onTabChange, userRole }: SidebarPro
           }}>
             <span className="text-white text-xs font-bold">AS</span>
           </div>
+        )}
+        {/* Mobile close button */}
+        {!isCollapsed && onMobileClose && (
+          <button onClick={onMobileClose} className="md:hidden w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
         )}
       </div>
 
@@ -136,7 +163,7 @@ export default function Sidebar({ activeTab, onTabChange, userRole }: SidebarPro
           return (
             <button
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => handleTabChange(item.id)}
               title={isCollapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
                 isCollapsed ? 'justify-center' : ''
@@ -248,5 +275,6 @@ export default function Sidebar({ activeTab, onTabChange, userRole }: SidebarPro
         </button>
       </div>
     </div>
+    </>
   )
 }

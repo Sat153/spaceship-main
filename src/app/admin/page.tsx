@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from "react"
-import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2 } from "lucide-react"
+import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2, Menu } from "lucide-react"
 import AdminRoute from "@/components/AdminRoute"
 import Sidebar from "@/components/Sidebar"
 import AdminDocuments from "@/components/admin/documents/AdminDocuments"
@@ -82,6 +82,7 @@ function AdminDashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'overview')
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const defaultPipeline = { draft: 0, internal_review: 0, pending_review: 0, approved: 0, scheduled: 0, rejected: 0 }
   const [stats, setStats] = useState<DashboardStats>({
     total_members: 0, total_documents: 0, total_departments: 0,
@@ -207,7 +208,7 @@ function AdminDashboardContent() {
     return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
@@ -236,7 +237,7 @@ function AdminDashboardContent() {
       </div>
 
       {/* Row 1: core stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {statCards.map((card) => {
           const Icon = card.icon
           const value = stats[card.key as keyof DashboardStats] as number
@@ -264,7 +265,7 @@ function AdminDashboardContent() {
       </div>
 
       {/* Row 2: activity stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {/* Content this month */}
         <GlassCard style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)' }}>
           <div className="p-5">
@@ -454,7 +455,7 @@ function AdminDashboardContent() {
 
   return (
     <AdminRoute>
-      <div className="flex h-screen" style={{ background: '#07070d' }}>
+      <div className="flex h-screen overflow-hidden" style={{ background: '#07070d' }}>
         {/* Background gradients */}
         <div className="fixed inset-0 pointer-events-none z-0">
           <div style={{
@@ -467,14 +468,39 @@ function AdminDashboardContent() {
           }} />
         </div>
 
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} userRole="admin" />
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          userRole="admin"
+          isMobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
+        />
+
+        {/* Desktop sidebar spacer */}
+        <div className="hidden md:block flex-shrink-0 w-[240px]" />
 
         {/* Main content */}
         <div className="flex-1 overflow-auto relative z-10">
+          {/* Mobile top bar */}
+          <div className="flex items-center gap-3 px-4 py-3 md:hidden border-b" style={{ borderColor: 'rgba(255,255,255,0.06)', background: '#07070d' }}>
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg"
+              style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}
+            >
+              <Menu className="w-4 h-4 text-purple-400" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)' }}>
+                <span className="text-white text-[10px] font-bold">AS</span>
+              </div>
+              <span className="text-white font-semibold text-sm">ANYA SEGEN</span>
+            </div>
+          </div>
           {fullBleedTabs.includes(activeTab) ? (
             <div className="h-full">{renderContent()}</div>
           ) : (
-            <div className="p-8">{renderContent()}</div>
+            <div className="p-4 md:p-8">{renderContent()}</div>
           )}
         </div>
       </div>

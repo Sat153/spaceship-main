@@ -242,9 +242,9 @@ export default function AdminKanban() {
 
   return (
     <div className="h-full bg-black text-white">
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white">Kanban Board</h1>
             <p className="text-gray-400">Manage tasks and track progress</p>
@@ -314,7 +314,7 @@ export default function AdminKanban() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 md:gap-4 mb-6">
           {[
             { label: 'Total', value: stats.total, color: 'text-white' },
             { label: 'To Do', value: stats.todo, color: 'text-gray-400' },
@@ -358,7 +358,7 @@ export default function AdminKanban() {
           )}
 
           <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-44 bg-gray-900 border-gray-700 text-white">
+            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
@@ -372,7 +372,7 @@ export default function AdminKanban() {
           </Select>
 
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger className="w-44 bg-gray-900 border-gray-700 text-white">
+            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
               <SelectValue placeholder="Assignee" />
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-700">
@@ -386,7 +386,7 @@ export default function AdminKanban() {
           </Select>
 
           <Select value={filterProject} onValueChange={setFilterProject}>
-            <SelectTrigger className="w-44 bg-gray-900 border-gray-700 text-white">
+            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
               <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-700">

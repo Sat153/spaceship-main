@@ -265,8 +265,8 @@ export default function ContentCreator() {
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-gray-800">
-                <div className="flex items-center justify-between">
+            <div className="p-4 md:p-6 border-b border-gray-800">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
                         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                             <PenTool className="h-6 w-6" />
@@ -468,7 +468,7 @@ export default function ContentCreator() {
 
             {/* Create Post Modal */}
             <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-                <DialogContent className="bg-gray-900 border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-gray-900 border-gray-700 w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
                             <PenTool className="h-5 w-5" />
@@ -631,7 +631,7 @@ export default function ContentCreator() {
 
             {/* Edit Post Modal */}
             <Dialog open={!!editingPost} onOpenChange={(open) => { if (!open) setEditingPost(null) }}>
-                <DialogContent className="bg-gray-900 border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-gray-900 border-gray-700 w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
                             <Edit2 className="h-5 w-5 text-blue-400" />
@@ -677,7 +677,7 @@ export default function ContentCreator() {
 
             {/* View Full Content Modal */}
             <Dialog open={!!viewingPost} onOpenChange={(open) => { if (!open) setViewingPost(null) }}>
-                <DialogContent className="bg-gray-900 border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-gray-900 border-gray-700 w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-white flex items-center gap-2">
                             <FileText className="h-5 w-5" />

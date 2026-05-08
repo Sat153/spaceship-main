@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { FileText, Search, Bell, Eye, Clock, BookOpen, ArrowLeft, Users, MessageCircle } from "lucide-react"
+import { FileText, Search, Bell, Eye, Clock, BookOpen, ArrowLeft, Users, MessageCircle, Menu } from "lucide-react"
 import SharedClients from "@/components/user/SharedClients"
 import ChatPanel from "@/components/user/ChatPanel"
 import UserRoute from "@/components/UserRoute"
@@ -25,6 +25,7 @@ interface Document {
 export default function UserDashboard() {
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState('knowledge-base')
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [documents, setDocuments] = useState<Document[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -327,16 +328,31 @@ export default function UserDashboard() {
 
   return (
     <UserRoute>
-      <div className="flex h-screen bg-black">
+      <div className="flex h-screen overflow-hidden bg-black">
         <Sidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
           userRole={profile?.role as "admin" | "user"}
+          isMobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
         />
+
+        {/* Desktop sidebar spacer */}
+        <div className="hidden md:block flex-shrink-0 w-[240px]" />
 
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
-          <div className="p-8">
+          {/* Mobile top bar */}
+          <div className="flex items-center gap-3 px-4 py-3 md:hidden border-b border-gray-800 bg-black">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-800 border border-gray-700"
+            >
+              <Menu className="w-4 h-4 text-gray-400" />
+            </button>
+            <span className="text-white font-semibold text-sm">ANYA SEGEN</span>
+          </div>
+          <div className="p-4 md:p-8">
             {renderContent()}
           </div>
         </div>

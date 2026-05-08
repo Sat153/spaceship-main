@@ -217,7 +217,7 @@ function AssetPickerModal({
 
     return (
         <Dialog open={open} onOpenChange={v => !v && onClose()}>
-            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col"
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] flex flex-col"
                 style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <DialogHeader>
                     <DialogTitle className="text-white">Select Asset</DialogTitle>
@@ -236,7 +236,7 @@ function AssetPickerModal({
                     ) : filtered.length === 0 ? (
                         <p className="text-center py-12 text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No media found</p>
                     ) : (
-                        <div className="grid grid-cols-4 gap-2 pt-3">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-3">
                             {filtered.map(asset => (
                                 <button
                                     key={asset.id}
@@ -399,7 +399,7 @@ function PlanEditor({
     return (
         <div className="space-y-6">
             {/* Header bar */}
-            <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
                 <button onClick={onBack} className="flex items-center gap-1.5 text-sm hover:text-white transition-colors"
                     style={{ color: 'rgba(255,255,255,0.5)' }}>
                     <ArrowLeft className="h-4 w-4" /> Back
@@ -453,7 +453,7 @@ function PlanEditor({
             </div>
 
             {/* Platform grid */}
-            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {PLATFORMS.map(platform => (
                     <div key={platform.id} className="rounded-xl p-4 space-y-3"
                         style={{ background: platform.bg, border: `1.5px solid ${platform.border}` }}>
