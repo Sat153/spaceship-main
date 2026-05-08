@@ -476,9 +476,6 @@ function AdminDashboardContent() {
           onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
-        {/* Desktop sidebar spacer */}
-        <div className="hidden md:block flex-shrink-0 w-[240px]" />
-
         {/* Main content */}
         <div className="flex-1 overflow-auto relative z-10">
           {/* Mobile top bar */}

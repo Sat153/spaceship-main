@@ -88,7 +88,7 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
       className={`
         flex flex-col h-screen transition-all duration-300 ease-in-out
         fixed inset-y-0 left-0 z-50
-        md:relative md:translate-x-0 md:z-auto
+        md:sticky md:top-0 md:translate-x-0 md:z-auto md:inset-auto
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}
       `}

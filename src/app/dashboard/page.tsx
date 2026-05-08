@@ -337,9 +337,6 @@ export default function UserDashboard() {
           onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
-        {/* Desktop sidebar spacer */}
-        <div className="hidden md:block flex-shrink-0 w-[240px]" />
-
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           {/* Mobile top bar */}
