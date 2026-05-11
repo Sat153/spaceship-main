@@ -1,11 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ESLint configuration
-  eslint: {
-    // Ignore ESLint during builds - we'll handle linting separately
-    ignoreDuringBuilds: true,
-  },
-
   // Performance optimizations
 
   // Experimental features for better performance
