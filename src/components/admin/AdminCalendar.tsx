@@ -59,23 +59,29 @@ export default function AdminCalendar() {
     setIsEventModalOpen(true);
   };
 
-  const convertToEventModalData = (event: AdminEvent): EventModalData => ({
-    id: event.id,
-    title: event.title,
-    description: event.description,
-    event_type: event.event_type,
-    start_date: new Date(event.start_date),
-    end_date: new Date(event.end_date),
-    all_day: event.all_day,
-    location: event.location,
-    meeting_url: event.meeting_url,
-    assigned_to: event.assigned_to,
-    department_id: event.department_id,
-    client_id: event.client_id,
-    priority: event.priority,
-    color: event.color,
-    tags: event.tags,
-  });
+  const convertToEventModalData = (event: AdminEvent): EventModalData => {
+    let assignedTo: string[] = []
+    if (event.assigned_to) {
+      try { assignedTo = JSON.parse(event.assigned_to) } catch { assignedTo = [event.assigned_to] }
+    }
+    return {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      event_type: event.event_type,
+      start_date: new Date(event.start_date),
+      end_date: new Date(event.end_date),
+      all_day: event.all_day,
+      location: event.location,
+      meeting_url: event.meeting_url,
+      assigned_to: assignedTo,
+      department_id: event.department_id,
+      client_id: event.client_id,
+      priority: event.priority,
+      color: event.color,
+      tags: event.tags,
+    }
+  };
 
   const handleSaveEvent = React.useCallback(async (eventData: EventModalData) => {
     if (!user) return;
@@ -91,7 +97,9 @@ export default function AdminCalendar() {
         all_day: eventData.all_day,
         location: eventData.location,
         meeting_url: eventData.meeting_url,
-        assigned_to: eventData.assigned_to,
+        assigned_to: eventData.assigned_to && eventData.assigned_to.length > 0
+          ? JSON.stringify(eventData.assigned_to)
+          : undefined,
         department_id: eventData.department_id,
         client_id: eventData.client_id,
         priority: eventData.priority,

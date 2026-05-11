@@ -466,6 +466,129 @@ export async function sendApprovalReminderEmail({
     return { error: error?.message || null }
 }
 
+export async function sendMeetingInviteEmail({
+    toEmail,
+    toName,
+    meetingTitle,
+    description,
+    startDate,
+    endDate,
+    location,
+    meetingUrl,
+    departmentName,
+    organizer,
+    dashboardUrl,
+}: {
+    toEmail: string
+    toName: string
+    meetingTitle: string
+    description?: string
+    startDate: string
+    endDate: string
+    location?: string
+    meetingUrl?: string
+    departmentName: string
+    organizer: string
+    dashboardUrl: string
+}) {
+    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your_resend_api_key_here') {
+        console.warn('[Email] RESEND_API_KEY not set — skipping meeting invite email')
+        return { error: null }
+    }
+
+    const { error } = await resend.emails.send({
+        from: `Anya Segen CRM <${FROM}>`,
+        to: toEmail,
+        subject: `Meeting Invite: ${meetingTitle}`,
+        html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#111827;border-radius:16px;border:1px solid #1f2937;overflow:hidden;max-width:560px;width:100%;">
+
+        <tr>
+          <td style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:28px 32px;">
+            <p style="margin:0;color:rgba(255,255,255,0.7);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">Anya Segen CRM &middot; Meeting Invite</p>
+            <h1 style="margin:10px 0 0;color:#ffffff;font-size:22px;font-weight:700;">You have been invited to a meeting</h1>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:32px;">
+            <p style="margin:0 0 6px;color:#9ca3af;font-size:15px;">Hi <strong style="color:#f9fafb;">${toName}</strong>,</p>
+            <p style="margin:0 0 28px;color:#9ca3af;font-size:14px;line-height:1.7;">
+              <strong style="color:#f9fafb;">${organizer}</strong> has scheduled a meeting for the <strong style="color:#f9fafb;">${departmentName}</strong> department.
+            </p>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#1f2937;border-radius:10px;border:1px solid #374151;margin-bottom:28px;">
+              <tr>
+                <td style="padding:16px 20px;border-bottom:1px solid #374151;">
+                  <p style="margin:0;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Meeting</p>
+                  <p style="margin:6px 0 0;color:#f9fafb;font-size:18px;font-weight:700;">${meetingTitle}</p>
+                  ${description ? `<p style="margin:6px 0 0;color:#9ca3af;font-size:13px;line-height:1.6;">${description}</p>` : ''}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:12px 20px;border-bottom:1px solid #374151;">
+                  <p style="margin:0;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Date &amp; Time</p>
+                  <p style="margin:4px 0 0;color:#f9fafb;font-size:14px;font-weight:600;">${startDate}</p>
+                  <p style="margin:2px 0 0;color:#9ca3af;font-size:13px;">to ${endDate}</p>
+                </td>
+              </tr>
+              ${location ? `<tr>
+                <td style="padding:12px 20px;border-bottom:1px solid #374151;">
+                  <p style="margin:0;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Location</p>
+                  <p style="margin:4px 0 0;color:#f9fafb;font-size:14px;">${location}</p>
+                </td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding:12px 20px;">
+                  <p style="margin:0;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Department</p>
+                  <p style="margin:4px 0 0;color:#38bdf8;font-size:14px;font-weight:600;">${departmentName}</p>
+                </td>
+              </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                ${meetingUrl ? `<td align="center" style="padding-bottom:12px;">
+                  <a href="${meetingUrl}" target="_blank"
+                    style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700;">
+                    Join Meeting &rarr;
+                  </a>
+                </td>` : ''}
+              </tr>
+              <tr>
+                <td align="center">
+                  <a href="${dashboardUrl}" target="_blank"
+                    style="display:inline-block;padding:12px 36px;background:transparent;color:#6b7280;text-decoration:none;border-radius:10px;font-size:14px;font-weight:600;border:1px solid #374151;">
+                    View Calendar
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 32px;border-top:1px solid #1f2937;">
+            <p style="margin:0;color:#374151;font-size:12px;">Anya Segen CRM &middot; Meeting invitation for ${departmentName} department</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+    })
+
+    return { error: error?.message || null }
+}
+
 export async function sendPhotoAssignmentEmail({
     toEmail,
     toName,

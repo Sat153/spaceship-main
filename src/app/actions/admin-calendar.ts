@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidateTag } from 'next/cache'
+import { sendMeetingInviteEmail } from '@/lib/email'
 
 export interface AdminEvent {
   id: string
@@ -35,6 +36,7 @@ export interface User {
   id: string
   first_name: string
   last_name: string
+  department_id?: string
 }
 
 export interface Client {
@@ -119,7 +121,7 @@ export async function fetchUsers(): Promise<{ data: User[] | null; error: string
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, department_id')
       .order('first_name')
 
     if (error) {
@@ -163,33 +165,82 @@ export async function saveEvent(
   eventId?: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    console.log('Server Action: Saving event...', { eventId, eventData })
     const supabase = await getSupabaseClient()
+    const adminClient = createAdminClient()
+    const isNew = !eventId
 
     if (eventId) {
-      // Update existing event
-      const { error } = await supabase
-        .from('admin_events')
-        .update(eventData)
-        .eq('id', eventId)
-
-      if (error) {
-        console.error('Error updating event:', error)
-        return { success: false, error: error.message }
-      }
+      const { error } = await supabase.from('admin_events').update(eventData).eq('id', eventId)
+      if (error) return { success: false, error: error.message }
     } else {
-      // Create new event
-      const { error } = await supabase
-        .from('admin_events')
-        .insert([eventData])
+      const { error } = await supabase.from('admin_events').insert([eventData])
+      if (error) return { success: false, error: error.message }
+    }
 
-      if (error) {
-        console.error('Error creating event:', error)
-        return { success: false, error: error.message }
+    // Send meeting invite emails on new meeting creation
+    if (isNew && eventData.event_type === 'meeting' && eventData.department_id) {
+      try {
+        const { data: department } = await adminClient
+          .from('departments')
+          .select('name')
+          .eq('id', eventData.department_id)
+          .single()
+
+        // Use selected assignees if specified, otherwise all dept members
+        let selectedIds: string[] = []
+        if (eventData.assigned_to) {
+          try { selectedIds = JSON.parse(eventData.assigned_to) } catch { /* ignore */ }
+        }
+
+        const membersQuery = adminClient
+          .from('profiles')
+          .select('email, first_name, last_name')
+
+        const { data: members } = selectedIds.length > 0
+          ? await membersQuery.in('id', selectedIds)
+          : await membersQuery.eq('department_id', eventData.department_id)
+
+        const { data: creator } = await adminClient
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', eventData.created_by)
+          .single()
+
+        if (members && members.length > 0 && department) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+          const organizer = creator
+            ? `${creator.first_name || ''} ${creator.last_name || ''}`.trim() || 'Admin'
+            : 'Admin'
+
+          const formatDate = (iso: string) =>
+            new Date(iso).toLocaleDateString('en-IN', {
+              weekday: 'long', day: 'numeric', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            })
+
+          for (const member of members) {
+            if (!member.email) continue
+            const name = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email
+            await sendMeetingInviteEmail({
+              toEmail: member.email,
+              toName: name,
+              meetingTitle: eventData.title,
+              description: eventData.description,
+              startDate: formatDate(eventData.start_date),
+              endDate: formatDate(eventData.end_date),
+              location: eventData.location,
+              meetingUrl: eventData.meeting_url,
+              departmentName: department.name,
+              organizer,
+              dashboardUrl: `${appUrl}/admin?tab=calendar`,
+            })
+          }
+        }
+      } catch (emailErr) {
+        console.error('Meeting invite emails failed (non-fatal):', emailErr)
       }
     }
 
-    console.log('Server Action: Event saved successfully')
     revalidateTag('admin-events')
     return { success: true, error: null }
   } catch (error) {
