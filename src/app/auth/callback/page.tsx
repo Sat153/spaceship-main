@@ -92,7 +92,8 @@ export default function AuthCallbackPage() {
 
                 // Determine where to redirect
                 const isInvitedUser = tokenType === 'invite'
-                const redirectPath = isInvitedUser ? '/auth/set-password' : '/admin'
+                const isPasswordRecovery = tokenType === 'recovery'
+                const redirectPath = isInvitedUser ? '/auth/set-password' : isPasswordRecovery ? '/auth/reset-password' : '/admin'
 
                 console.log('Redirecting to:', redirectPath)
                 setStatus('Redirecting...')
