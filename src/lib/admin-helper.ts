@@ -11,7 +11,7 @@ export async function getAdminDepartmentId(): Promise<string | null> {
         const { data, error } = await supabase
             .from('departments')
             .select('id')
-            .eq('name', 'Admin')
+            .eq('name', 'Administration')
             .single()
 
         if (error || !data) {

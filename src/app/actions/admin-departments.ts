@@ -34,7 +34,7 @@ export async function getDepartmentStats(): Promise<{ success: boolean, data?: D
         const { data: adminDept, error: adminDeptError } = await supabaseAdmin
             .from('departments')
             .select('id')
-            .eq('name', 'Admin')
+            .eq('name', 'Administration')
             .single()
 
         if (adminDeptError || !adminDept) {
@@ -118,7 +118,7 @@ async function checkAdminPermission(): Promise<{ allowed: boolean; error?: strin
         const { data: adminDept } = await supabaseAdmin
             .from('departments')
             .select('id')
-            .eq('name', 'Admin')
+            .eq('name', 'Administration')
             .single()
 
         if (!adminDept) return { allowed: false, error: 'Admin department not found' }

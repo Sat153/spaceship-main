@@ -106,7 +106,7 @@ export async function getTeamMembers() {
         const { data: adminDept } = await adminClient
             .from('departments')
             .select('id')
-            .eq('name', 'Admin')
+            .eq('name', 'Administration')
             .single()
 
         // Dynamically get Admin ID
