@@ -309,29 +309,6 @@ export default function UserDashboard() {
     </div>
   )
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'clients':
-        return <SharedClients />
-      case 'tasks':
-        return <UserTasks />
-      case 'calendar':
-        return <UserCalendar />
-      case 'messages':
-        return <ChatPanel />
-      case 'knowledge-base':
-        return renderKnowledgeBase()
-      case 'search':
-        return renderSearch()
-      case 'notifications':
-        return renderNotifications()
-      case 'profile':
-        return renderProfile()
-      default:
-        return renderKnowledgeBase()
-    }
-  }
-
   return (
     <UserRoute>
       <div className="flex h-screen overflow-hidden bg-black">
@@ -357,7 +334,17 @@ export default function UserDashboard() {
             <span className="text-white font-semibold text-sm">ANYA SEGEN</span>
           </div>
           <div className="p-4 md:p-8">
-            {renderContent()}
+            {/* Keep all tabs mounted to avoid refetch on every switch */}
+            <div className={activeTab === 'clients' ? '' : 'hidden'}><SharedClients /></div>
+            <div className={activeTab === 'tasks' ? '' : 'hidden'}><UserTasks /></div>
+            <div className={activeTab === 'calendar' ? '' : 'hidden'}><UserCalendar /></div>
+            <div className={activeTab === 'messages' ? '' : 'hidden'}><ChatPanel /></div>
+            <div className={activeTab === 'knowledge-base' || activeTab === 'search' || activeTab === 'notifications' || activeTab === 'profile' ? '' : 'hidden'}>
+              {activeTab === 'knowledge-base' && renderKnowledgeBase()}
+              {activeTab === 'search' && renderSearch()}
+              {activeTab === 'notifications' && renderNotifications()}
+              {activeTab === 'profile' && renderProfile()}
+            </div>
           </div>
         </div>
       </div>

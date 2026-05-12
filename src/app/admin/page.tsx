@@ -434,23 +434,6 @@ function AdminDashboardContent() {
     )
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'overview': return renderOverview()
-      case 'members': return <AdminTeamMembers />
-      case 'messages': return <ChatPanel />
-      case 'assets': return <AdminAssets />
-      case 'clients': return <AdminClients key={activeTab} user={user} />
-      case 'content': return <ContentHub key={activeTab} />
-      case 'messaging': return <MessagingBank key={activeTab} />
-      case 'documents': return <AdminDocuments key={activeTab} user={user} />
-      case 'calendar': return <AdminCalendar key={activeTab} />
-      case 'kanban': return <AdminKanban key={activeTab} />
-      case 'settings': return <AdminSettings />
-      default: return renderOverview()
-    }
-  }
-
   const fullBleedTabs = ['documents', 'clients', 'content', 'messaging', 'calendar', 'kanban', 'messages']
 
   return (
@@ -494,11 +477,25 @@ function AdminDashboardContent() {
               <span className="text-white font-semibold text-sm">ANYA SEGEN</span>
             </div>
           </div>
-          {fullBleedTabs.includes(activeTab) ? (
-            <div className="h-full">{renderContent()}</div>
-          ) : (
-            <div className="p-4 md:p-8">{renderContent()}</div>
-          )}
+
+          {/* Full-bleed tabs — kept mounted, hidden when inactive */}
+          <div className={`h-full ${fullBleedTabs.includes(activeTab) ? '' : 'hidden'}`}>
+            <div className={activeTab === 'messages' ? 'h-full' : 'hidden'}><ChatPanel /></div>
+            <div className={activeTab === 'assets' ? 'h-full' : 'hidden'}><AdminAssets /></div>
+            <div className={activeTab === 'clients' ? 'h-full' : 'hidden'}><AdminClients user={user} /></div>
+            <div className={activeTab === 'content' ? 'h-full' : 'hidden'}><ContentHub /></div>
+            <div className={activeTab === 'messaging' ? 'h-full' : 'hidden'}><MessagingBank /></div>
+            <div className={activeTab === 'documents' ? 'h-full' : 'hidden'}><AdminDocuments user={user} /></div>
+            <div className={activeTab === 'calendar' ? 'h-full' : 'hidden'}><AdminCalendar /></div>
+            <div className={activeTab === 'kanban' ? 'h-full' : 'hidden'}><AdminKanban /></div>
+          </div>
+
+          {/* Padded tabs — kept mounted, hidden when inactive */}
+          <div className={`p-4 md:p-8 ${!fullBleedTabs.includes(activeTab) ? '' : 'hidden'}`}>
+            <div className={activeTab === 'overview' ? '' : 'hidden'}>{renderOverview()}</div>
+            <div className={activeTab === 'members' ? '' : 'hidden'}><AdminTeamMembers /></div>
+            <div className={activeTab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>
+          </div>
         </div>
       </div>
     </AdminRoute>
