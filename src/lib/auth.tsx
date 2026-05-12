@@ -242,34 +242,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    console.log('🔄 Starting sign out process...')
     try {
-      // Clear local state first
+      // Clear local state and redirect immediately — don't wait for Supabase
       setUser(null)
       setProfile(null)
-      setLoading(true)
+      window.location.href = '/'
+
+      // Sign out from Supabase in the background
+      supabase.auth.signOut()
       
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut()
-      
-      if (error) {
-        console.error('❌ Sign out error:', error)
-        throw error
-      }
-      
-      console.log('✅ Sign out successful')
-      
-      // Use router navigation instead of hard reload
-      router.push('/')
-      
-    } catch (error) {
-      console.error('❌ Error during sign out:', error)
-      // Even if there's an error, try to clear local state and redirect
-      setUser(null)
-      setProfile(null)
-      router.push('/')
-    } finally {
-      setLoading(false)
+    } catch {
+      window.location.href = '/'
     }
   }
 
