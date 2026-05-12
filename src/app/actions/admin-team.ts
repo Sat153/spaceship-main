@@ -35,7 +35,7 @@ export async function inviteTeamMember(params: InviteMemberParams) {
                     department_id: params.department_id,
                     invite_message: params.custom_message,
                 },
-                redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+                redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
             }
         )
 

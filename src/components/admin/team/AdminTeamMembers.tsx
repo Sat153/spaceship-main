@@ -476,7 +476,6 @@ function InviteDialog({ open, onOpenChange, inviteData, setInviteData, departmen
                                 <SelectContent className="bg-gray-700 border-gray-600">
                                     <SelectItem value="user">User</SelectItem>
                                     <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="manager">Manager</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
