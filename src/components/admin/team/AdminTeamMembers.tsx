@@ -12,10 +12,11 @@ import {
     Users, UserPlus, Trash2, Mail, Phone, Building2, Calendar,
     Shield, ArrowLeft, Palette, Share2, Briefcase,
     DollarSign, Heart, Target, Settings2, User, Folder,
-    ChevronRight, Pencil, X, Check
+    ChevronRight, Pencil, X, Check, Plus
 } from "lucide-react"
 import { useDepartments } from "@/hooks/admin/useDepartments"
 import { inviteTeamMember, deleteTeamMember, updateTeamMember } from "@/app/actions/admin-team"
+import { createDepartment } from "@/app/actions/admin-departments"
 import { useAdminTeamMembers } from "@/hooks/useSWR"
 
 interface TeamMember {
@@ -88,6 +89,11 @@ export default function AdminTeamMembers() {
     const [inviteData, setInviteData] = useState({ email: '', first_name: '', last_name: '', role: 'user', department_id: '', custom_message: '' })
     const [inviteLoading, setInviteLoading] = useState(false)
 
+    const [isCreateDeptOpen, setIsCreateDeptOpen] = useState(false)
+    const [newDeptName, setNewDeptName] = useState('')
+    const [createDeptLoading, setCreateDeptLoading] = useState(false)
+    const [createDeptError, setCreateDeptError] = useState('')
+
     // Group members by department
     const membersByDept = useMemo(() => {
         const map: Record<string, TeamMember[]> = {}
@@ -122,6 +128,21 @@ export default function AdminTeamMembers() {
             alert('Failed to invite member')
         } finally {
             setInviteLoading(false)
+        }
+    }
+
+    const handleCreateDept = async () => {
+        if (!newDeptName.trim()) { setCreateDeptError('Name is required'); return }
+        setCreateDeptLoading(true)
+        setCreateDeptError('')
+        const result = await createDepartment({ name: newDeptName.trim() })
+        setCreateDeptLoading(false)
+        if (result.success) {
+            setIsCreateDeptOpen(false)
+            setNewDeptName('')
+            refreshTeamMembers()
+        } else {
+            setCreateDeptError(result.error || 'Failed to create department')
         }
     }
 
@@ -214,6 +235,16 @@ export default function AdminTeamMembers() {
                                 </button>
                             )
                         })}
+                        {/* Add Department card */}
+                        <button
+                            onClick={() => { setNewDeptName(''); setCreateDeptError(''); setIsCreateDeptOpen(true) }}
+                            className="text-left p-5 rounded-xl border border-dashed border-gray-600 hover:border-blue-500 hover:bg-blue-500/5 transition-all duration-200 group flex flex-col items-center justify-center min-h-[120px]"
+                        >
+                            <div className="p-3 rounded-lg bg-gray-700 border border-gray-600 group-hover:bg-blue-500/20 group-hover:border-blue-500/40 mb-3">
+                                <Plus className="h-6 w-6 text-gray-400 group-hover:text-blue-400" />
+                            </div>
+                            <span className="text-gray-400 group-hover:text-blue-400 font-medium text-sm">New Department</span>
+                        </button>
                     </div>
                 )}
 
@@ -226,6 +257,35 @@ export default function AdminTeamMembers() {
                     onInvite={handleInvite}
                     loading={inviteLoading}
                 />
+
+                {/* Create Department Dialog */}
+                <Dialog open={isCreateDeptOpen} onOpenChange={setIsCreateDeptOpen}>
+                    <DialogContent className="bg-gray-800 border-gray-700 text-white">
+                        <DialogHeader>
+                            <DialogTitle>New Department</DialogTitle>
+                            <DialogDescription className="text-gray-400">Create a new department for your team.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Department Name</Label>
+                                <Input
+                                    value={newDeptName}
+                                    onChange={(e: any) => setNewDeptName(e.target.value)}
+                                    placeholder="e.g. Operations and Strategy"
+                                    className="bg-gray-900 border-gray-600 text-white"
+                                    onKeyDown={(e: any) => e.key === 'Enter' && handleCreateDept()}
+                                />
+                                {createDeptError && <p className="text-red-400 text-sm">{createDeptError}</p>}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCreateDeptOpen(false)} className="text-white border-gray-600 bg-gray-800 hover:bg-gray-700">Cancel</Button>
+                            <Button onClick={handleCreateDept} disabled={createDeptLoading || !newDeptName.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                {createDeptLoading ? 'Creating...' : 'Create Department'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         )
     }
