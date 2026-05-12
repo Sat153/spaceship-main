@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? ''
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET
 
