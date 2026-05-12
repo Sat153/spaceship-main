@@ -20,7 +20,7 @@ interface AuthContextType {
   profile: Profile | null
   loading: boolean
   isAdmin: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (email: string, password: string) => Promise<{ error: any; user: any | null }>
   signUp: (email: string, password: string, firstName: string, lastName: string, departmentName: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -182,17 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Remove the duplicate useEffect that was causing issues
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    
-    if (!error && data.session) {
-      console.log('✅ SignIn successful, auth state change listener will handle the rest')
-      // Let the auth state change listener handle user state updates
-    }
-    
-    return { error }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error, user: data?.user ?? null }
   }
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, departmentName: string) => {

@@ -22,33 +22,12 @@ export default function LoginPage() {
   const { signIn, user, profile, isAdmin } = useAuth()
   const router = useRouter()
 
-  // Handle redirect when user is authenticated
+  // Redirect already-logged-in users
   useEffect(() => {
-    console.log('Login useEffect - user:', !!user, 'loading:', loading, 'isAdmin:', isAdmin, 'profile:', !!profile)
-    // Only redirect if we have a valid authenticated user and profile is loaded
     if (user && profile && !loading) {
-      const redirectUrl = isAdmin ? '/admin' : '/dashboard'
-      console.log('User authenticated, redirecting to:', redirectUrl)
-      // Use hard redirect to ensure cookies are properly set for middleware
-      window.location.href = redirectUrl
+      window.location.href = isAdmin ? '/admin' : '/dashboard'
     }
-  }, [user, profile, loading, isAdmin, router])
-
-  // Backup redirect mechanism - if user is authenticated but redirect didn't happen
-  useEffect(() => {
-    if (user && !loading) {
-      const timer = setTimeout(() => {
-        if (window.location.pathname === '/auth/login') {
-          console.log('Backup redirect triggered - user still on login page')
-          // If we're still on login page after 2 seconds, force redirect
-          // Let middleware handle the proper redirect based on role
-          window.location.href = '/dashboard'
-        }
-      }, 2000)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [user, loading])
+  }, [user, profile, loading, isAdmin])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,27 +51,20 @@ export default function LoginPage() {
     }
 
     try {
-      console.log('Starting sign in...')
-      
-      // Use the signIn method from AuthProvider for better state management
-      const { error: authError } = await signIn(email, password)
-      
+      const { error: authError, user: signedInUser } = await signIn(email, password)
+
       if (authError) {
-        console.error('Sign in error:', authError)
-        const userError = mapErrorToUserMessage(authError)
-        setError(userError.message)
+        setError(mapErrorToUserMessage(authError).message)
         setLoading(false)
+      } else if (signedInUser) {
+        // Redirect immediately using role from user metadata — no extra DB call needed
+        const role = signedInUser.user_metadata?.role || 'user'
+        window.location.href = role === 'admin' ? '/admin' : '/dashboard'
       } else {
-        console.log('Sign in successful, waiting for auth state...')
-        // Reset loading state so useEffect can trigger redirect
         setLoading(false)
-        // The useEffect will handle the proper redirect based on role
-        // No fallback redirect needed - let the useEffect handle it
       }
     } catch (error) {
-      console.error('Sign in catch error:', error)
-      const userError = mapErrorToUserMessage(error)
-      setError(userError.message)
+      setError(mapErrorToUserMessage(error).message)
       setLoading(false)
     }
   }
