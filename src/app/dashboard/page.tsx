@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { FileText, Search, Bell, Eye, Clock, BookOpen, ArrowLeft, Users, MessageCircle, Menu } from "lucide-react"
 import SharedClients from "@/components/user/SharedClients"
 import ChatPanel from "@/components/user/ChatPanel"
+import UserTasks from "@/components/user/UserTasks"
+import UserCalendar from "@/components/user/UserCalendar"
 import UserRoute from "@/components/UserRoute"
 import Sidebar from "@/components/Sidebar"
 import { useAuth } from "@/lib/auth"
@@ -311,6 +313,10 @@ export default function UserDashboard() {
     switch (activeTab) {
       case 'clients':
         return <SharedClients />
+      case 'tasks':
+        return <UserTasks />
+      case 'calendar':
+        return <UserCalendar />
       case 'messages':
         return <ChatPanel />
       case 'knowledge-base':
@@ -335,6 +341,7 @@ export default function UserDashboard() {
           userRole={profile?.role as "admin" | "user"}
           isMobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
+          departmentName={departmentName}
         />
 
         {/* Main Content */}

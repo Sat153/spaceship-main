@@ -29,10 +29,15 @@ interface SidebarProps {
   userRole?: 'admin' | 'user'
   isMobileOpen?: boolean
   onMobileClose?: () => void
+  departmentName?: string
 }
 
-const userMenuItems = [
+const CONTENT_DEPARTMENTS = ['PR & Social Media', 'Creative Labs', 'Operations and strategy', 'Operations and Strategy']
+
+const baseUserMenuItems = [
   { id: 'clients', label: 'My Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
+  { id: 'tasks', label: 'My Tasks', icon: Kanban, color: 'from-orange-400 to-red-500' },
+  { id: 'calendar', label: 'Calendar', icon: Calendar, color: 'from-violet-400 to-indigo-500' },
   { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
   { id: 'knowledge-base', label: 'Knowledge Base', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
   { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-amber-400 to-orange-500' },
@@ -53,7 +58,7 @@ const adminMenuItems = [
   { id: 'settings', label: 'Settings', icon: Settings, color: 'from-slate-400 to-gray-500' },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen, onMobileClose }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen, onMobileClose, departmentName }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { profile, signOut } = useAuth()
   const router = useRouter()
@@ -70,6 +75,14 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
     onTabChange(tab)
     onMobileClose?.()
   }
+
+  const userMenuItems = (() => {
+    const items = [...baseUserMenuItems]
+    if (departmentName && CONTENT_DEPARTMENTS.includes(departmentName)) {
+      items.splice(3, 0, { id: 'content', label: 'Content', icon: PenTool, color: 'from-pink-400 to-rose-500' })
+    }
+    return items
+  })()
 
   const menuItems = userRole === 'admin' ? adminMenuItems : userMenuItems
   const initials = `${profile?.first_name?.[0] ?? ''}${profile?.last_name?.[0] ?? ''}`.toUpperCase()
