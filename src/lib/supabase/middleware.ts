@@ -66,23 +66,8 @@ export async function updateSession(request: NextRequest) {
 
   // Handle authenticated users
   if (user) {
-    // Get user profile once for all role checks
-    let userProfile = null
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (!error && profile) {
-        userProfile = profile
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error)
-    }
-
-    const isAdmin = userProfile?.role === 'admin'
+    // Use JWT metadata for role — avoids a DB round-trip on every request
+    const isAdmin = user.user_metadata?.role === 'admin'
 
     // Redirect authenticated users away from auth pages
     if (isAuthRoute) {
