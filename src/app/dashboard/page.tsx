@@ -42,45 +42,25 @@ export default function UserDashboard() {
 
   const fetchDocuments = useCallback(async () => {
     if (!profile?.department_id) {
-      console.log('No department_id found for user profile:', profile)
       setLoading(false)
       return
     }
 
     try {
-      // First get department name
-      const { data: deptData } = await supabase
-        .from('departments')
-        .select('name')
-        .eq('id', profile.department_id)
-        .single()
+      // Fetch department name and documents in parallel
+      const [deptRes, docsRes] = await Promise.all([
+        supabase.from('departments').select('name').eq('id', profile.department_id).single(),
+        supabase.from('documents').select('id, title, content, document_type, tags, created_at')
+          .eq('department_id', profile.department_id)
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
+      ])
 
-      const deptName = deptData?.name || 'Unknown'
+      const deptName = deptRes.data?.name || 'Unknown'
       setDepartmentName(deptName)
 
-      // Then get documents
-      const { data, error } = await supabase
-        .from('documents')
-        .select(`
-          id,
-          title,
-          content,
-          document_type,
-          tags,
-          created_at
-        `)
-        .eq('department_id', profile.department_id)
-        .eq('is_published', true)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error fetching documents:', error)
-      } else {
-        const docsWithDept = data?.map(doc => ({
-          ...doc,
-          department_name: deptName
-        })) || []
-        setDocuments(docsWithDept)
+      if (!docsRes.error) {
+        setDocuments((docsRes.data || []).map(doc => ({ ...doc, department_name: deptName })))
       }
     } catch (err) {
       console.error('Error in fetchDocuments:', err)
@@ -304,7 +284,7 @@ export default function UserDashboard() {
           </div>
           <div>
             <label className="text-sm text-gray-400">Department</label>
-            <p className="text-white">{departmentName || 'Loading...'}</p>
+            <p className="text-white">{departmentName || '—'}</p>
           </div>
           <div>
             <label className="text-sm text-gray-400">Role</label>
