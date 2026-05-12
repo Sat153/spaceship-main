@@ -82,7 +82,13 @@ function AdminDashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'overview')
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([searchParams.get('tab') || 'overview']))
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  const handleTabChange = (tab: string) => {
+    setVisitedTabs(prev => { const next = new Set(prev); next.add(tab); return next })
+    setActiveTab(tab)
+  }
   const defaultPipeline = { draft: 0, internal_review: 0, pending_review: 0, approved: 0, scheduled: 0, rejected: 0 }
   const [stats, setStats] = useState<DashboardStats>({
     total_members: 0, total_documents: 0, total_departments: 0,
@@ -453,7 +459,7 @@ function AdminDashboardContent() {
 
         <Sidebar
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           userRole="admin"
           isMobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
@@ -478,23 +484,23 @@ function AdminDashboardContent() {
             </div>
           </div>
 
-          {/* Full-bleed tabs — kept mounted, hidden when inactive */}
+          {/* Full-bleed tabs — lazy mount on first visit, then keep alive */}
           <div className={`h-full ${fullBleedTabs.includes(activeTab) ? '' : 'hidden'}`}>
-            <div className={activeTab === 'messages' ? 'h-full' : 'hidden'}><ChatPanel /></div>
-            <div className={activeTab === 'assets' ? 'h-full' : 'hidden'}><AdminAssets /></div>
-            <div className={activeTab === 'clients' ? 'h-full' : 'hidden'}><AdminClients user={user} /></div>
-            <div className={activeTab === 'content' ? 'h-full' : 'hidden'}><ContentHub /></div>
-            <div className={activeTab === 'messaging' ? 'h-full' : 'hidden'}><MessagingBank /></div>
-            <div className={activeTab === 'documents' ? 'h-full' : 'hidden'}><AdminDocuments user={user} /></div>
-            <div className={activeTab === 'calendar' ? 'h-full' : 'hidden'}><AdminCalendar /></div>
-            <div className={activeTab === 'kanban' ? 'h-full' : 'hidden'}><AdminKanban /></div>
+            {visitedTabs.has('messages') && <div className={activeTab === 'messages' ? 'h-full' : 'hidden'}><ChatPanel /></div>}
+            {visitedTabs.has('assets') && <div className={activeTab === 'assets' ? 'h-full' : 'hidden'}><AdminAssets /></div>}
+            {visitedTabs.has('clients') && <div className={activeTab === 'clients' ? 'h-full' : 'hidden'}><AdminClients user={user} /></div>}
+            {visitedTabs.has('content') && <div className={activeTab === 'content' ? 'h-full' : 'hidden'}><ContentHub /></div>}
+            {visitedTabs.has('messaging') && <div className={activeTab === 'messaging' ? 'h-full' : 'hidden'}><MessagingBank /></div>}
+            {visitedTabs.has('documents') && <div className={activeTab === 'documents' ? 'h-full' : 'hidden'}><AdminDocuments user={user} /></div>}
+            {visitedTabs.has('calendar') && <div className={activeTab === 'calendar' ? 'h-full' : 'hidden'}><AdminCalendar /></div>}
+            {visitedTabs.has('kanban') && <div className={activeTab === 'kanban' ? 'h-full' : 'hidden'}><AdminKanban /></div>}
           </div>
 
-          {/* Padded tabs — kept mounted, hidden when inactive */}
+          {/* Padded tabs — lazy mount on first visit, then keep alive */}
           <div className={`p-4 md:p-8 ${!fullBleedTabs.includes(activeTab) ? '' : 'hidden'}`}>
             <div className={activeTab === 'overview' ? '' : 'hidden'}>{renderOverview()}</div>
-            <div className={activeTab === 'members' ? '' : 'hidden'}><AdminTeamMembers /></div>
-            <div className={activeTab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>
+            {visitedTabs.has('members') && <div className={activeTab === 'members' ? '' : 'hidden'}><AdminTeamMembers /></div>}
+            {visitedTabs.has('settings') && <div className={activeTab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>}
           </div>
         </div>
       </div>

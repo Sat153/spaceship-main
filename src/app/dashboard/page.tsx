@@ -27,7 +27,13 @@ interface Document {
 export default function UserDashboard() {
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState('knowledge-base')
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['knowledge-base']))
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  const handleTabChange = (tab: string) => {
+    setVisitedTabs(prev => { const next = new Set(prev); next.add(tab); return next })
+    setActiveTab(tab)
+  }
   const [documents, setDocuments] = useState<Document[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -314,7 +320,7 @@ export default function UserDashboard() {
       <div className="flex h-screen overflow-hidden bg-black">
         <Sidebar
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           userRole={profile?.role as "admin" | "user"}
           isMobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
@@ -334,12 +340,12 @@ export default function UserDashboard() {
             <span className="text-white font-semibold text-sm">ANYA SEGEN</span>
           </div>
           <div className="p-4 md:p-8">
-            {/* Keep all tabs mounted to avoid refetch on every switch */}
-            <div className={activeTab === 'clients' ? '' : 'hidden'}><SharedClients /></div>
-            <div className={activeTab === 'tasks' ? '' : 'hidden'}><UserTasks /></div>
-            <div className={activeTab === 'calendar' ? '' : 'hidden'}><UserCalendar /></div>
-            <div className={activeTab === 'messages' ? '' : 'hidden'}><ChatPanel /></div>
-            <div className={activeTab === 'knowledge-base' || activeTab === 'search' || activeTab === 'notifications' || activeTab === 'profile' ? '' : 'hidden'}>
+            {/* Lazy mount: render only after first visit, then keep alive to avoid refetch */}
+            {visitedTabs.has('clients') && <div className={activeTab === 'clients' ? '' : 'hidden'}><SharedClients /></div>}
+            {visitedTabs.has('tasks') && <div className={activeTab === 'tasks' ? '' : 'hidden'}><UserTasks /></div>}
+            {visitedTabs.has('calendar') && <div className={activeTab === 'calendar' ? '' : 'hidden'}><UserCalendar /></div>}
+            {visitedTabs.has('messages') && <div className={activeTab === 'messages' ? '' : 'hidden'}><ChatPanel /></div>}
+            <div className={['knowledge-base','search','notifications','profile'].includes(activeTab) ? '' : 'hidden'}>
               {activeTab === 'knowledge-base' && renderKnowledgeBase()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'notifications' && renderNotifications()}
