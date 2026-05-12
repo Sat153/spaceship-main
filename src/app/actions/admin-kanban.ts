@@ -181,7 +181,7 @@ export async function moveTask(
             assignedBy: 'Admin',
             taskTitle: currentTask.title,
             priority: 'medium',
-            dashboardUrl: `${appUrl}/admin?tab=assets`,
+            dashboardUrl: `${appUrl}/dashboard`,
             taskDescription: `Your task status has been updated to: ${newStatus.replace('_', ' ')}`,
           })
         }
@@ -269,7 +269,7 @@ export async function saveTask(
               ? new Date(taskData.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
               : undefined,
             projectName,
-            dashboardUrl: `${appUrl}/admin?tab=assets`,
+            dashboardUrl: `${appUrl}/dashboard`,
           })
         }
       } catch (emailErr) {
