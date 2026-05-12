@@ -39,136 +39,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Move refreshProfile inside useEffect to avoid dependency issues
   useEffect(() => {
     let mounted = true
-    let isRefreshing = false
-    let initialLoadComplete = false
-    
-    const refreshProfile = async (currentUser: any) => {
-      if (isRefreshing || !mounted) return
-      
-      isRefreshing = true
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentUser.id)
-          .maybeSingle()
 
-        if (!mounted) return
-
-        if (error) {
-          console.error('Error fetching profile:', error)
-          setProfile(null)
-        } else if (data) {
-          console.log('Profile loaded successfully:', data)
-          setProfile(data)
-        } else {
-          console.warn('No profile found for user - creating account without profile')
-          setProfile(null)
-        }
-      } catch (err) {
-        console.error('Error in refreshProfile:', err)
-        if (mounted) {
-          setProfile(null)
-        }
-      } finally {
-        isRefreshing = false
-      }
-    }
-    
-    // Get initial user - simplified to prevent loops
-    const getInitialUser = async () => {
-      if (!mounted) return
-      
-      console.log('🔄 Getting initial user...')
-      setLoading(true)
-      
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
-        
-        if (!mounted) return
-        
-        if (userError) {
-          console.error('❌ Error getting user:', userError)
-          setUser(null)
-          setProfile(null)
-        } else {
-          console.log('✅ Initial user loaded:', user ? `user found (${user.email})` : 'no user')
-          setUser(user)
-          if (user) {
-            await refreshProfile(user)
-          } else {
-            setProfile(null)
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error getting initial user:', error)
-        if (mounted) {
-          setUser(null)
-          setProfile(null)
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false)
-          initialLoadComplete = true
-        }
-      }
+    const loadProfile = async (currentUser: any) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name, role, department_id')
+        .eq('id', currentUser.id)
+        .maybeSingle()
+      if (mounted) setProfile(data ?? null)
     }
 
-    getInitialUser()
-
-    // Listen for auth changes with simplified logic
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return
-        
-        console.log('🔄 Auth state change:', event, 'Session:', session ? 'exists' : 'none')
-        
-        // Handle different auth events
-        switch (event) {
-          case 'INITIAL_SESSION':
-            console.log('⏭️ Processing INITIAL_SESSION event')
-            setUser(session?.user || null)
-            if (session?.user) {
-              await refreshProfile(session.user)
-            } else {
-              setProfile(null)
-            }
-            if (mounted) {
-              setLoading(false)
-              initialLoadComplete = true
-            }
-            break
-            
-          case 'TOKEN_REFRESHED':
-            console.log('🔄 Token refreshed')
-            if (session?.user) {
-              setUser(session.user)
-              // Don't refresh profile on token refresh to avoid unnecessary calls
-            }
-            break
-            
-          case 'SIGNED_IN':
-            console.log('✅ User signed in:', session?.user?.email)
-            setUser(session?.user || null)
-            if (session?.user) {
-              await refreshProfile(session.user)
-            }
-            break
-            
-          case 'SIGNED_OUT':
-            console.log('🔄 User signed out, clearing state')
-            setUser(null)
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+
+        if (event === 'INITIAL_SESSION') {
+          if (currentUser) {
+            await loadProfile(currentUser)
+          } else {
             setProfile(null)
-            break
-            
-          default:
-            console.log('🔄 Other auth event:', event)
-            // For any other event, just update user state without additional calls
-            setUser(session?.user || null)
-            if (!session?.user) {
-              setProfile(null)
-            }
-            break
+          }
+          if (mounted) setLoading(false)
+        } else if (event === 'SIGNED_IN') {
+          if (currentUser) await loadProfile(currentUser)
+        } else if (event === 'SIGNED_OUT') {
+          setProfile(null)
         }
       }
     )
@@ -177,9 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, []) // Remove refreshProfile dependency to prevent infinite loop
-
-  // Remove the duplicate useEffect that was causing issues
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
