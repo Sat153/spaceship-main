@@ -62,7 +62,7 @@ const DESIGNATIONS: Record<string, string> = {
 
 function getDesignation(member: TeamMember): string {
     const key = (member.first_name || '').trim()
-    return DESIGNATIONS[key] || (member.role === 'admin' ? 'Admin' : 'Team Member')
+    return DESIGNATIONS[key] || (member.role === 'admin' ? 'Admin' : (member.department_name || 'Team Member'))
 }
 
 function getStyle(deptName: string) {
