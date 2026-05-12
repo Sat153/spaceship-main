@@ -41,12 +41,6 @@ async function getOrCreateFolder(
 }
 
 export async function POST(request: NextRequest) {
-    // Verify secret token
-    const secret = request.nextUrl.searchParams.get('secret')
-    if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     let update: any
     try {
         update = await request.json()
