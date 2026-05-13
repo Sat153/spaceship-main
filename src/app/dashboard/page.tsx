@@ -10,6 +10,7 @@ import ChatPanel from "@/components/user/ChatPanel"
 import UserTasks from "@/components/user/UserTasks"
 import UserCalendar from "@/components/user/UserCalendar"
 import UserAssets from "@/components/user/UserAssets"
+import ContentHub from "@/components/admin/content/ContentHub"
 import UserRoute from "@/components/UserRoute"
 import Sidebar from "@/components/Sidebar"
 import { useAuth } from "@/lib/auth"
@@ -410,6 +411,7 @@ export default function UserDashboard() {
             {visitedTabs.has('calendar') && <div className={activeTab === 'calendar' ? '' : 'hidden'}><UserCalendar /></div>}
             {visitedTabs.has('messages') && <div className={activeTab === 'messages' ? '' : 'hidden'}><ChatPanel /></div>}
             {visitedTabs.has('assets') && <div className={activeTab === 'assets' ? '' : 'hidden'}><UserAssets /></div>}
+            {visitedTabs.has('content') && <div className={activeTab === 'content' ? 'h-full' : 'hidden'}><ContentHub /></div>}
             <div className={['knowledge-base','search','notifications','profile'].includes(activeTab) ? '' : 'hidden'}>
               {activeTab === 'knowledge-base' && renderKnowledgeBase()}
               {activeTab === 'search' && renderSearch()}
