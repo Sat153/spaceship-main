@@ -133,9 +133,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true })
         }
 
-        // Telegram limits bot downloads to 20MB
+        // Telegram limits bot downloads to 20MB — for larger files, post a notice to the chat room
         if (fileSize > 20 * 1024 * 1024) {
-            console.warn(`[Telegram] File too large (${fileSize} bytes), skipping: ${fileName}`)
+            console.warn(`[Telegram] File too large (${fileSize} bytes), posting notice: ${fileName}`)
+
+            const { data: stage1 } = await supabase.from('workflow_stages').select('id').eq('stage_order', 1).single()
+            const { data: noticeRoom } = stage1 ? await supabase.from('chat_rooms').select('id').eq('client_id', client.id).eq('stage_id', stage1.id).maybeSingle() : { data: null }
+            const { data: adminUser } = await supabase.from('profiles').select('id').eq('role', 'admin').limit(1).single()
+
+            if (noticeRoom && adminUser) {
+                const senderName = message.from ? `${message.from.first_name}${message.from.last_name ? ' ' + message.from.last_name : ''}` : 'Someone'
+                await supabase.from('chat_messages').insert({
+                    room_id: noticeRoom.id,
+                    sender_id: adminUser.id,
+                    message: `📹 ${senderName} shared a large video in ${groupName} (${(fileSize / (1024 * 1024)).toFixed(1)} MB — too large to auto-sync). Check Telegram directly.`,
+                })
+            }
             return NextResponse.json({ ok: true })
         }
 
@@ -161,7 +174,7 @@ export async function POST(request: NextRequest) {
             .upload(storagePath, fileBuffer, { contentType: mimeType, upsert: false })
 
         if (uploadError) {
-            console.error('[Telegram] Storage upload error:', uploadError)
+            console.error('[Telegram] Storage upload error:', uploadError.message)
             return NextResponse.json({ ok: true })
         }
 
