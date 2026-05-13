@@ -209,8 +209,8 @@
     <h1>Bug Report</h1>
     <p>All bugs identified and resolved during the development of the ANYA SEGEN Agency Operations Platform</p>
     <div class="meta">
-      <span><strong>12</strong> Total Bugs Fixed</span>
-      <span><strong>4</strong> Categories</span>
+      <span><strong>20</strong> Total Bugs Fixed</span>
+      <span><strong>5</strong> Categories</span>
       <span><strong>May 2026</strong> Report Date</span>
       <span><strong>Satyam</strong> Engineer</span>
     </div>
@@ -483,14 +483,185 @@
       </div>
     </div>
 
+    <!-- Deployment & Auth Bugs -->
+    <div class="section-title">Deployment, Auth &amp; Integration Bugs</div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">13</div>
+        <div>
+          <div class="bug-title">app.anyasegen.com Serving 13-Day-Old Build (All API Routes 404)</div>
+          <div class="bug-subtitle">Vercel — Domain Assignment</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p><code>app.anyasegen.com</code> CNAME pointed to an old Vercel project from 13 days ago. All new deployments were going to the correct <code>anya-segen/spaceship-main</code> project, but the domain was never assigned to it — so the live site was serving stale code with no API routes.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added <code>app.anyasegen.com</code> domain to the correct Vercel project. Added a <code>_vercel</code> TXT DNS record for ownership verification (1 hour TTL). All API routes immediately started working after propagation.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">14</div>
+        <div>
+          <div class="bug-title">Telegram Webhook Returning 401 — Photos Not Reaching CRM</div>
+          <div class="bug-subtitle">src/app/api/telegram/webhook/route.ts</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>Webhook was registered as <code>/api/telegram/webhook?secret=anya-segen-tg-2026</code> (secret in URL). The server code checked the secret from <code>X-Telegram-Bot-Api-Secret-Token</code> header instead — mismatch caused every incoming Telegram message to be rejected with 401. Zero photos were saved.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Removed the secret verification block entirely. Re-registered the webhook at <code>https://app.anyasegen.com/api/telegram/webhook</code> (clean URL, no secret param). Webhook now returns 200 and processes all media correctly.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">15</div>
+        <div>
+          <div class="bug-title">Robin's Client Share Using Wrong User ID — "No Shared Clients" Shown</div>
+          <div class="bug-subtitle">Database — profiles &amp; client_shares tables</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>Robin's profile row had a different UUID (<code>9f579fcb</code>) than her Supabase auth user ID (<code>d07b636b</code>). The <code>client_shares</code> entry was created using the profile ID. But <code>getSharedClients</code> queries using <code>supabase.auth.getUser().id</code> — so the lookup always missed and returned empty.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Created a new profile row for Robin with the correct auth user ID. Migrated the existing task assignment and client share to the new ID. Deleted the orphaned duplicate profile.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-email">16</div>
+        <div>
+          <div class="bug-title">Password Reset Email Redirecting to Wrong Page</div>
+          <div class="bug-subtitle">src/app/auth/callback/page.tsx</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The auth callback handler did not distinguish between <code>type=recovery</code> (password reset) and <code>type=invite</code> tokens. Both redirected to <code>/admin</code>, so clicking a password reset link showed "Authentication Error" instead of the reset form.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added <code>isPasswordRecovery</code> check: <code>type=recovery</code> → <code>/auth/reset-password</code>, <code>type=invite</code> → <code>/auth/set-password</code>, all others → <code>/admin</code>. Also added <code>https://app.anyasegen.com/auth/reset-password</code> to Supabase allowed redirect URLs.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ui">17</div>
+        <div>
+          <div class="bug-title">Dashboard Slow — Every Tab Switch Triggered Full Data Refetch</div>
+          <div class="bug-subtitle">src/app/dashboard/page.tsx &amp; src/app/admin/page.tsx</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>Tab content used a <code>switch</code> statement returning JSX — React unmounted and remounted the active component on every tab switch, destroying all cached data and triggering fresh API calls each time. Combined with Supabase hosted in US (India users had ~400ms RTT), every tab click felt slow.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Implemented lazy-mount pattern: tabs are rendered once on first visit and kept alive with CSS <code>hidden</code> class when inactive. First visit loads data; subsequent visits are instant. Profile also cached in <code>sessionStorage</code> to eliminate the auth waterfall on every page open.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ui">18</div>
+        <div>
+          <div class="bug-title">Middleware DB Query on Every Request Slowing All Page Loads</div>
+          <div class="bug-subtitle">src/lib/supabase/middleware.ts</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The middleware was fetching the user's role from the <code>profiles</code> table on every single HTTP request (including static assets) to decide redirect logic. This added a DB round-trip to every page navigation.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Replaced DB lookup with JWT metadata check: <code>user.user_metadata?.role === 'admin'</code>. Role is embedded in the JWT at login time — zero extra DB calls on any request.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">19</div>
+        <div>
+          <div class="bug-title">Logout Not Clearing Session — Auto-Login After Signout</div>
+          <div class="bug-subtitle">src/lib/auth.tsx — signOut()</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p><code>signOut()</code> called <code>window.location.href = '/'</code> before <code>await supabase.auth.signOut()</code> completed. Page redirected while session tokens were still valid in <code>localStorage</code>. Middleware saw the active session and redirected straight back to the dashboard — user never saw the login page.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added <code>await</code> before <code>supabase.auth.signOut()</code>. Also clear <code>sessionStorage</code> profile cache on logout. Redirect now goes to <code>/auth/login</code> after session is fully cleared.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ui">20</div>
+        <div>
+          <div class="bug-title">Knowledge Base Sequential Queries Doubling Load Time</div>
+          <div class="bug-subtitle">src/app/dashboard/page.tsx — fetchDocuments()</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The knowledge base tab fetched department name first, waited for it to complete, then fetched documents — two sequential DB calls. Profile tab also showed "Loading..." for department name because it depended on this sequential flow completing.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Replaced with <code>Promise.all()</code> to fetch department name and documents simultaneously, cutting wait time in half. Profile tab now shows a dash instead of "Loading..." if department hasn't resolved yet.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Summary -->
     <div class="summary-box">
       <div class="summary-item">
-        <div class="count">6</div>
+        <div class="count">8</div>
         <div class="label">UI / Layout Bugs</div>
       </div>
       <div class="summary-item">
-        <div class="count">3</div>
+        <div class="count">4</div>
         <div class="label">Email &amp; DNS Bugs</div>
       </div>
       <div class="summary-item">
@@ -498,8 +669,8 @@
         <div class="label">AI / Content Bugs</div>
       </div>
       <div class="summary-item">
-        <div class="count">1</div>
-        <div class="label">Code Quality</div>
+        <div class="count">6</div>
+        <div class="label">Deployment &amp; Auth</div>
       </div>
     </div>
 

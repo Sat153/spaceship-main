@@ -7,7 +7,7 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 | Feature | Status | Notes |
 |---|---|---|
 | Admin dashboard | ✅ Live | Full tab-driven shell with lazy-loaded sections |
-| User dashboard | ✅ Live | Knowledge base, shared clients, messages, profile |
+| User dashboard | ✅ Live | My Clients, My Tasks, Calendar, Messages, Knowledge Base, Profile |
 | Mobile responsive layout | ✅ Done | Sidebar drawer overlay, responsive grids, mobile modals |
 | Kanban board | ✅ Live | Drag-and-drop, dept filter, auto hours, task modal |
 | Content calendar | ✅ Live | Month/week/day view, event scheduling |
@@ -21,7 +21,33 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 | Asset library | ✅ Live | Upload, grid display, Freepik/iStock browser |
 | Team management | ✅ Live | Invite, role editor, department assignment |
 | Messaging bank | ✅ Live | Saved messaging templates |
-| Vercel deployment | ⏳ Pending | Planned for go-live; update NEXT_PUBLIC_APP_URL after deploy |
+| Telegram media capture | ✅ Live | Bot captures photos/videos from groups → Supabase Storage → Client Files |
+| Photo sharing in chat | ✅ Live | Team members can send images/videos in Messages tab |
+| Vercel deployment | ✅ Live | app.anyasegen.com — domain verified and assigned to correct project |
+| Dashboard performance | ✅ Optimised | Lazy-mount tabs, sessionStorage profile cache, parallel DB queries |
+
+## Team & Access
+
+| Name | Email | Department | CRM Access |
+|---|---|---|---|
+| Rupin | rupin@anyasegen.com | Creative Labs | ✅ |
+| Deepanshu | deepanshu@anyasegen.com | Creative Labs | ✅ |
+| Robin | robin@anyasegen.com | Creative Labs | ✅ |
+| Vishal | vishal@anyasegen.com | Creative Labs | ✅ |
+| Mohit | mohit@anyasegen.com | Creative Labs | ✅ |
+| Utkarsh | utkarsh@anyasegen.com | PR & Social Media | ✅ |
+| Ishika | ishika@anyasegen.com | PR & Social Media | ✅ |
+| Iqra | iqra@anyasegen.com | Operations & Strategy | ✅ |
+
+All 8 team members have Ganesh Joshi shared in their My Clients section.
+
+## Telegram Bot
+
+- **Bot**: @AnyaSegenMediaBot (token in `.env.local`)
+- **Webhook**: `https://app.anyasegen.com/api/telegram/webhook`
+- **Flow**: Bot added to group → client sends photo/video → webhook fires → file downloaded → uploaded to Supabase Storage → asset record created with `client_id = Ganesh Joshi` → visible in CRM under My Clients → Files
+- **Limit**: Telegram bot API only allows downloading files up to 20MB
+- **Groups**: Bot must be added as member to each Telegram group to receive media
 
 ## Email Infrastructure
 
@@ -36,6 +62,33 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 - **Trigger points**: task assigned (new/changed assignee), task status moved via kanban drag
 - **Known gotcha**: Resend auto-suppresses bounced addresses — check Resend suppression list if a recipient stops getting emails
 
+## Production URLs
+
+| Resource | URL |
+|---|---|
+| CRM (admin) | https://app.anyasegen.com/admin |
+| CRM (team) | https://app.anyasegen.com/dashboard |
+| Login | https://app.anyasegen.com/auth/login |
+| Telegram webhook | https://app.anyasegen.com/api/telegram/webhook |
+
+## Environment Variables
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY       # used by admin server actions
+GOOGLE_API_KEY                  # Gemini 2.5 Flash Lite for AI chat
+GROQ_API_KEY                    # Groq fallback for AI chat
+RESEND_API_KEY                  # Email sending via Resend
+NEXT_PUBLIC_APP_URL             # https://app.anyasegen.com (set in Vercel)
+TELEGRAM_BOT_TOKEN              # Telegram bot API token
+TELEGRAM_WEBHOOK_SECRET         # Webhook secret (currently unused in verification)
+TWILIO_ACCOUNT_SID              # WhatsApp via Twilio (configured, not active)
+TWILIO_AUTH_TOKEN
+TWILIO_WHATSAPP_NUMBER
+CRON_SECRET                     # For Vercel cron job auth
+```
+
 ## Mobile Responsive Layout
 
 All major views updated to support mobile screens:
@@ -47,21 +100,6 @@ All major views updated to support mobile screens:
 - **Task modal** (`ui/task-modal.tsx`): `w-[95vw]` + `max-h-[90vh] overflow-y-auto`
 - **Content Creator** (`ContentCreator.tsx`): `w-[95vw]` on all dialogs, flex-wrap header
 - **Grid Planner** (`GridPlanner.tsx`): Responsive platform grid (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`), stacked header on mobile
-
-## Environment Variables
-
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY       # used by admin server actions
-GOOGLE_API_KEY                  # Gemini 2.5 Flash Lite for AI chat
-GROQ_API_KEY                    # Groq fallback for AI chat
-RESEND_API_KEY                  # Email sending via Resend
-NEXT_PUBLIC_APP_URL             # Base URL used in email links — set to Vercel URL in prod
-```
-
-> **Important**: `NEXT_PUBLIC_APP_URL` is currently `http://192.168.29.132:3000` (local network).
-> Update to the Vercel deployment URL before go-live so email links work for all recipients.
 
 ---
 
@@ -80,7 +118,7 @@ spaceship-main/
 │   │   │   ├── ai-analysis.ts           # AI-powered client/content analysis actions
 │   │   │   ├── ai-chat.ts               # Gemini/Groq AI chat with fallback logic
 │   │   │   ├── assets.ts                # Server actions for file/asset management
-│   │   │   ├── chat.ts                  # Messaging/chat server actions
+│   │   │   ├── chat.ts                  # Messaging/chat server actions (text + photo/video)
 │   │   │   ├── client-demographics.ts   # Client demographic data server actions
 │   │   │   ├── client-intelligence.ts   # Client intelligence/insights server actions
 │   │   │   ├── client-sharing.ts        # Share clients with specific users
@@ -90,32 +128,36 @@ spaceship-main/
 │   │   │   ├── assets/page.tsx          # Standalone admin assets page
 │   │   │   ├── freepik/page.tsx         # Freepik stock asset browser page
 │   │   │   ├── istock/page.tsx          # iStock asset browser page
-│   │   │   └── page.tsx                 # Main admin dashboard shell (tab-driven, mobile-ready)
+│   │   │   └── page.tsx                 # Main admin dashboard shell (lazy-mount tabs, mobile-ready)
 │   │   ├── api/
 │   │   │   ├── admin/users/route.ts     # REST endpoint: list/manage auth users
 │   │   │   ├── ai/generate-content/route.ts  # REST endpoint: AI social content generation
+│   │   │   ├── approval-reminders/route.ts   # Cron endpoint: send approval reminder emails
 │   │   │   ├── auth/profile/route.ts    # REST endpoint: fetch current user profile
 │   │   │   ├── clients/[id]/route.ts    # REST endpoint: single client CRUD
 │   │   │   ├── clients/route.ts         # REST endpoint: clients list
 │   │   │   ├── documents/route.ts       # REST endpoint: documents list
 │   │   │   ├── freepik-download/route.ts      # Proxy: download assets from Freepik
 │   │   │   ├── istock-download/route.ts       # Proxy: download assets from iStock
-│   │   │   └── istock-media-manager/route.ts  # Proxy: iStock media management API
+│   │   │   ├── istock-media-manager/route.ts  # Proxy: iStock media management API
+│   │   │   ├── telegram/
+│   │   │   │   ├── setup/route.ts       # One-time endpoint to register Telegram webhook URL
+│   │   │   │   └── webhook/route.ts     # Receives Telegram updates, saves media to Supabase
+│   │   │   └── whatsapp/webhook/route.ts      # Twilio WhatsApp webhook (configured, not active)
 │   │   ├── auth/
 │   │   │   ├── auth-code-error/page.tsx # Error page for OAuth code exchange failures
-│   │   │   ├── callback/page.tsx        # Supabase OAuth callback handler
+│   │   │   ├── callback/page.tsx        # Supabase OAuth callback — handles invite/recovery/login tokens
 │   │   │   ├── confirm-email/page.tsx   # Email confirmation landing page
 │   │   │   ├── forgot-password/page.tsx # Trigger password reset email
 │   │   │   ├── login/page.tsx           # Email/password login page
-│   │   │   ├── reset-password/page.tsx  # Reset password with token
+│   │   │   ├── reset-password/page.tsx  # Reset password with recovery token
 │   │   │   ├── set-password/page.tsx    # Set password for new invited users
 │   │   │   └── signup/page.tsx          # New user registration page
 │   │   ├── dashboard/
-│   │   │   └── page.tsx                 # User dashboard shell (tab-driven, mobile-ready)
-│   │   ├── test-styles/
-│   │   │   └── page.tsx                 # Dev-only page for testing Tailwind styles
+│   │   │   └── page.tsx                 # User dashboard shell (lazy-mount tabs, mobile-ready)
+│   │   ├── task/[id]/
+│   │   │   └── page.tsx                 # Individual task view page
 │   │   ├── globals.css                  # Primary global styles and Tailwind base
-│   │   ├── globals-simple.css           # Minimal fallback global stylesheet
 │   │   ├── layout.tsx                   # Root layout: AuthProvider, SWRProvider, fonts
 │   │   └── page.tsx                     # Landing/home page with auth redirect
 │   ├── components/
@@ -145,8 +187,10 @@ spaceship-main/
 │   │   │   ├── AdminCalendar.tsx        # Content calendar with scheduling UI
 │   │   │   └── AdminKanban.tsx          # Drag-and-drop kanban board (mobile-responsive)
 │   │   ├── user/
-│   │   │   ├── ChatPanel.tsx            # AI chat panel for regular users
-│   │   │   └── SharedClients.tsx        # Clients shared with the current user
+│   │   │   ├── ChatPanel.tsx            # Team chat: direct + group, text + photo/video sharing
+│   │   │   ├── SharedClients.tsx        # Clients shared with the current user (SWR cached)
+│   │   │   ├── UserCalendar.tsx         # Calendar view for regular users
+│   │   │   └── UserTasks.tsx            # Task list for regular users
 │   │   ├── ui/
 │   │   │   ├── badge.tsx                # Shadcn badge primitive
 │   │   │   ├── button.tsx               # Shadcn button with CVA variants
@@ -181,18 +225,18 @@ spaceship-main/
 │   │   │   └── useDocuments.ts          # SWR hook to fetch documents
 │   │   ├── useClients.ts                # SWR hook to fetch clients
 │   │   ├── useEvents.ts                 # SWR hook to fetch calendar events
-│   │   ├── useSWR.ts                    # Generic typed SWR wrapper
+│   │   ├── useSWR.ts                    # Generic typed SWR wrapper (chat, clients, tasks)
 │   │   └── useTasks.ts                  # SWR hook to fetch kanban tasks
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── admin.ts                 # Service-role Supabase client (server-only)
 │   │   │   ├── client.ts                # Browser Supabase client for client components
-│   │   │   ├── middleware.ts            # Session refresh helper used in middleware
+│   │   │   ├── middleware.ts            # Session refresh + JWT-based role redirect (no DB call)
 │   │   │   └── server.ts                # Cookie-based Supabase client for server components
 │   │   ├── admin-helper.ts              # Utility helpers for admin server actions
-│   │   ├── auth.tsx                     # AuthProvider context and useAuth hook
+│   │   ├── auth.tsx                     # AuthProvider: session, profile (sessionStorage cached), signOut
 │   │   ├── demographics-constants.ts    # Static options for demographic form fields
-│   │   ├── email.ts                     # Resend email sender: task assignment + status update
+│   │   ├── email.ts                     # Resend: task assignment, status update, approval, meeting invite
 │   │   ├── errors.ts                    # Typed error classes and error handling utils
 │   │   ├── supabase.ts                  # Legacy browser client re-export
 │   │   ├── supabase-server.ts           # Legacy server client re-export
@@ -202,13 +246,13 @@ spaceship-main/
 │   ├── supabase-best-practices.md       # Internal Supabase usage guidelines
 │   └── supabase-issues-analysis.md      # Analysis of past Supabase auth/query issues
 ├── deck/                                # Static portfolio/pitch deck images and HTML
-├── codefetch/
-│   └── codebase.md                      # Auto-generated full codebase snapshot
-├── CLAUDE.md                            # Claude Code project instructions
+├── ANYA_SEGEN_MASTER_SUMMARY.md         # Full stakeholder, workflow, and requirements document
+├── BUGS_REPORT.html                     # Complete bug report — 20 bugs fixed across 5 categories
 ├── PROJECT_STRUCTURE.md                 # This file — feature status, infra notes, file tree
+├── CLAUDE.md                            # Claude Code project instructions
+├── vercel.json                          # Vercel cron config (approval-reminders every 5 min)
 ├── next.config.js                       # Next.js config (image domains, redirects)
-├── tailwind.config.js                   # Primary Tailwind CSS configuration
-├── tailwind-complex.config.js           # Alternate complex Tailwind config (unused/legacy)
+├── tailwind.config.js                   # Tailwind CSS configuration
 ├── postcss.config.js                    # PostCSS config for Tailwind
 ├── tsconfig.json                        # TypeScript config with @/* path alias
 ├── package.json                         # Dependencies and npm scripts
