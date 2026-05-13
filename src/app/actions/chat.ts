@@ -26,6 +26,7 @@ export interface ChatMessage {
     message: string
     created_at: string
     is_mine: boolean
+    is_internal?: boolean
     file_url?: string | null
     file_type?: string | null
 }
@@ -479,7 +480,7 @@ export async function getMessages(roomId: string): Promise<{
         // Get messages
         const { data: messages, error: msgError } = await supabase
             .from('chat_messages')
-            .select('id, room_id, sender_id, message, created_at, file_url, file_type')
+            .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type')
             .eq('room_id', roomId)
             .order('created_at', { ascending: true })
             .limit(100)
@@ -517,7 +518,7 @@ export async function getMessages(roomId: string): Promise<{
 
 // ============ SEND MESSAGE ============
 
-export async function sendMessage(roomId: string, message: string, fileUrl?: string, fileType?: string): Promise<{
+export async function sendMessage(roomId: string, message: string, fileUrl?: string, fileType?: string, isInternal?: boolean): Promise<{
     success: boolean;
     data?: ChatMessage;
     error?: string
@@ -553,7 +554,8 @@ export async function sendMessage(roomId: string, message: string, fileUrl?: str
                 room_id: roomId,
                 sender_id: user.id,
                 message: message.trim() || '',
-                ...(fileUrl && { file_url: fileUrl, file_type: fileType })
+                ...(fileUrl && { file_url: fileUrl, file_type: fileType }),
+                ...(isInternal && { is_internal: true })
             })
             .select()
             .single()
