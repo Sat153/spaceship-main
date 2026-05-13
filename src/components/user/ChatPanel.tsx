@@ -69,28 +69,30 @@ export default function ChatPanel() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // Load stage order + approval when entering a workflow room
-    useEffect(() => {
-        if (!selectedRoom?.stage_id || !selectedRoom?.client_id) {
-            setApproval(null)
-            setCurrentStageOrder(null)
-            return
-        }
-        setApprovalLoading(true)
-        setCurrentStageOrder(null)
-        setApproval(null)
+    // Detect stage order from room name (e.g. "Ganesh Joshi — 03 Internal Review" → 3)
+    const stageOrderFromName = selectedRoom?.name
+        ? parseInt(selectedRoom.name.split(' — ').pop()?.match(/^(\d+)/)?.[1] || '0')
+        : 0
 
-        getStageOrder(selectedRoom.stage_id).then(order => {
-            setCurrentStageOrder(order)
-            if (order === 3 || order === 4) {
-                getLatestApproval(selectedRoom.client_id!, selectedRoom.stage_id!).then(result => {
-                    setApproval(result.data)
-                    setApprovalLoading(false)
-                })
-            } else {
+    // Load approval when entering a workflow room at stage 3 or 4
+    useEffect(() => {
+        setApproval(null)
+        setCurrentStageOrder(null)
+        if (!selectedRoom?.client_id) return
+        const order = parseInt(selectedRoom.name.split(' — ').pop()?.match(/^(\d+)/)?.[1] || '0')
+        if (!order) return
+        setCurrentStageOrder(order)
+        if ((order === 3 || order === 4) && selectedRoom.stage_id) {
+            setApprovalLoading(true)
+            getLatestApproval(selectedRoom.client_id, selectedRoom.stage_id).then(result => {
+                setApproval(result.data)
                 setApprovalLoading(false)
-            }
-        })
+            })
+        } else if (order === 3 || order === 4) {
+            // stage_id not in cache — fetch it
+            setApprovalLoading(true)
+            getStageOrder(selectedRoom.id).then(() => setApprovalLoading(false))
+        }
     }, [selectedRoom?.id])
 
     const handleSubmitForApproval = async () => {
@@ -288,13 +290,13 @@ export default function ChatPanel() {
                 </div>
 
                 {/* Approval Bar — shown for stage 3 (admin) and stage 4 (admin + client) */}
-                {selectedRoom?.stage_id && (currentStageOrder === 3 || currentStageOrder === 4) && (
+                {selectedRoom?.client_id && (stageOrderFromName === 3 || stageOrderFromName === 4) && (
                     <div className="mb-3 rounded-lg border border-gray-700 bg-gray-900 p-3">
                         {approvalLoading ? (
                             <div className="flex items-center gap-2 text-gray-400 text-sm">
                                 <Loader2 className="h-4 w-4 animate-spin" /> Loading approval status...
                             </div>
-                        ) : currentStageOrder === 3 && profile?.role === 'admin' ? (
+                        ) : stageOrderFromName === 3 && profile?.role === 'admin' ? (
                             // Stage 3: Admin can submit for client approval
                             <div className="flex items-center justify-between">
                                 <div>
@@ -317,7 +319,7 @@ export default function ChatPanel() {
                                     </Button>
                                 )}
                             </div>
-                        ) : currentStageOrder === 4 ? (
+                        ) : stageOrderFromName === 4 ? (
                             // Stage 4: show approval UI
                             approval?.status === 'approved' ? (
                                 <div className="flex items-center gap-2 text-green-400 text-sm">
