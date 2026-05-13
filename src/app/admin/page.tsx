@@ -528,7 +528,7 @@ function AdminDashboardContent() {
     </div>
   )
 
-  const fullBleedTabs = ['documents', 'clients', 'content', 'messaging', 'calendar', 'kanban', 'messages']
+  const fullBleedTabs = ['documents', 'clients', 'content', 'messaging', 'calendar', 'kanban', 'messages', 'assets']
 
   return (
     <AdminRoute>
