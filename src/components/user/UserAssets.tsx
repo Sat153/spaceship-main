@@ -1,11 +1,18 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { getAssets, Asset } from '@/app/actions/assets'
-import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { getAssets, uploadFile, getClientIdByName, Asset } from '@/app/actions/assets'
+import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw, Upload, X, CheckCircle, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { createBrowserClient } from '@supabase/ssr'
 
 interface Breadcrumb { id: string | null; name: string }
+
+interface UploadItem {
+  file: File
+  status: 'pending' | 'uploading' | 'done' | 'error'
+  error?: string
+}
 
 function fileIcon(asset: Asset) {
   if (asset.type === 'folder') return <Folder className="w-5 h-5 text-amber-400" />
@@ -21,6 +28,8 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+const UPLOAD_DEPARTMENTS = ['Media & Press Operations']
+
 export default function UserAssets() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,6 +37,36 @@ export default function UserAssets() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([{ id: null, name: 'Asset Library' }])
   const [preview, setPreview] = useState<Asset | null>(null)
+
+  // Upload state
+  const [canUpload, setCanUpload] = useState(false)
+  const [ganeshClientId, setGaneshClientId] = useState<string | null>(null)
+  const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([])
+  const [showUploadPanel, setShowUploadPanel] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Check if current user is in an upload-permitted department
+  useEffect(() => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('department_id, departments(name)')
+        .eq('id', user.id)
+        .single()
+      const deptName = (profile?.departments as any)?.name
+      if (deptName && UPLOAD_DEPARTMENTS.includes(deptName)) {
+        setCanUpload(true)
+        // Pre-fetch Ganesh Joshi client ID
+        getClientIdByName('Ganesh Joshi').then(({ id }) => setGaneshClientId(id))
+      }
+    })
+  }, [])
 
   const load = useCallback(async (folderId: string | null) => {
     setLoading(true)
@@ -61,6 +100,57 @@ export default function UserAssets() {
     setCurrentFolderId(target.id)
   }
 
+  const addFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const items: UploadItem[] = Array.from(files).map(file => ({ file, status: 'pending' }))
+    setUploadQueue(prev => [...prev, ...items])
+    setShowUploadPanel(true)
+  }
+
+  const processQueue = useCallback(async (queue: UploadItem[]) => {
+    for (let i = 0; i < queue.length; i++) {
+      if (queue[i].status !== 'pending') continue
+
+      setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'uploading' } : item))
+
+      const fd = new FormData()
+      fd.append('file', queue[i].file)
+
+      const result = await uploadFile(fd, currentFolderId, ganeshClientId ?? undefined)
+
+      setUploadQueue(prev => prev.map((item, idx) =>
+        idx === i
+          ? { ...item, status: result.success ? 'done' : 'error', error: result.success ? undefined : (result.error ?? 'Upload failed') }
+          : item
+      ))
+    }
+    // Refresh after all done
+    load(currentFolderId)
+  }, [currentFolderId, ganeshClientId, load])
+
+  useEffect(() => {
+    const hasPending = uploadQueue.some(u => u.status === 'pending')
+    const hasUploading = uploadQueue.some(u => u.status === 'uploading')
+    if (hasPending && !hasUploading) {
+      processQueue(uploadQueue)
+    }
+  }, [uploadQueue, processQueue])
+
+  const removeFromQueue = (index: number) => {
+    setUploadQueue(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const clearDoneQueue = () => {
+    setUploadQueue(prev => prev.filter(u => u.status === 'pending' || u.status === 'uploading'))
+    if (uploadQueue.every(u => u.status === 'done' || u.status === 'error')) setShowUploadPanel(false)
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    addFiles(e.dataTransfer.files)
+  }
+
   if (preview) {
     return (
       <div className="space-y-4">
@@ -78,18 +168,94 @@ export default function UserAssets() {
   }
 
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4 relative"
+      onDragOver={e => { if (canUpload) { e.preventDefault(); setIsDragging(true) } }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={onDrop}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-600/20 border-2 border-dashed border-blue-400 pointer-events-none">
+          <div className="text-center">
+            <Upload className="w-16 h-16 text-blue-400 mx-auto mb-3" />
+            <p className="text-white text-xl font-semibold">Drop files to upload</p>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={e => addFiles(e.target.files)}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">Asset Library</h2>
           <p className="text-gray-400 text-sm mt-0.5">Shared media and files from all connected sources</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-green-400 text-xs font-medium">Auto-syncing</span>
+        <div className="flex items-center gap-2">
+          {canUpload && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Upload
+            </button>
+          )}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-green-400 text-xs font-medium">Auto-syncing</span>
+          </div>
         </div>
       </div>
+
+      {/* Upload Panel */}
+      {showUploadPanel && uploadQueue.length > 0 && (
+        <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+            <span className="text-white text-sm font-medium">Uploading {uploadQueue.length} file{uploadQueue.length > 1 ? 's' : ''}</span>
+            <div className="flex items-center gap-2">
+              {uploadQueue.every(u => u.status === 'done' || u.status === 'error') && (
+                <button onClick={clearDoneQueue} className="text-xs text-gray-400 hover:text-white transition-colors">Clear</button>
+              )}
+              <button onClick={() => setShowUploadPanel(false)} className="text-gray-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-700 max-h-48 overflow-auto">
+            {uploadQueue.map((item, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm truncate">{item.file.name}</p>
+                  <p className="text-gray-500 text-xs">{formatSize(item.file.size)}</p>
+                </div>
+                <div className="shrink-0">
+                  {item.status === 'pending' && <span className="text-xs text-gray-500">Waiting…</span>}
+                  {item.status === 'uploading' && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
+                  {item.status === 'done' && <CheckCircle className="w-4 h-4 text-green-400" />}
+                  {item.status === 'error' && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-red-400">{item.error}</span>
+                      <button onClick={() => removeFromQueue(i)} className="text-gray-500 hover:text-white ml-1">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-sm">
@@ -109,6 +275,11 @@ export default function UserAssets() {
           </span>
         ))}
       </div>
+
+      {/* Drag hint for upload-permitted users */}
+      {canUpload && (
+        <p className="text-xs text-gray-600">You can also drag & drop files anywhere on this page to upload.</p>
+      )}
 
       {/* Content */}
       {error ? (
@@ -133,11 +304,27 @@ export default function UserAssets() {
           ))}
         </div>
       ) : assets.length === 0 ? (
-        <Card className="bg-gray-800 border-gray-700">
+        <Card
+          className={`bg-gray-800 border-gray-700 transition-colors ${canUpload ? 'hover:border-blue-500/50 cursor-pointer' : ''}`}
+          onClick={() => canUpload && fileInputRef.current?.click()}
+        >
           <CardContent className="text-center py-16">
-            <HardDrive className="mx-auto w-14 h-14 text-gray-600 mb-4" />
-            <p className="text-white font-medium mb-1">No files here yet</p>
-            <p className="text-gray-500 text-sm">Files synced from Telegram groups will appear here automatically</p>
+            {canUpload ? (
+              <>
+                <Upload className="mx-auto w-14 h-14 text-blue-500/50 mb-4" />
+                <p className="text-white font-medium mb-1">No files here yet</p>
+                <p className="text-gray-500 text-sm mb-3">Click to upload or drag & drop photos/videos</p>
+                <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
+                  <Upload className="w-4 h-4" /> Choose Files
+                </span>
+              </>
+            ) : (
+              <>
+                <HardDrive className="mx-auto w-14 h-14 text-gray-600 mb-4" />
+                <p className="text-white font-medium mb-1">No files here yet</p>
+                <p className="text-gray-500 text-sm">Files synced from Telegram groups will appear here automatically</p>
+              </>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -148,7 +335,6 @@ export default function UserAssets() {
               onClick={() => navigate(asset)}
               className="group text-left bg-gray-800 border border-gray-700 hover:border-blue-500 rounded-xl p-4 transition-all hover:bg-gray-750"
             >
-              {/* Preview thumbnail for images */}
               {asset.type === 'file' && asset.mime_type?.startsWith('image/') && asset.url ? (
                 <div className="w-full aspect-video rounded-lg overflow-hidden mb-3 bg-gray-900">
                   <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
