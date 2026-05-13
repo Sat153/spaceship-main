@@ -178,6 +178,44 @@ export async function POST(request: NextRequest) {
             console.log(`[Telegram] Saved "${fileName}" from "${groupName}" ✓`)
         }
 
+        // Also post into Stage 1 (Raw Assets) chat room for this client
+        const { data: stage1 } = await supabase
+            .from('workflow_stages')
+            .select('id')
+            .eq('stage_order', 1)
+            .single()
+
+        const { data: stage1Room } = stage1 ? await supabase
+            .from('chat_rooms')
+            .select('id')
+            .eq('client_id', client.id)
+            .eq('stage_id', stage1.id)
+            .maybeSingle() : { data: null }
+
+        if (stage1Room && userId) {
+            const senderName = message.from
+                ? `${message.from.first_name}${message.from.last_name ? ' ' + message.from.last_name : ''}`
+                : 'Telegram'
+            const caption = message.caption ? ` — "${message.caption}"` : ''
+            const chatMsg = `📸 From ${senderName} via ${groupName}${caption}`
+
+            const { error: msgErr } = await supabase.from('chat_messages').insert({
+                room_id: stage1Room.id,
+                sender_id: userId,
+                message: chatMsg,
+                file_url: publicUrl,
+                file_type: mimeType,
+            })
+
+            if (msgErr) {
+                console.error('[Telegram] Chat message insert error:', msgErr)
+            } else {
+                console.log(`[Telegram] Posted to Stage 1 room for ${client.name} ✓`)
+            }
+        } else {
+            console.warn(`[Telegram] No Stage 1 room found for client: ${client.name}`)
+        }
+
         return NextResponse.json({ ok: true })
 
     } catch (err) {
