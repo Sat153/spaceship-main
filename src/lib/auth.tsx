@@ -151,16 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear local state and redirect immediately — don't wait for Supabase
       setUser(null)
       setProfile(null)
-      window.location.href = '/'
-
-      // Sign out from Supabase in the background
-      supabase.auth.signOut()
-      
+      try { sessionStorage.removeItem('anya_profile_cache') } catch {}
+      await supabase.auth.signOut()
+      window.location.href = '/auth/login'
     } catch {
-      window.location.href = '/'
+      try { sessionStorage.removeItem('anya_profile_cache') } catch {}
+      window.location.href = '/auth/login'
     }
   }
 
