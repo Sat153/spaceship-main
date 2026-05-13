@@ -87,10 +87,10 @@ export async function getMyRooms(): Promise<{
 
         const roomIds = memberships.map(m => m.room_id)
 
-        // Get room details with stage info
+        // Get room details
         const { data: rooms, error: roomsError } = await supabase
             .from('chat_rooms')
-            .select('id, name, type, client_id, department_id, stage_id, created_at, stage:workflow_stages(stage_order)')
+            .select('id, name, type, client_id, department_id, stage_id, created_at')
             .in('id', roomIds)
 
         if (roomsError) {
@@ -116,6 +116,19 @@ export async function getMyRooms(): Promise<{
             })
         }
 
+        // Fetch stage orders for all stage IDs in one query
+        const stageIds = Array.from(new Set(visibleRooms.map(r => r.stage_id).filter(Boolean)))
+        let stageOrderMap: Record<string, number> = {}
+        if (stageIds.length > 0) {
+            const { data: stageRows } = await supabase
+                .from('workflow_stages')
+                .select('id, stage_order')
+                .in('id', stageIds)
+            stageRows?.forEach((s: { id: string; stage_order: number }) => {
+                stageOrderMap[s.id] = s.stage_order
+            })
+        }
+
         // Get last message for each room in parallel
         const roomsWithLastMessage: ChatRoom[] = await Promise.all(
             visibleRooms.map(async (room) => {
@@ -127,8 +140,6 @@ export async function getMyRooms(): Promise<{
                     .limit(1)
                     .single()
 
-                const stageOrder = (room as any).stage?.stage_order ?? null
-
                 return {
                     id: room.id,
                     name: room.name,
@@ -136,7 +147,7 @@ export async function getMyRooms(): Promise<{
                     client_id: room.client_id,
                     department_id: room.department_id,
                     stage_id: room.stage_id,
-                    stage_order: stageOrder,
+                    stage_order: room.stage_id ? (stageOrderMap[room.stage_id] ?? null) : null,
                     last_message: lastMsg?.message,
                     last_message_at: lastMsg?.created_at
                 }
