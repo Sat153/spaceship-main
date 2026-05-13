@@ -290,7 +290,7 @@ export default function ChatPanel() {
                 </div>
 
                 {/* Approval Bar — shown for stage 3 (admin) and stage 4 (admin + client) */}
-                {selectedRoom?.client_id && (stageOrderFromName === 3 || stageOrderFromName === 4) && (
+                {(stageOrderFromName === 3 || stageOrderFromName === 4) && (
                     <div className="mb-3 rounded-lg border border-gray-700 bg-gray-900 p-3">
                         {approvalLoading ? (
                             <div className="flex items-center gap-2 text-gray-400 text-sm">
