@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
     const message = update.message || update.channel_post
     if (!message) return NextResponse.json({ ok: true })
 
-    const { photo, video, document: doc, chat } = message
-    if (!photo && !video && !doc) return NextResponse.json({ ok: true })
+    const { photo, video, document: doc, text, chat } = message
+    if (!photo && !video && !doc && !text) return NextResponse.json({ ok: true })
 
     const chatType = chat?.type
     if (!['group', 'supergroup', 'channel'].includes(chatType)) {
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
     }
 
     const groupName = chat?.title || 'Unknown Group'
-    console.log(`[Telegram] Media received from: "${groupName}"`)
+    const isTextOnly = !photo && !video && !doc && !!text
+    console.log(`[Telegram] ${isTextOnly ? 'Text' : 'Media'} received from: "${groupName}"`)
 
     try {
         const supabase = createAdminClient()
@@ -101,6 +102,30 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ ok: true })
         }
 
+        // ── TEXT-ONLY MESSAGE ──────────────────────────────────────────────
+        if (isTextOnly) {
+            const { data: stage1 } = await supabase.from('workflow_stages').select('id').eq('stage_order', 1).single()
+            const { data: textRoom } = stage1
+                ? await supabase.from('chat_rooms').select('id').eq('client_id', client.id).eq('stage_id', stage1.id).maybeSingle()
+                : { data: null }
+
+            if (textRoom && userId) {
+                const senderName = message.from
+                    ? `${message.from.first_name}${message.from.last_name ? ' ' + message.from.last_name : ''}`
+                    : 'Telegram'
+                await supabase.from('chat_messages').insert({
+                    room_id: textRoom.id,
+                    sender_id: userId,
+                    message: `💬 ${senderName} via ${groupName}: ${text}`,
+                })
+                console.log(`[Telegram] Text message from ${senderName} posted to Stage 1 ✓`)
+            } else {
+                console.warn(`[Telegram] No Stage 1 room for text message, client: ${client.name}`)
+            }
+            return NextResponse.json({ ok: true })
+        }
+
+        // ── MEDIA MESSAGE ──────────────────────────────────────────────────
         // Build folder: Clients → Ganesh Joshi → {Group Name}
         const clientsFolderId = await getOrCreateFolder(supabase, 'Clients', null, deptId, userId)
         const clientFolderId  = await getOrCreateFolder(supabase, client.name, clientsFolderId, deptId, userId)
