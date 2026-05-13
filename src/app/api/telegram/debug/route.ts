@@ -55,5 +55,44 @@ export async function GET() {
 
     results.admin_user = admin ? { id: admin.id, name: admin.first_name } : null
 
+    // 7. Test storage upload
+    try {
+        const testContent = new TextEncoder().encode('test')
+        const testPath = `test/debug-${Date.now()}.txt`
+        const { error: uploadErr } = await supabase.storage
+            .from('team-assets')
+            .upload(testPath, testContent, { contentType: 'text/plain', upsert: true })
+
+        results.storage_upload_test = uploadErr ? `FAILED: ${uploadErr.message}` : 'SUCCESS'
+
+        if (!uploadErr) {
+            await supabase.storage.from('team-assets').remove([testPath])
+        }
+    } catch (e: any) {
+        results.storage_upload_test = `ERROR: ${e.message}`
+    }
+
+    // 8. Test assets table insert
+    try {
+        const { error: insertErr } = await supabase.from('assets').insert({
+            name: '__debug_test__',
+            type: 'folder',
+            parent_id: null,
+            department_id: 'd6953c18-2746-421c-91f4-7fbca3850445',
+            url: null,
+            size: 0,
+            mime_type: null,
+            created_by: '8bd60502-fe10-4e01-bd09-feba180836a0',
+        }).select('id').single()
+
+        if (insertErr) {
+            results.assets_insert_test = `FAILED: ${insertErr.message}`
+        } else {
+            results.assets_insert_test = 'SUCCESS'
+        }
+    } catch (e: any) {
+        results.assets_insert_test = `ERROR: ${e.message}`
+    }
+
     return NextResponse.json(results, { status: 200 })
 }
