@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
     MessageCircle, Send, Users, Plus, Loader2,
-    User, ArrowLeft, Building
+    User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon
 } from 'lucide-react'
 import {
     sendMessage,
@@ -19,6 +19,7 @@ import {
     useChatableUsers,
     useCreateDepartmentRoom,
 } from '@/hooks/useSWR'
+import { createClient } from '@/lib/supabase/client'
 
 export default function ChatPanel() {
     // Use SWR hooks for data fetching with caching
@@ -31,6 +32,10 @@ export default function ChatPanel() {
     const [sending, setSending] = useState(false)
     const [showNewChat, setShowNewChat] = useState(false)
     const [creatingChat, setCreatingChat] = useState(false)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [filePreview, setFilePreview] = useState<string | null>(null)
+    const [uploading, setUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Use SWR for messages with 40s polling
     const {
@@ -45,13 +50,52 @@ export default function ChatPanel() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setSelectedFile(file)
+        setFilePreview(URL.createObjectURL(file))
+    }
+
+    const clearFile = () => {
+        setSelectedFile(null)
+        setFilePreview(null)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+
     const handleSendMessage = async () => {
-        if (!selectedRoom || !newMessage.trim() || sending) return
+        if (!selectedRoom || (!newMessage.trim() && !selectedFile) || sending) return
 
         setSending(true)
-        const result = await sendMessage(selectedRoom.id, newMessage)
+        setUploading(!!selectedFile)
+
+        let fileUrl: string | undefined
+        let fileType: string | undefined
+
+        if (selectedFile) {
+            try {
+                const supabase = createClient()
+                const ext = selectedFile.name.split('.').pop()
+                const path = `chat/${selectedRoom.id}/${Date.now()}.${ext}`
+                const { error: uploadError } = await supabase.storage
+                    .from('team-assets')
+                    .upload(path, selectedFile, { contentType: selectedFile.type, upsert: false })
+
+                if (!uploadError) {
+                    const { data: { publicUrl } } = supabase.storage.from('team-assets').getPublicUrl(path)
+                    fileUrl = publicUrl
+                    fileType = selectedFile.type
+                }
+            } catch (err) {
+                console.error('Upload error:', err)
+            }
+            setUploading(false)
+        }
+
+        const result = await sendMessage(selectedRoom.id, newMessage, fileUrl, fileType)
         if (result.success) {
             setNewMessage('')
+            clearFile()
             refreshMessages()
         }
         setSending(false)
@@ -209,9 +253,32 @@ export default function ChatPanel() {
                                                     {!msg.is_mine && (
                                                         <p className="text-xs text-blue-300 mb-1">{msg.sender_name}</p>
                                                     )}
-                                                    <p className="whitespace-pre-wrap">{msg.message}</p>
-                                                    <p className={`text-xs mt-1 ${msg.is_mine ? 'text-blue-200' : 'text-gray-400'
-                                                        }`}>
+                                                    {msg.file_url && msg.file_type?.startsWith('image/') && (
+                                                        <a href={msg.file_url} target="_blank" rel="noopener noreferrer">
+                                                            <img
+                                                                src={msg.file_url}
+                                                                alt="shared image"
+                                                                className="rounded-lg max-w-full mb-1 cursor-pointer hover:opacity-90"
+                                                                style={{ maxHeight: '240px', objectFit: 'cover' }}
+                                                            />
+                                                        </a>
+                                                    )}
+                                                    {msg.file_url && msg.file_type?.startsWith('video/') && (
+                                                        <video
+                                                            src={msg.file_url}
+                                                            controls
+                                                            className="rounded-lg max-w-full mb-1"
+                                                            style={{ maxHeight: '240px' }}
+                                                        />
+                                                    )}
+                                                    {msg.file_url && !msg.file_type?.startsWith('image/') && !msg.file_type?.startsWith('video/') && (
+                                                        <a href={msg.file_url} target="_blank" rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 text-sm underline mb-1">
+                                                            <Paperclip className="h-3 w-3" /> File attachment
+                                                        </a>
+                                                    )}
+                                                    {msg.message && <p className="whitespace-pre-wrap">{msg.message}</p>}
+                                                    <p className={`text-xs mt-1 ${msg.is_mine ? 'text-blue-200' : 'text-gray-400'}`}>
                                                         {formatTime(msg.created_at)}
                                                     </p>
                                                 </div>
@@ -226,7 +293,41 @@ export default function ChatPanel() {
 
                     {/* Input */}
                     <div className="p-4 border-t border-gray-700">
+                        {/* File preview */}
+                        {filePreview && selectedFile && (
+                            <div className="mb-2 relative inline-block">
+                                {selectedFile.type.startsWith('image/') ? (
+                                    <img src={filePreview} alt="preview" className="h-20 rounded-lg object-cover border border-gray-600" />
+                                ) : (
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-700 rounded-lg text-sm text-gray-300">
+                                        <ImageIcon className="h-4 w-4" />
+                                        {selectedFile.name}
+                                    </div>
+                                )}
+                                <button onClick={clearFile}
+                                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600">
+                                    <X className="h-3 w-3 text-white" />
+                                </button>
+                            </div>
+                        )}
                         <div className="flex space-x-2">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*,video/*"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={sending}
+                                className="border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700 shrink-0"
+                            >
+                                <Paperclip className="h-4 w-4" />
+                            </Button>
                             <Input
                                 placeholder="Type a message..."
                                 value={newMessage}
@@ -237,10 +338,12 @@ export default function ChatPanel() {
                             />
                             <Button
                                 onClick={handleSendMessage}
-                                disabled={!newMessage.trim() || sending}
-                                className="bg-blue-600 hover:bg-blue-700"
+                                disabled={(!newMessage.trim() && !selectedFile) || sending}
+                                className="bg-blue-600 hover:bg-blue-700 shrink-0"
                             >
-                                {sending ? (
+                                {uploading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : sending ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                     <Send className="h-4 w-4" />
