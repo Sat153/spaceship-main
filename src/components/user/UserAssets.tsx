@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { getAssets, Asset } from '@/app/actions/assets'
-import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, Loader2, HardDrive } from 'lucide-react'
+import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface Breadcrumb { id: string | null; name: string }
@@ -24,14 +24,21 @@ function formatSize(bytes: number) {
 export default function UserAssets() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([{ id: null, name: 'Asset Library' }])
   const [preview, setPreview] = useState<Asset | null>(null)
 
   const load = useCallback(async (folderId: string | null) => {
     setLoading(true)
+    setError(null)
     const result = await getAssets(undefined, folderId)
-    setAssets(result.success ? (result.data ?? []) : [])
+    if (!result.success) {
+      setError('Failed to load files. Please try again.')
+      setAssets([])
+    } else {
+      setAssets(result.data ?? [])
+    }
     setLoading(false)
   }, [])
 
@@ -104,9 +111,26 @@ export default function UserAssets() {
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 text-gray-500 animate-spin" />
+      {error ? (
+        <Card className="bg-gray-800 border-gray-700">
+          <CardContent className="text-center py-12">
+            <AlertCircle className="mx-auto w-12 h-12 text-red-400 mb-3" />
+            <p className="text-white font-medium mb-1">Failed to load files</p>
+            <p className="text-gray-500 text-sm mb-4">{error}</p>
+            <button onClick={() => load(currentFolderId)} className="flex items-center gap-2 mx-auto text-sm text-blue-400 hover:text-blue-300">
+              <RefreshCw className="w-3.5 h-3.5" /> Try again
+            </button>
+          </CardContent>
+        </Card>
+      ) : loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-4 animate-pulse">
+              <div className="w-full aspect-video rounded-lg bg-gray-700 mb-3" />
+              <div className="h-3.5 bg-gray-700 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-gray-700 rounded w-1/3" />
+            </div>
+          ))}
         </div>
       ) : assets.length === 0 ? (
         <Card className="bg-gray-800 border-gray-700">

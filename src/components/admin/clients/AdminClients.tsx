@@ -90,6 +90,16 @@ export default function AdminClients({ user }: AdminClientsProps) {
     social_tiktok: '',
   })
 
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null)
+  const showToast = (message: string, type: 'error' | 'success' = 'error') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  // Delete confirmation state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
   // AI Summary State
   const [aiSummary, setAiSummary] = useState<string | null>(null)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
@@ -156,11 +166,11 @@ export default function AdminClients({ user }: AdminClientsProps) {
       }
       if (result.error) {
         console.error('AI Summary Error:', result.error)
-        alert('Failed to generate summary: ' + result.error)
+        showToast('Failed to generate summary: ' + result.error)
       }
     } catch (error) {
       console.error('Error calling AI service:', error)
-      alert('Error generating summary')
+      showToast('Error generating summary')
     } finally {
       setIsGeneratingSummary(false)
       refetch()
@@ -228,7 +238,7 @@ export default function AdminClients({ user }: AdminClientsProps) {
       }
     } catch (error) {
       console.error('Error creating client:', error)
-      alert('Error creating client')
+      showToast('Error creating client')
     }
   }
 
@@ -269,21 +279,27 @@ export default function AdminClients({ user }: AdminClientsProps) {
       }
     } catch (error) {
       console.error('Error updating client:', error)
-      alert('Error updating client')
+      showToast('Error updating client')
     }
   }
 
   const handleDeleteClient = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this client?')) return
+    setConfirmDeleteId(id)
+  }
 
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return
     try {
-      const success = await deleteClient(id)
+      const success = await deleteClient(confirmDeleteId)
       if (success) {
         setSelectedClient(null)
+        showToast('Client deleted', 'success')
       }
     } catch (error) {
       console.error('Error deleting client:', error)
-      alert('Error deleting client')
+      showToast('Error deleting client')
+    } finally {
+      setConfirmDeleteId(null)
     }
   }
 
@@ -406,7 +422,7 @@ export default function AdminClients({ user }: AdminClientsProps) {
                 placeholder="Search clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder:text-gray-500 text-sm focus:outline-none focus:border-blue-500 w-56"
+                className="pl-9 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder:text-gray-500 text-sm focus:outline-none focus:border-blue-500 w-full sm:w-56"
               />
             </div>
             {profile?.role === 'admin' && (
@@ -475,7 +491,41 @@ export default function AdminClients({ user }: AdminClientsProps) {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all ${
+          toast.type === 'success'
+            ? 'bg-green-500/20 border border-green-500/40 text-green-300'
+            : 'bg-red-500/20 border border-red-500/40 text-red-300'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          {toast.message}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">Delete Client</h3>
+                <p className="text-gray-400 text-sm">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-300 text-sm mb-6">All data, rooms, approvals, and files for this client will be permanently deleted.</p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1 border-gray-700 text-gray-300" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+              <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={confirmDelete}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Full-width panel for create / detail */}
       <div className="flex-1 flex flex-col">
         {/* Header */}

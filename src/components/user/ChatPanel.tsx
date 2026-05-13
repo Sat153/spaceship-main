@@ -388,8 +388,16 @@ export default function ChatPanel() {
                 <Card className="flex-1 bg-gray-800 border-gray-700 overflow-hidden flex flex-col">
                     <CardContent className="flex-1 overflow-y-auto p-4">
                         {messagesLoading ? (
-                            <div className="flex items-center justify-center h-full">
-                                <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+                            <div className="space-y-4 p-2">
+                                {[1,2,3,4,5].map((i) => (
+                                    <div key={i} className={`flex gap-2 animate-pulse ${i % 2 === 0 ? 'flex-row-reverse' : ''}`}>
+                                        <div className="w-7 h-7 rounded-full bg-gray-700 flex-shrink-0" />
+                                        <div className={`space-y-1.5 max-w-[60%] ${i % 2 === 0 ? 'items-end' : ''} flex flex-col`}>
+                                            <div className="h-3 bg-gray-700 rounded w-16" />
+                                            <div className={`h-10 bg-gray-700 rounded-2xl ${i % 3 === 0 ? 'w-48' : i % 2 === 0 ? 'w-36' : 'w-56'}`} />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : messages.length === 0 ? (
                             <div className="flex items-center justify-center h-full text-gray-400">
@@ -488,7 +496,7 @@ export default function ChatPanel() {
                                 </button>
                             </div>
                         )}
-                        <div className="flex space-x-2">
+                        <div className="flex items-center gap-1.5">
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -502,9 +510,9 @@ export default function ChatPanel() {
                                 size="icon"
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={sending}
-                                className="border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700 shrink-0"
+                                className="border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700 shrink-0 w-8 h-8"
                             >
-                                <Paperclip className="h-4 w-4" />
+                                <Paperclip className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                                 type="button"
@@ -513,32 +521,31 @@ export default function ChatPanel() {
                                 onClick={() => setIsInternal(v => !v)}
                                 disabled={sending}
                                 title={isInternal ? 'Internal note (click to make public)' : 'Make internal note'}
-                                className={`shrink-0 ${isInternal
+                                className={`shrink-0 w-8 h-8 ${isInternal
                                     ? 'border-amber-600 text-amber-400 bg-amber-900/30 hover:bg-amber-900/50'
                                     : 'border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700'
                                 }`}
                             >
-                                {isInternal ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
+                                {isInternal ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
                             </Button>
                             <Input
-                                placeholder={isInternal ? 'Internal note (agency only)...' : 'Type a message...'}
+                                placeholder={isInternal ? 'Internal note...' : 'Type a message...'}
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyDown={handleKeyPress}
-                                className={`flex-1 border-gray-600 text-white ${isInternal ? 'bg-amber-900/20' : 'bg-gray-700'}`}
+                                className={`flex-1 min-w-0 border-gray-600 text-white text-sm ${isInternal ? 'bg-amber-900/20' : 'bg-gray-700'}`}
                                 disabled={sending}
                             />
                             <Button
                                 onClick={handleSendMessage}
                                 disabled={(!newMessage.trim() && !selectedFile) || sending}
-                                className={`shrink-0 ${isInternal ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                size="icon"
+                                className={`shrink-0 w-8 h-8 ${isInternal ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                             >
-                                {uploading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : sending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                {(uploading || sending) ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                    <Send className="h-4 w-4" />
+                                    <Send className="h-3.5 w-3.5" />
                                 )}
                             </Button>
                         </div>
@@ -611,13 +618,15 @@ export default function ChatPanel() {
                     <h2 className="text-2xl font-bold text-white mb-2">Messages</h2>
                     <p className="text-gray-400">Chat with your team</p>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap gap-2">
                     <Button
                         onClick={() => setShowNewChat(true)}
                         className="bg-blue-600 hover:bg-blue-700"
+                        size="sm"
                     >
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Chat
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        <span className="hidden sm:inline">New Chat</span>
+                        <span className="sm:hidden">New</span>
                     </Button>
                     <Button
                         onClick={async () => {
@@ -629,14 +638,16 @@ export default function ChatPanel() {
                         }}
                         disabled={creatingDeptRoom}
                         variant="outline"
+                        size="sm"
                         className="text-white border-purple-500 hover:bg-purple-600/20"
                     >
                         {creatingDeptRoom ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                         ) : (
-                            <Building className="h-4 w-4 mr-2" />
+                            <Building className="h-4 w-4 mr-1.5" />
                         )}
-                        My Department
+                        <span className="hidden sm:inline">My Department</span>
+                        <span className="sm:hidden">Dept</span>
                     </Button>
                 </div>
             </div>
