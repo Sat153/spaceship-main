@@ -47,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ClientAssets from "@/components/admin/clients/ClientAssets"
 import ClientChat from "@/components/admin/clients/ClientChat"
 import ClientSharing from "@/components/admin/clients/ClientSharing"
+import { inviteClientUser, getClientInvitees } from "@/app/actions/invite-client"
 import ClientNewsPanel from "@/components/admin/clients/ClientNewsPanel"
 import ClientTwitterFeed from "@/components/admin/clients/ClientTwitterFeed"
 import ClientDemographics from "@/components/admin/clients/ClientDemographics"
@@ -93,10 +94,47 @@ export default function AdminClients({ user }: AdminClientsProps) {
   const [aiSummary, setAiSummary] = useState<string | null>(null)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
 
+  // Invite Client User state
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteFirstName, setInviteFirstName] = useState('')
+  const [inviteLastName, setInviteLastName] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteSuccess, setInviteSuccess] = useState(false)
+  const [invitees, setInvitees] = useState<Array<{ id: string; email: string; first_name: string; last_name: string }>>([])
+
+  const handleInviteClient = async () => {
+    if (!selectedClient || !inviteEmail || !inviteFirstName) return
+    setInviting(true)
+    setInviteError(null)
+    const result = await inviteClientUser(selectedClient.id, inviteEmail, inviteFirstName, inviteLastName)
+    if (result.error) {
+      setInviteError(result.error)
+    } else {
+      setInviteSuccess(true)
+      setInviteEmail('')
+      setInviteFirstName('')
+      setInviteLastName('')
+      loadInvitees(selectedClient.id)
+      setTimeout(() => setInviteSuccess(false), 3000)
+    }
+    setInviting(false)
+  }
+
+  const loadInvitees = async (clientId: string) => {
+    const result = await getClientInvitees(clientId)
+    if (result.data) setInvitees(result.data)
+  }
+
   // Update effect to reset AI summary when selecting a new client
   useEffect(() => {
     if (selectedClient) {
       setAiSummary(selectedClient.ai_summary || null)
+      loadInvitees(selectedClient.id)
+      setShowInviteModal(false)
+      setInviteError(null)
+      setInviteSuccess(false)
     } else {
       setAiSummary(null)
     }
@@ -1871,6 +1909,90 @@ export default function AdminClients({ user }: AdminClientsProps) {
 
                   {/* Shared With Team */}
                   <ClientSharing clientId={selectedClient.id} clientName={selectedClient.name} />
+
+                  {/* Client Portal Access */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-4 w-4 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-white">Client Portal Access</h3>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => { setShowInviteModal(v => !v); setInviteError(null) }}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Invite Client
+                      </Button>
+                    </div>
+
+                    {/* Existing invitees */}
+                    {invitees.length > 0 && (
+                      <div className="pl-6 space-y-2">
+                        {invitees.map(inv => (
+                          <div key={inv.id} className="flex items-center gap-3 py-2 border-b border-gray-700">
+                            <div className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center text-xs text-white font-semibold">
+                              {inv.first_name[0]}{inv.last_name?.[0] || ''}
+                            </div>
+                            <div>
+                              <p className="text-white text-sm">{inv.first_name} {inv.last_name}</p>
+                              <p className="text-gray-400 text-xs">{inv.email}</p>
+                            </div>
+                            <span className="ml-auto text-xs text-green-400 bg-green-900/30 px-2 py-0.5 rounded">Client</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Invite form */}
+                    {showInviteModal && (
+                      <div className="pl-6 space-y-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                        <p className="text-sm text-gray-300">Send a portal invite to a client contact (e.g. Akhilesh).</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="First name"
+                            value={inviteFirstName}
+                            onChange={e => setInviteFirstName(e.target.value)}
+                            className="bg-gray-700 border-gray-600 text-white text-sm"
+                          />
+                          <Input
+                            placeholder="Last name"
+                            value={inviteLastName}
+                            onChange={e => setInviteLastName(e.target.value)}
+                            className="bg-gray-700 border-gray-600 text-white text-sm"
+                          />
+                        </div>
+                        <Input
+                          placeholder="Email address"
+                          type="email"
+                          value={inviteEmail}
+                          onChange={e => setInviteEmail(e.target.value)}
+                          className="bg-gray-700 border-gray-600 text-white text-sm"
+                        />
+                        {inviteError && <p className="text-red-400 text-xs">{inviteError}</p>}
+                        {inviteSuccess && <p className="text-green-400 text-xs">Invite sent successfully!</p>}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleInviteClient}
+                            disabled={inviting || !inviteEmail || !inviteFirstName}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            {inviting ? <RefreshCw className="h-3 w-3 animate-spin mr-1" /> : null}
+                            Send Invite
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowInviteModal(false)}
+                            className="border-gray-600 text-gray-300"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Account Manager */}
                   {selectedClient.account_manager && (

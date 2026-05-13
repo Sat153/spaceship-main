@@ -465,6 +465,13 @@ export async function getMessages(roomId: string): Promise<{
             return { success: false, error: 'Unauthorized' }
         }
 
+        // Get user profile for role check
+        const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
         // Verify user is member of room
         const { data: membership } = await supabase
             .from('chat_room_members')
@@ -477,13 +484,19 @@ export async function getMessages(roomId: string): Promise<{
             return { success: false, error: 'Not a member of this chat' }
         }
 
-        // Get messages
-        const { data: messages, error: msgError } = await supabase
+        // Build messages query — client role cannot see internal messages
+        let msgQuery = supabase
             .from('chat_messages')
             .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type')
             .eq('room_id', roomId)
             .order('created_at', { ascending: true })
             .limit(100)
+
+        if (userProfile?.role === 'client') {
+            msgQuery = msgQuery.eq('is_internal', false)
+        }
+
+        const { data: messages, error: msgError } = await msgQuery
 
         if (msgError) {
             return { success: false, error: msgError.message }

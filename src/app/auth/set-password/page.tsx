@@ -73,9 +73,10 @@ export default function SetPasswordPage() {
                 setError(userError.message)
             } else {
                 setSuccess(true)
-                // Redirect to admin dashboard after a short delay
+                // Redirect based on role
+                const role = (await supabase.auth.getUser()).data.user?.user_metadata?.role
                 setTimeout(() => {
-                    router.push('/admin')
+                    router.push(role === 'client' ? '/client' : '/admin')
                 }, 2000)
             }
         } catch (error) {
