@@ -236,34 +236,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
               </Select>
             </div>
 
-            {/* Assigned To */}
-            <div>
-              <Label className="text-white">
-                Assigned To
-                {formData.department_id && formData.department_id !== 'no_department' && (
-                  <span className="ml-2 text-xs text-gray-400 font-normal">
-                    ({filteredUsers.length} in dept)
-                  </span>
-                )}
-              </Label>
-              <Select
-                value={formData.assigned_to || ""}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value || undefined }))}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {filteredUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.first_name} {user.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Department */}
             <div>
               <Label className="text-white">Department</Label>
@@ -289,6 +261,34 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   {departments.map((dept) => (
                     <SelectItem key={dept.id} value={dept.id}>
                       {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Assigned To */}
+            <div>
+              <Label className="text-white">
+                Assigned To
+                {formData.department_id && formData.department_id !== 'no_department' && (
+                  <span className="ml-2 text-xs text-gray-400 font-normal">
+                    ({filteredUsers.length} in dept)
+                  </span>
+                )}
+              </Label>
+              <Select
+                value={formData.assigned_to || ""}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value || undefined }))}
+              >
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue placeholder="Select user" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {filteredUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
