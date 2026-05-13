@@ -5,9 +5,11 @@ import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { Loader2, LogOut, MessageCircle, Users } from 'lucide-react'
 import { getMyRooms, getMessages, sendMessage, ChatRoom, ChatMessage } from '@/app/actions/chat'
+import { getLatestApproval, approveContent, requestChanges, Approval } from '@/app/actions/approvals'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { CheckCircle2 } from 'lucide-react'
 
 export default function ClientDashboard() {
     const { user, profile, loading, signOut } = useAuth()
@@ -20,6 +22,10 @@ export default function ClientDashboard() {
     const [sending, setSending] = useState(false)
     const [loadingRooms, setLoadingRooms] = useState(true)
     const [loadingMessages, setLoadingMessages] = useState(false)
+    const [approval, setApproval] = useState<Approval | null>(null)
+    const [approvalAction, setApprovalAction] = useState(false)
+    const [changesNotes, setChangesNotes] = useState('')
+    const [showChangesInput, setShowChangesInput] = useState(false)
 
     // Auth guard
     useEffect(() => {
@@ -46,7 +52,7 @@ export default function ClientDashboard() {
         })
     }, [user, profile])
 
-    // Load messages when room selected
+    // Load messages + approval when room selected
     useEffect(() => {
         if (!selectedRoom) return
         setLoadingMessages(true)
@@ -54,7 +60,28 @@ export default function ClientDashboard() {
             if (result.success && result.data) setMessages(result.data)
             setLoadingMessages(false)
         })
-    }, [selectedRoom])
+        if (selectedRoom.stage_id && selectedRoom.client_id) {
+            getLatestApproval(selectedRoom.client_id, selectedRoom.stage_id).then(r => setApproval(r.data))
+        }
+    }, [selectedRoom?.id])
+
+    const handleApprove = async () => {
+        if (!approval) return
+        setApprovalAction(true)
+        await approveContent(approval.id)
+        setApproval(prev => prev ? { ...prev, status: 'approved' } : null)
+        setApprovalAction(false)
+    }
+
+    const handleRequestChanges = async () => {
+        if (!approval || !changesNotes.trim()) return
+        setApprovalAction(true)
+        await requestChanges(approval.id, changesNotes)
+        setApproval(prev => prev ? { ...prev, status: 'changes_requested', notes: changesNotes } : null)
+        setChangesNotes('')
+        setShowChangesInput(false)
+        setApprovalAction(false)
+    }
 
     const handleSend = async () => {
         if (!selectedRoom || !newMessage.trim() || sending) return
@@ -152,6 +179,49 @@ export default function ClientDashboard() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Approval bar */}
+                            {approval && (
+                                <div className="px-6 py-3 border-b border-gray-800 bg-gray-900/80">
+                                    {approval.status === 'approved' ? (
+                                        <div className="flex items-center gap-2 text-green-400 text-sm">
+                                            <CheckCircle2 className="h-4 w-4" /> You approved this content
+                                        </div>
+                                    ) : approval.status === 'changes_requested' ? (
+                                        <div className="text-orange-400 text-sm">
+                                            Changes requested. Agency team is working on revisions.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <p className="text-white text-sm font-medium">Content is ready for your approval</p>
+                                            {showChangesInput ? (
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        placeholder="What needs to be changed?"
+                                                        value={changesNotes}
+                                                        onChange={e => setChangesNotes(e.target.value)}
+                                                        className="flex-1 bg-gray-800 border-gray-700 text-white text-sm"
+                                                    />
+                                                    <Button size="sm" onClick={handleRequestChanges} disabled={approvalAction || !changesNotes.trim()} className="bg-orange-600 hover:bg-orange-700 shrink-0">
+                                                        {approvalAction ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Send'}
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" onClick={() => setShowChangesInput(false)} className="border-gray-600 text-gray-300 shrink-0">Cancel</Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex gap-2">
+                                                    <Button size="sm" onClick={handleApprove} disabled={approvalAction} className="bg-green-600 hover:bg-green-700">
+                                                        {approvalAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                        Approve Content
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" onClick={() => setShowChangesInput(true)} className="border-orange-600 text-orange-400 hover:bg-orange-900/20">
+                                                        Request Changes
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Messages */}
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">

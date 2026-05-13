@@ -13,6 +13,7 @@ export interface ChatRoom {
     client_id: string | null
     department_id: string | null
     stage_id?: string | null
+    stage_order?: number | null
     last_message?: string
     last_message_at?: string
     unread_count?: number
@@ -86,10 +87,10 @@ export async function getMyRooms(): Promise<{
 
         const roomIds = memberships.map(m => m.room_id)
 
-        // Get room details (with stage_id)
+        // Get room details with stage info
         const { data: rooms, error: roomsError } = await supabase
             .from('chat_rooms')
-            .select('id, name, type, client_id, department_id, stage_id, created_at')
+            .select('id, name, type, client_id, department_id, stage_id, created_at, stage:workflow_stages(stage_order)')
             .in('id', roomIds)
 
         if (roomsError) {
@@ -126,8 +127,16 @@ export async function getMyRooms(): Promise<{
                     .limit(1)
                     .single()
 
+                const stageOrder = (room as any).stage?.stage_order ?? null
+
                 return {
-                    ...room,
+                    id: room.id,
+                    name: room.name,
+                    type: room.type,
+                    client_id: room.client_id,
+                    department_id: room.department_id,
+                    stage_id: room.stage_id,
+                    stage_order: stageOrder,
                     last_message: lastMsg?.message,
                     last_message_at: lastMsg?.created_at
                 }

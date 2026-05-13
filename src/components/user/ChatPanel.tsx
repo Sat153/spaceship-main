@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
     MessageCircle, Send, Users, Plus, Loader2,
-    User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen
+    User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen, CheckCircle2
 } from 'lucide-react'
 import {
     sendMessage,
@@ -14,14 +14,23 @@ import {
     ChatRoom,
 } from '@/app/actions/chat'
 import {
+    getLatestApproval,
+    submitForApproval,
+    approveContent,
+    requestChanges,
+    Approval,
+} from '@/app/actions/approvals'
+import {
     useChatRooms,
     useChatMessages,
     useChatableUsers,
     useCreateDepartmentRoom,
 } from '@/hooks/useSWR'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth'
 
 export default function ChatPanel() {
+    const { profile } = useAuth()
     // Use SWR hooks for data fetching with caching
     const { rooms, isLoading: loading, refresh: refreshRooms } = useChatRooms()
     const { users: chatableUsers } = useChatableUsers()
@@ -38,6 +47,13 @@ export default function ChatPanel() {
     const [isInternal, setIsInternal] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    // Approval state
+    const [approval, setApproval] = useState<Approval | null>(null)
+    const [approvalLoading, setApprovalLoading] = useState(false)
+    const [approvalAction, setApprovalAction] = useState(false)
+    const [changesNotes, setChangesNotes] = useState('')
+    const [showChangesInput, setShowChangesInput] = useState(false)
+
     // Use SWR for messages with 40s polling
     const {
         messages,
@@ -50,6 +66,50 @@ export default function ChatPanel() {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    // Load approval status when entering a workflow room at stage 3 or 4
+    useEffect(() => {
+        if (!selectedRoom?.stage_id || !selectedRoom?.client_id) {
+            setApproval(null)
+            return
+        }
+        const stageOrder = selectedRoom.stage_order
+        if (stageOrder !== 3 && stageOrder !== 4) {
+            setApproval(null)
+            return
+        }
+        setApprovalLoading(true)
+        getLatestApproval(selectedRoom.client_id, selectedRoom.stage_id).then(result => {
+            setApproval(result.data)
+            setApprovalLoading(false)
+        })
+    }, [selectedRoom?.id])
+
+    const handleSubmitForApproval = async () => {
+        if (!selectedRoom?.client_id || !selectedRoom?.stage_id) return
+        setApprovalAction(true)
+        const result = await submitForApproval(selectedRoom.client_id, selectedRoom.stage_id)
+        if (result.data) setApproval(result.data)
+        setApprovalAction(false)
+    }
+
+    const handleApprove = async () => {
+        if (!approval) return
+        setApprovalAction(true)
+        await approveContent(approval.id)
+        setApproval(prev => prev ? { ...prev, status: 'approved' } : null)
+        setApprovalAction(false)
+    }
+
+    const handleRequestChanges = async () => {
+        if (!approval || !changesNotes.trim()) return
+        setApprovalAction(true)
+        await requestChanges(approval.id, changesNotes)
+        setApproval(prev => prev ? { ...prev, status: 'changes_requested', notes: changesNotes } : null)
+        setChangesNotes('')
+        setShowChangesInput(false)
+        setApprovalAction(false)
+    }
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -218,6 +278,101 @@ export default function ChatPanel() {
                         <p className="text-sm text-gray-400 capitalize">{selectedRoom.type} chat</p>
                     </div>
                 </div>
+
+                {/* Approval Bar — shown for stage 3 (admin) and stage 4 (admin + client) */}
+                {selectedRoom?.stage_id && (selectedRoom.stage_order === 3 || selectedRoom.stage_order === 4) && (
+                    <div className="mb-3 rounded-lg border border-gray-700 bg-gray-900 p-3">
+                        {approvalLoading ? (
+                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                                <Loader2 className="h-4 w-4 animate-spin" /> Loading approval status...
+                            </div>
+                        ) : selectedRoom.stage_order === 3 && profile?.role === 'admin' ? (
+                            // Stage 3: Admin can submit for client approval
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-white text-sm font-medium">Internal Review</p>
+                                    <p className="text-gray-400 text-xs">
+                                        {approval?.status === 'pending' ? 'Waiting for client approval...' :
+                                         approval?.status === 'changes_requested' ? `Changes requested: ${approval.notes}` :
+                                         'Review content and submit for client approval when ready.'}
+                                    </p>
+                                </div>
+                                {approval?.status !== 'pending' && (
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSubmitForApproval}
+                                        disabled={approvalAction}
+                                        className="bg-green-600 hover:bg-green-700 text-white text-xs shrink-0"
+                                    >
+                                        {approvalAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                        Submit for Approval
+                                    </Button>
+                                )}
+                            </div>
+                        ) : selectedRoom.stage_order === 4 ? (
+                            // Stage 4: show approval UI
+                            approval?.status === 'approved' ? (
+                                <div className="flex items-center gap-2 text-green-400 text-sm">
+                                    <CheckCircle2 className="h-4 w-4" /> Content approved by client
+                                </div>
+                            ) : approval?.status === 'pending' ? (
+                                profile?.role === 'client' ? (
+                                    // Client sees Approve / Request Changes
+                                    <div className="space-y-2">
+                                        <p className="text-white text-sm font-medium">Content ready for your approval</p>
+                                        {showChangesInput ? (
+                                            <div className="space-y-2">
+                                                <Input
+                                                    placeholder="Describe what changes are needed..."
+                                                    value={changesNotes}
+                                                    onChange={e => setChangesNotes(e.target.value)}
+                                                    className="bg-gray-800 border-gray-600 text-white text-sm"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <Button size="sm" onClick={handleRequestChanges} disabled={approvalAction || !changesNotes.trim()} className="bg-orange-600 hover:bg-orange-700 text-xs">
+                                                        {approvalAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                        Send Feedback
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" onClick={() => setShowChangesInput(false)} className="border-gray-600 text-gray-300 text-xs">Cancel</Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                <Button size="sm" onClick={handleApprove} disabled={approvalAction} className="bg-green-600 hover:bg-green-700 text-xs">
+                                                    {approvalAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                                    Approve
+                                                </Button>
+                                                <Button size="sm" variant="outline" onClick={() => setShowChangesInput(true)} className="border-orange-600 text-orange-400 hover:bg-orange-900/20 text-xs">
+                                                    Request Changes
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    // Admin sees pending status
+                                    <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                                        <Loader2 className="h-4 w-4 animate-pulse" /> Waiting for client approval...
+                                    </div>
+                                )
+                            ) : approval?.status === 'changes_requested' ? (
+                                <div className="space-y-1">
+                                    <p className="text-orange-400 text-sm font-medium">Changes requested</p>
+                                    <p className="text-gray-300 text-xs">{approval.notes}</p>
+                                    {profile?.role === 'admin' && (
+                                        <Button size="sm" onClick={handleSubmitForApproval} disabled={approvalAction} className="bg-green-600 hover:bg-green-700 text-xs mt-2">
+                                            Resubmit for Approval
+                                        </Button>
+                                    )}
+                                </div>
+                            ) : (
+                                // No approval yet — admin sees waiting message
+                                profile?.role === 'admin' ? (
+                                    <p className="text-gray-400 text-sm">No content submitted yet. Submit from Stage 3 — Internal Review.</p>
+                                ) : null
+                            )
+                        ) : null}
+                    </div>
+                )}
 
                 {/* Messages */}
                 <Card className="flex-1 bg-gray-800 border-gray-700 overflow-hidden flex flex-col">
