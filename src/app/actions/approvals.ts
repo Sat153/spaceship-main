@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { notifyAdmins, notifyClientUsers, notifyPRTeam } from './notifications'
 
 async function getSupabase() {
     const cookieStore = await cookies()
@@ -110,6 +111,9 @@ export async function submitForApproval(clientId: string, stageId: string): Prom
                 .eq('client_id', clientId)
         }
 
+        // Notify client users that content is ready for approval
+        notifyClientUsers(clientId, 'Content ready for approval', 'New content has been submitted for your review.', 'approval_request').catch(() => {})
+
         return { data, error: null }
     } catch (err: any) {
         return { data: null, error: err?.message }
@@ -152,6 +156,9 @@ export async function approveContent(approvalId: string, notes?: string): Promis
                 .eq('client_id', approval.client_id)
         }
 
+        // Notify admins that client approved content
+        notifyAdmins('Content approved', 'Client has approved the content. Ready for posting.', 'approved').catch(() => {})
+
         return { error: null }
     } catch (err: any) {
         return { error: err?.message }
@@ -193,6 +200,9 @@ export async function requestChanges(approvalId: string, notes: string): Promise
                 .update({ current_stage_id: stage3.id, updated_at: new Date().toISOString() })
                 .eq('client_id', approval.client_id)
         }
+
+        // Notify admins that client requested changes
+        notifyAdmins('Changes requested', `Client has requested changes${notes ? `: ${notes}` : '.'}`, 'changes_requested').catch(() => {})
 
         return { error: null }
     } catch (err: any) {

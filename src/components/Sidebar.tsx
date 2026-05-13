@@ -30,6 +30,7 @@ interface SidebarProps {
   isMobileOpen?: boolean
   onMobileClose?: () => void
   departmentName?: string
+  notifUnreadCount?: number
 }
 
 const CONTENT_DEPARTMENTS = ['PR & Social Media', 'Creative Labs', 'Operations and strategy', 'Operations and Strategy']
@@ -55,10 +56,11 @@ const adminMenuItems = [
   { id: 'documents', label: 'KB Documents', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
   { id: 'calendar', label: 'Calendar', icon: Calendar, color: 'from-violet-400 to-indigo-500' },
   { id: 'kanban', label: 'Kanban Board', icon: Kanban, color: 'from-orange-400 to-red-500' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-amber-400 to-orange-500' },
   { id: 'settings', label: 'Settings', icon: Settings, color: 'from-slate-400 to-gray-500' },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen, onMobileClose, departmentName }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen, onMobileClose, departmentName, notifUnreadCount = 0 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const { profile, signOut } = useAuth()
   const router = useRouter()
@@ -236,8 +238,22 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
                 </span>
               )}
 
+              {/* Notification badge */}
+              {item.id === 'notifications' && notifUnreadCount > 0 && (
+                <span className={`flex-shrink-0 text-xs font-bold text-white rounded-full flex items-center justify-center ${isCollapsed ? 'absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px]' : 'ml-auto w-5 h-5'}`}
+                  style={{ background: 'linear-gradient(135deg, #f97316, #ef4444)', boxShadow: '0 0 6px rgba(239,68,68,0.6)' }}>
+                  {notifUnreadCount > 9 ? '9+' : notifUnreadCount}
+                </span>
+              )}
+
               {/* Active indicator dot */}
-              {isActive && !isCollapsed && (
+              {isActive && !isCollapsed && item.id !== 'notifications' && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{
+                  background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                  boxShadow: '0 0 6px rgba(139,92,246,0.8)',
+                }} />
+              )}
+              {isActive && !isCollapsed && item.id === 'notifications' && notifUnreadCount === 0 && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{
                   background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
                   boxShadow: '0 0 6px rgba(139,92,246,0.8)',

@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, Suspense } from "react"
-import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2, Menu } from "lucide-react"
+import { useEffect, useState, Suspense, useCallback } from "react"
+import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2, Menu, Bell, CheckCheck } from "lucide-react"
+import { getNotifications, markAllRead, type Notification } from "@/app/actions/notifications"
 import AdminRoute from "@/components/AdminRoute"
 import Sidebar from "@/components/Sidebar"
 import AdminDocuments from "@/components/admin/documents/AdminDocuments"
@@ -85,9 +86,26 @@ function AdminDashboardContent() {
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([searchParams.get('tab') || 'overview']))
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
+  const [adminNotifications, setAdminNotifications] = useState<Notification[]>([])
+  const [adminUnreadCount, setAdminUnreadCount] = useState(0)
+  const [adminNotifLoading, setAdminNotifLoading] = useState(false)
+
+  const fetchAdminNotifications = useCallback(async () => {
+    setAdminNotifLoading(true)
+    const result = await getNotifications()
+    setAdminNotifications(result.data)
+    setAdminUnreadCount(result.unreadCount)
+    setAdminNotifLoading(false)
+  }, [])
+
+  useEffect(() => { fetchAdminNotifications() }, [fetchAdminNotifications])
+
   const handleTabChange = (tab: string) => {
     setVisitedTabs(prev => { const next = new Set(prev); next.add(tab); return next })
     setActiveTab(tab)
+    if (tab === 'notifications') {
+      markAllRead().then(() => { setAdminUnreadCount(0); fetchAdminNotifications() })
+    }
   }
   const defaultPipeline = { draft: 0, internal_review: 0, pending_review: 0, approved: 0, scheduled: 0, rejected: 0 }
   const [stats, setStats] = useState<DashboardStats>({
@@ -440,6 +458,76 @@ function AdminDashboardContent() {
     )
   }
 
+  const notifTypeLabel: Record<string, string> = {
+    info: 'Info', approval_request: 'Approval Request', approved: 'Approved', changes_requested: 'Changes Requested',
+  }
+  const notifTypeColor: Record<string, string> = {
+    info: 'bg-blue-600/20 text-blue-400',
+    approval_request: 'bg-amber-600/20 text-amber-400',
+    approved: 'bg-green-600/20 text-green-400',
+    changes_requested: 'bg-red-600/20 text-red-400',
+  }
+
+  const renderAdminNotifications = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">Notifications</h2>
+        {adminNotifications.length > 0 && (
+          <button
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-gray-700 hover:bg-gray-800"
+            onClick={() => markAllRead().then(() => { setAdminUnreadCount(0); fetchAdminNotifications() })}
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            Mark all read
+          </button>
+        )}
+      </div>
+      {adminNotifLoading ? (
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <GlassCard key={i}>
+              <div className="p-4 animate-pulse">
+                <div className="h-4 bg-white/10 rounded w-1/2 mb-2" />
+                <div className="h-3 bg-white/10 rounded w-3/4" />
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+      ) : adminNotifications.length === 0 ? (
+        <GlassCard>
+          <div className="text-center py-12">
+            <Bell className="mx-auto h-16 w-16 text-gray-600 mb-4" />
+            <p className="text-gray-400">No notifications yet</p>
+          </div>
+        </GlassCard>
+      ) : (
+        <div className="space-y-3">
+          {adminNotifications.map(n => (
+            <GlassCard key={n.id} style={n.is_read ? {} : { borderLeft: '2px solid #3b82f6' }}>
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${notifTypeColor[n.type] ?? notifTypeColor.info}`}>
+                        {notifTypeLabel[n.type] ?? n.type}
+                      </span>
+                      {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
+                    </div>
+                    <p className={`text-sm font-medium ${n.is_read ? 'text-gray-300' : 'text-white'}`}>{n.title}</p>
+                    {n.message && <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>}
+                  </div>
+                  <span className="text-xs text-gray-600 flex-shrink-0">
+                    {new Date(n.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
   const fullBleedTabs = ['documents', 'clients', 'content', 'messaging', 'calendar', 'kanban', 'messages']
 
   return (
@@ -463,6 +551,7 @@ function AdminDashboardContent() {
           userRole="admin"
           isMobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
+          notifUnreadCount={adminUnreadCount}
         />
 
         {/* Main content */}
@@ -501,6 +590,7 @@ function AdminDashboardContent() {
             <div className={activeTab === 'overview' ? '' : 'hidden'}>{renderOverview()}</div>
             {visitedTabs.has('members') && <div className={activeTab === 'members' ? '' : 'hidden'}><AdminTeamMembers /></div>}
             {visitedTabs.has('settings') && <div className={activeTab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>}
+            {visitedTabs.has('notifications') && <div className={activeTab === 'notifications' ? '' : 'hidden'}>{renderAdminNotifications()}</div>}
           </div>
         </div>
       </div>
