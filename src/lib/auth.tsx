@@ -40,13 +40,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true
 
+    const CACHE_KEY = 'anya_profile_cache'
+
     const loadProfile = async (currentUser: any) => {
+      // Serve cached profile immediately so UI renders without waiting
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed.id === currentUser.id && mounted) {
+            setProfile(parsed)
+          }
+        }
+      } catch {}
+
+      // Fetch fresh from DB in background
       const { data } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name, role, department_id')
         .eq('id', currentUser.id)
         .maybeSingle()
-      if (mounted) setProfile(data ?? null)
+      if (mounted && data) {
+        setProfile(data)
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(data)) } catch {}
+      } else if (mounted && !data) {
+        setProfile(null)
+        try { sessionStorage.removeItem(CACHE_KEY) } catch {}
+      }
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -60,12 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await loadProfile(currentUser)
           } else {
             setProfile(null)
+            try { sessionStorage.removeItem(CACHE_KEY) } catch {}
           }
           if (mounted) setLoading(false)
         } else if (event === 'SIGNED_IN') {
           if (currentUser) await loadProfile(currentUser)
         } else if (event === 'SIGNED_OUT') {
           setProfile(null)
+          try { sessionStorage.removeItem(CACHE_KEY) } catch {}
         }
       }
     )
