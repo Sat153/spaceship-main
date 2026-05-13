@@ -8,6 +8,21 @@ async function getSupabase() {
     return createClient(cookieStore)
 }
 
+// Returns stage_order for a given stage_id
+export async function getStageOrder(stageId: string): Promise<number | null> {
+    try {
+        const supabase = await getSupabase()
+        const { data } = await supabase
+            .from('workflow_stages')
+            .select('stage_order')
+            .eq('id', stageId)
+            .single()
+        return data?.stage_order ?? null
+    } catch {
+        return null
+    }
+}
+
 export interface Approval {
     id: string
     client_id: string
