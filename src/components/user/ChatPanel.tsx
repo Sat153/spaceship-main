@@ -356,15 +356,68 @@ export default function ChatPanel() {
         )
     }
 
+    // Group rooms: direct/department vs workflow (stage_id present)
+    const directRooms = rooms.filter(r => !r.stage_id)
+    const workflowRooms = rooms.filter(r => r.stage_id)
+
+    // Group workflow rooms by client_id
+    const workflowByClient = workflowRooms.reduce<Record<string, ChatRoom[]>>((acc, room) => {
+        const key = room.client_id || 'unknown'
+        if (!acc[key]) acc[key] = []
+        acc[key].push(room)
+        return acc
+    }, {})
+
+    const renderRoomCard = (room: ChatRoom) => {
+        // For workflow rooms, show only the stage part (after " — ")
+        const displayName = room.stage_id
+            ? room.name.split(' — ').slice(1).join(' — ') || room.name
+            : room.name
+
+        return (
+            <Card
+                key={room.id}
+                className="bg-gray-800 border-gray-700 hover:border-blue-500 transition-colors cursor-pointer"
+                onClick={() => setSelectedRoom(room)}
+            >
+                <CardContent className="p-3">
+                    <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                            room.type === 'direct' ? 'bg-blue-600' :
+                            room.stage_id ? 'bg-amber-700' : 'bg-purple-600'
+                        }`}>
+                            {room.type === 'direct' ? (
+                                <User className="h-5 w-5 text-white" />
+                            ) : (
+                                <Users className="h-5 w-5 text-white" />
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                                <p className="text-white font-medium truncate text-sm">{displayName}</p>
+                                {room.last_message_at && (
+                                    <span className="text-xs text-gray-500 shrink-0 ml-2">
+                                        {formatTime(room.last_message_at)}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-400 truncate">
+                                {room.last_message || 'No messages yet'}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
     // Rooms List View
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-white mb-2">Messages</h2>
-                    <p className="text-gray-400">
-                        Chat with your team members
-                    </p>
+                    <p className="text-gray-400">Chat with your team</p>
                 </div>
                 <div className="flex space-x-2">
                     <Button
@@ -416,57 +469,42 @@ export default function ChatPanel() {
                 <Card className="bg-gray-800 border-gray-700">
                     <CardContent className="text-center py-12">
                         <MessageCircle className="mx-auto h-16 w-16 text-gray-500 mb-4" />
-                        <h3 className="text-lg font-semibold text-white mb-2">
-                            No conversations yet
-                        </h3>
-                        <p className="text-gray-400 mb-4">
-                            Start a new chat with your team members
-                        </p>
-                        <Button
-                            onClick={() => setShowNewChat(true)}
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
+                        <h3 className="text-lg font-semibold text-white mb-2">No conversations yet</h3>
+                        <p className="text-gray-400 mb-4">Start a new chat with your team members</p>
+                        <Button onClick={() => setShowNewChat(true)} className="bg-blue-600 hover:bg-blue-700">
                             <Plus className="h-4 w-4 mr-2" />
                             Start Chatting
                         </Button>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-2">
-                    {rooms.map((room) => (
-                        <Card
-                            key={room.id}
-                            className="bg-gray-800 border-gray-700 hover:border-blue-500 transition-colors cursor-pointer"
-                            onClick={() => setSelectedRoom(room)}
-                        >
-                            <CardContent className="p-4">
-                                <div className="flex items-center space-x-3">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${room.type === 'direct' ? 'bg-blue-600' :
-                                        room.type === 'client' ? 'bg-green-600' : 'bg-purple-600'
-                                        }`}>
-                                        {room.type === 'direct' ? (
-                                            <User className="h-6 w-6 text-white" />
-                                        ) : (
-                                            <Users className="h-6 w-6 text-white" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-white font-medium truncate">{room.name}</p>
-                                            {room.last_message_at && (
-                                                <span className="text-xs text-gray-500">
-                                                    {formatTime(room.last_message_at)}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-gray-400 truncate">
-                                            {room.last_message || 'No messages yet'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                <div className="space-y-6">
+                    {/* Direct & department rooms */}
+                    {directRooms.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Direct & Team</p>
+                            {directRooms.map(renderRoomCard)}
+                        </div>
+                    )}
+
+                    {/* Workflow rooms grouped by client */}
+                    {Object.entries(workflowByClient).map(([clientId, stageRooms]) => {
+                        // Extract client name from first room (format: "ClientName — Stage")
+                        const clientName = stageRooms[0]?.name.split(' — ')[0] || 'Client'
+                        const sorted = [...stageRooms].sort((a, b) => {
+                            const aStage = a.name.split(' — ')[1] || ''
+                            const bStage = b.name.split(' — ')[1] || ''
+                            return aStage.localeCompare(bStage)
+                        })
+                        return (
+                            <div key={clientId} className="space-y-2">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    {clientName} — Workflow
+                                </p>
+                                {sorted.map(renderRoomCard)}
+                            </div>
+                        )
+                    })}
                 </div>
             )}
         </div>

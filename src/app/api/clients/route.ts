@@ -188,6 +188,90 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Auto-creates 6 stage rooms + room_access entries + client_workflow when a client is created
+async function setupClientWorkflow(supabase: any, clientId: string, clientName: string, creatorId: string) {
+  // Fetch all workflow stages ordered
+  const { data: stages, error: stagesErr } = await supabase
+    .from('workflow_stages')
+    .select('id, name, stage_order, allowed_dept_names')
+    .order('stage_order', { ascending: true })
+
+  if (stagesErr || !stages?.length) {
+    console.error('Could not fetch workflow_stages:', stagesErr)
+    return
+  }
+
+  // Fetch all departments (to map name → id)
+  const { data: departments } = await supabase
+    .from('departments')
+    .select('id, name')
+
+  const deptMap: Record<string, string> = {}
+  departments?.forEach((d: { id: string; name: string }) => { deptMap[d.name] = d.id })
+
+  // Fetch all team member profiles (to add them to rooms)
+  const { data: allMembers } = await supabase
+    .from('profiles')
+    .select('id, department_id, role')
+
+  for (const stage of stages) {
+    // Create chat room for this stage
+    const { data: room, error: roomErr } = await supabase
+      .from('chat_rooms')
+      .insert({
+        name: `${clientName} — ${stage.name}`,
+        type: 'client',
+        client_id: clientId,
+        stage_id: stage.id,
+        created_by: creatorId,
+      })
+      .select('id')
+      .single()
+
+    if (roomErr || !room) {
+      console.error(`Failed to create room for stage ${stage.name}:`, roomErr)
+      continue
+    }
+
+    // Determine which departments can access this room
+    const allowedDeptIds: string[] = []
+    for (const deptName of (stage.allowed_dept_names || [])) {
+      if (deptMap[deptName]) allowedDeptIds.push(deptMap[deptName])
+    }
+
+    // Insert room_access rows for each allowed department
+    if (allowedDeptIds.length > 0) {
+      await supabase.from('room_access').insert(
+        allowedDeptIds.map((deptId: string) => ({ room_id: room.id, department_id: deptId }))
+      )
+    }
+
+    // Add members to chat_room_members
+    // Admin always gets added; dept members get added if their dept is allowed
+    const membersToAdd: string[] = []
+    for (const member of (allMembers || [])) {
+      if (member.role === 'admin') {
+        membersToAdd.push(member.id)
+      } else if (member.department_id && allowedDeptIds.includes(member.department_id)) {
+        membersToAdd.push(member.id)
+      }
+    }
+
+    const uniqueMembers = Array.from(new Set(membersToAdd))
+    if (uniqueMembers.length > 0) {
+      await supabase.from('chat_room_members').insert(
+        uniqueMembers.map((uid: string) => ({ room_id: room.id, user_id: uid }))
+      )
+    }
+  }
+
+  // Create client_workflow pointing to stage 1
+  await supabase.from('client_workflows').insert({
+    client_id: clientId,
+    current_stage_id: stages[0].id,
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient(
@@ -253,6 +337,11 @@ export async function POST(request: NextRequest) {
       {},
       newClient,
       request
+    )
+
+    // Auto-create 6 workflow rooms + client_workflow entry (non-blocking)
+    setupClientWorkflow(supabase, newClient.id, newClient.name, user.id).catch(err =>
+      console.error('Workflow setup error (non-blocking):', err)
     )
 
     return NextResponse.json({ client: newClient }, { status: 201 })

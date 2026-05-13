@@ -12,6 +12,7 @@ export interface ChatRoom {
     type: 'direct' | 'client' | 'department'
     client_id: string | null
     department_id: string | null
+    stage_id?: string | null
     last_message?: string
     last_message_at?: string
     unread_count?: number
@@ -61,6 +62,13 @@ export async function getMyRooms(): Promise<{
             return { success: false, error: 'Unauthorized' }
         }
 
+        // Get user profile for role + department
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, department_id')
+            .eq('id', user.id)
+            .single()
+
         // Get rooms I'm a member of
         const { data: memberships, error: memError } = await supabase
             .from('chat_room_members')
@@ -77,19 +85,38 @@ export async function getMyRooms(): Promise<{
 
         const roomIds = memberships.map(m => m.room_id)
 
-        // Get room details
+        // Get room details (with stage_id)
         const { data: rooms, error: roomsError } = await supabase
             .from('chat_rooms')
-            .select('id, name, type, client_id, department_id, created_at')
+            .select('id, name, type, client_id, department_id, stage_id, created_at')
             .in('id', roomIds)
 
         if (roomsError) {
             return { success: false, error: roomsError.message }
         }
 
-        // Get last message for each room
+        // For non-admin users filter workflow rooms by department access
+        let visibleRooms = rooms || []
+        if (profile?.role !== 'admin' && profile?.department_id) {
+            // Get rooms this department can access
+            const { data: accessible } = await supabase
+                .from('room_access')
+                .select('room_id')
+                .eq('department_id', profile.department_id)
+
+            const accessibleIds = new Set((accessible || []).map((r: { room_id: string }) => r.room_id))
+
+            visibleRooms = visibleRooms.filter(room => {
+                // Non-workflow rooms (direct/department): always visible
+                if (!room.stage_id) return true
+                // Workflow rooms: only if department has access
+                return accessibleIds.has(room.id)
+            })
+        }
+
+        // Get last message for each room in parallel
         const roomsWithLastMessage: ChatRoom[] = await Promise.all(
-            (rooms || []).map(async (room) => {
+            visibleRooms.map(async (room) => {
                 const { data: lastMsg } = await supabase
                     .from('chat_messages')
                     .select('message, created_at')
