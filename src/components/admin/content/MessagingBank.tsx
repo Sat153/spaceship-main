@@ -44,6 +44,7 @@ export default function MessagingBank() {
     const [tagInput, setTagInput] = useState('')
     const [saving, setSaving] = useState(false)
     const [langView, setLangView] = useState<'english' | 'hindi' | 'both'>('both')
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
     useEffect(() => { fetchTemplates() }, [])
 
@@ -108,9 +109,9 @@ export default function MessagingBank() {
     }
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Delete this template?')) return
         await deleteMessageTemplate(id)
         setTemplates(t => t.filter(x => x.id !== id))
+        setConfirmDeleteId(null)
     }
 
     const getCatConfig = (cat: string) => CATEGORIES.find(c => c.id === cat) || CATEGORIES[4]
@@ -212,7 +213,7 @@ export default function MessagingBank() {
                                                 <button onClick={() => openEdit(t)} className="p-1.5 text-gray-500 hover:text-blue-400 rounded transition-colors">
                                                     <Edit2 className="h-3.5 w-3.5" />
                                                 </button>
-                                                <button onClick={() => handleDelete(t.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors">
+                                                <button onClick={() => setConfirmDeleteId(t.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors">
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
                                             </div>
@@ -272,6 +273,29 @@ export default function MessagingBank() {
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirm Modal */}
+            {confirmDeleteId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-xl w-full max-w-sm p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-full bg-red-500/10">
+                                <Trash2 className="h-5 w-5 text-red-400" />
+                            </div>
+                            <h3 className="text-white font-semibold">Delete Template?</h3>
+                        </div>
+                        <p className="text-gray-400 text-sm mb-5">This template will be permanently deleted and cannot be recovered.</p>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={() => handleDelete(confirmDeleteId)} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Create/Edit Modal */}
             {showModal && (

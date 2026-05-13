@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     PenTool, Sparkles, CalendarDays, Send, Loader2, Plus,
-    FileText, Clock, CheckCircle, XCircle, Edit2, Trash2, ExternalLink, ShieldCheck, Bell
+    FileText, Clock, CheckCircle, XCircle, Edit2, Trash2, ExternalLink, ShieldCheck, Bell,
+    BookMarked, Wheat, Heart, Building, Tag, Zap, Search
 } from 'lucide-react'
 import {
     getContentPosts,
@@ -23,6 +24,7 @@ import {
     ContentPost
 } from '@/app/actions/content-posts'
 import { sendApprovalRequest } from '@/app/actions/approval'
+import { getMessageTemplates, MessageTemplate } from '@/app/actions/message-templates'
 
 
 interface Client {
@@ -70,6 +72,17 @@ export default function ContentCreator() {
     const [editBody, setEditBody] = useState('')
     const [savingEdit, setSavingEdit] = useState(false)
     const [viewingPost, setViewingPost] = useState<ContentPost | null>(null)
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+    const [rejectingPost, setRejectingPost] = useState<ContentPost | null>(null)
+    const [rejectNotes, setRejectNotes] = useState('')
+    const [rejectSaving, setRejectSaving] = useState(false)
+    const [editError, setEditError] = useState<string | null>(null)
+    // Messaging bank picker
+    const [showBankPicker, setShowBankPicker] = useState<'create' | 'edit' | null>(null)
+    const [bankTemplates, setBankTemplates] = useState<MessageTemplate[]>([])
+    const [bankLoading, setBankLoading] = useState(false)
+    const [bankSearch, setBankSearch] = useState('')
+    const [bankCategory, setBankCategory] = useState('all')
 
     useEffect(() => {
         fetchData()
@@ -171,13 +184,15 @@ export default function ContentCreator() {
         }
     }
 
-    const handleReject = async (id: string) => {
-        const notes = prompt('Rejection reason:')
-        if (notes) {
-            const result = await rejectContentPost(id, notes)
-            if (result.success) {
-                fetchData()
-            }
+    const handleReject = async () => {
+        if (!rejectingPost || !rejectNotes.trim()) return
+        setRejectSaving(true)
+        const result = await rejectContentPost(rejectingPost.id, rejectNotes.trim())
+        setRejectSaving(false)
+        if (result.success) {
+            setRejectingPost(null)
+            setRejectNotes('')
+            fetchData()
         }
     }
 
@@ -189,6 +204,7 @@ export default function ContentCreator() {
 
     const handleSaveEdit = async () => {
         if (!editingPost || !editBody.trim()) return
+        setEditError(null)
         setSavingEdit(true)
         const result = await updateContentPost(editingPost.id, { title: editTitle || undefined, body: editBody.trim() })
         setSavingEdit(false)
@@ -196,7 +212,7 @@ export default function ContentCreator() {
             setEditingPost(null)
             fetchData()
         } else {
-            alert('Failed to save changes')
+            setEditError('Failed to save changes. Please try again.')
         }
     }
 
@@ -212,12 +228,30 @@ export default function ContentCreator() {
     }
 
     const handleDelete = async (id: string) => {
-        if (confirm('Delete this post?')) {
-            const result = await deleteContentPost(id)
-            if (result.success) {
-                setPosts(posts.filter(p => p.id !== id))
-            }
+        const result = await deleteContentPost(id)
+        if (result.success) {
+            setPosts(posts.filter(p => p.id !== id))
         }
+        setConfirmDeleteId(null)
+    }
+
+    const openBankPicker = async (target: 'create' | 'edit') => {
+        setShowBankPicker(target)
+        setBankSearch('')
+        setBankCategory('all')
+        if (bankTemplates.length === 0) {
+            setBankLoading(true)
+            const { data } = await getMessageTemplates()
+            if (data) setBankTemplates(data)
+            setBankLoading(false)
+        }
+    }
+
+    const insertTemplate = (template: MessageTemplate) => {
+        const text = [template.body_english, template.body_hindi].filter(Boolean).join('\n\n')
+        if (showBankPicker === 'create') setBody(prev => prev ? prev + '\n\n' + text : text)
+        if (showBankPicker === 'edit') setEditBody(prev => prev ? prev + '\n\n' + text : text)
+        setShowBankPicker(null)
     }
 
     const togglePlatform = (platformId: string) => {
@@ -423,7 +457,7 @@ export default function ContentCreator() {
                                                                 <Button
                                                                     size="sm"
                                                                     variant="ghost"
-                                                                    onClick={() => handleReject(post.id)}
+                                                                    onClick={() => { setRejectingPost(post); setRejectNotes('') }}
                                                                     className="text-red-400 hover:text-red-300"
                                                                     title="Reject"
                                                                 >
@@ -449,7 +483,7 @@ export default function ContentCreator() {
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
-                                                            onClick={() => handleDelete(post.id)}
+                                                            onClick={() => setConfirmDeleteId(post.id)}
                                                             className="text-gray-400 hover:text-red-400"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
@@ -568,9 +602,15 @@ export default function ContentCreator() {
 
                         {/* Body */}
                         <div>
-                            <label className="text-sm text-gray-400 mb-1 block">
-                                Content * {selectedPlatforms.length > 1 && <span className="text-purple-400">(Multi-platform posts will be labeled)</span>}
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="text-sm text-gray-400">
+                                    Content * {selectedPlatforms.length > 1 && <span className="text-purple-400">(Multi-platform posts will be labeled)</span>}
+                                </label>
+                                <button onClick={() => openBankPicker('create')} className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                                    <BookMarked className="h-3.5 w-3.5" />
+                                    Insert from Bank
+                                </button>
+                            </div>
                             <Textarea
                                 placeholder={selectedPlatforms.length > 1
                                     ? "Generated content will include separate posts for each platform..."
@@ -650,13 +690,20 @@ export default function ContentCreator() {
                             />
                         </div>
                         <div>
-                            <label className="text-xs text-gray-400 mb-1 block">Content *</label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="text-xs text-gray-400">Content *</label>
+                                <button onClick={() => openBankPicker('edit')} className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+                                    <BookMarked className="h-3.5 w-3.5" />
+                                    Insert from Bank
+                                </button>
+                            </div>
                             <Textarea
                                 value={editBody}
-                                onChange={e => setEditBody(e.target.value)}
+                                onChange={e => { setEditBody(e.target.value); setEditError(null) }}
                                 placeholder="Post content..."
                                 className="bg-gray-800 border-gray-700 text-white placeholder-gray-500 min-h-[200px] resize-none"
                             />
+                            {editError && <p className="text-red-400 text-xs mt-1">{editError}</p>}
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <Button variant="ghost" onClick={() => setEditingPost(null)} className="text-gray-400">
@@ -674,6 +721,126 @@ export default function ContentCreator() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirm Modal */}
+            {confirmDeleteId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-full max-w-sm p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-full bg-red-500/10">
+                                <Trash2 className="h-5 w-5 text-red-400" />
+                            </div>
+                            <h3 className="text-white font-semibold">Delete Post?</h3>
+                        </div>
+                        <p className="text-gray-400 text-sm mb-5">This post will be permanently deleted and cannot be recovered.</p>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={() => handleDelete(confirmDeleteId)} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Reject Modal */}
+            {rejectingPost && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-full max-w-md p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-full bg-red-500/10">
+                                <XCircle className="h-5 w-5 text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-semibold">Reject Post</h3>
+                                <p className="text-gray-500 text-xs">{rejectingPost.title || rejectingPost.body.slice(0, 50) + '…'}</p>
+                            </div>
+                        </div>
+                        <textarea
+                            value={rejectNotes}
+                            onChange={e => setRejectNotes(e.target.value)}
+                            placeholder="Reason for rejection (required)..."
+                            rows={3}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-red-500 resize-none mb-4"
+                        />
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={() => setRejectingPost(null)} className="px-4 py-2 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={handleReject} disabled={!rejectNotes.trim() || rejectSaving} className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors">
+                                {rejectSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                Reject Post
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Messaging Bank Picker */}
+            {showBankPicker && (() => {
+                const BANK_CATS = [
+                    { id: 'all', label: 'All', icon: BookMarked },
+                    { id: 'kisan', label: 'किसान', icon: Wheat },
+                    { id: 'women', label: 'महिला', icon: Heart },
+                    { id: 'development', label: 'विकास', icon: Building },
+                    { id: 'general', label: 'सामान्य', icon: Tag },
+                    { id: 'crisis', label: 'आपातकाल', icon: Zap },
+                ]
+                const filtered = bankTemplates.filter(t => {
+                    const matchCat = bankCategory === 'all' || t.category === bankCategory
+                    const q = bankSearch.toLowerCase()
+                    return matchCat && (!q || t.title.toLowerCase().includes(q) || t.body_english.toLowerCase().includes(q) || (t.body_hindi || '').includes(bankSearch))
+                })
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+                            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+                                <div className="flex items-center gap-2">
+                                    <BookMarked className="h-5 w-5 text-amber-400" />
+                                    <h3 className="text-white font-semibold">Insert from Messaging Bank</h3>
+                                </div>
+                                <button onClick={() => setShowBankPicker(null)} className="text-gray-400 hover:text-white">
+                                    <XCircle className="h-5 w-5" />
+                                </button>
+                            </div>
+                            <div className="p-3 border-b border-gray-700 space-y-2">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                                    <input value={bankSearch} onChange={e => setBankSearch(e.target.value)} placeholder="Search templates..." className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500" />
+                                </div>
+                                <div className="flex gap-1.5 flex-wrap">
+                                    {BANK_CATS.map(c => {
+                                        const Icon = c.icon
+                                        return (
+                                            <button key={c.id} onClick={() => setBankCategory(c.id)} className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${bankCategory === c.id ? 'bg-amber-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                                                <Icon className="h-3 w-3" />{c.label}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-auto p-3 space-y-2">
+                                {bankLoading ? (
+                                    <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-amber-400" /></div>
+                                ) : filtered.length === 0 ? (
+                                    <p className="text-center text-gray-500 py-12 text-sm">No templates found</p>
+                                ) : filtered.map(t => (
+                                    <button key={t.id} onClick={() => insertTemplate(t)} className="w-full text-left bg-gray-800 hover:bg-gray-750 hover:border-amber-500 border border-gray-700 rounded-lg p-3 transition-all group">
+                                        <p className="text-white text-sm font-medium mb-1 group-hover:text-amber-300">{t.title}</p>
+                                        <p className="text-gray-400 text-xs line-clamp-2">{t.body_english}</p>
+                                        {t.body_hindi && <p className="text-gray-500 text-xs line-clamp-1 mt-0.5">{t.body_hindi}</p>}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="p-3 border-t border-gray-700">
+                                <p className="text-gray-500 text-xs text-center">Click a template to insert it into your post content</p>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
 
             {/* View Full Content Modal */}
             <Dialog open={!!viewingPost} onOpenChange={(open) => { if (!open) setViewingPost(null) }}>
