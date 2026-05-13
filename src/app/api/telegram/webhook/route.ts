@@ -41,6 +41,14 @@ async function getOrCreateFolder(
 }
 
 export async function POST(request: NextRequest) {
+    // Verify secret token if configured
+    if (WEBHOOK_SECRET) {
+        const incoming = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || request.nextUrl.searchParams.get('secret')
+        if (incoming !== WEBHOOK_SECRET) {
+            return NextResponse.json({ ok: false }, { status: 401 })
+        }
+    }
+
     let update: any
     try {
         update = await request.json()

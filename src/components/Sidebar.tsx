@@ -19,6 +19,7 @@ import {
   ChevronRight,
   BookMarked,
   X,
+  HardDrive,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
@@ -40,8 +41,9 @@ const baseUserMenuItems = [
   { id: 'tasks', label: 'My Tasks', icon: Kanban, color: 'from-orange-400 to-red-500' },
   { id: 'calendar', label: 'Calendar', icon: Calendar, color: 'from-violet-400 to-indigo-500' },
   { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
+  { id: 'assets', label: 'Asset Library', icon: HardDrive, color: 'from-amber-400 to-orange-500' },
   { id: 'knowledge-base', label: 'Knowledge Base', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
-  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-amber-400 to-orange-500' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
   { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },
 ]
 
