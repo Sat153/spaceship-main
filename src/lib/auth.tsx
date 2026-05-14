@@ -76,13 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentUser)
 
         if (event === 'INITIAL_SESSION') {
+          if (mounted) setLoading(false)
           if (currentUser) {
-            await loadProfile(currentUser)
+            loadProfile(currentUser)
           } else {
             setProfile(null)
             try { sessionStorage.removeItem(CACHE_KEY) } catch {}
           }
-          if (mounted) setLoading(false)
         } else if (event === 'SIGNED_IN') {
           if (currentUser) await loadProfile(currentUser)
         } else if (event === 'SIGNED_OUT') {

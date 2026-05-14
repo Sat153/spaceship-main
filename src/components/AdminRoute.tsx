@@ -63,17 +63,8 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
-  // If user exists but profile is loading, show loading
-  if (user && !profile) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-400 mb-4" />
-          <p className="text-gray-400">Loading profile...</p>
-        </div>
-      </div>
-    )
-  }
+  // If user exists but profile not yet loaded, render children optimistically
+  // (profile arrives shortly after; AdminRoute re-renders and redirects if not admin)
 
   // If user exists and profile is loaded but not admin, redirect to dashboard
   if (user && profile && !isAdmin) {
