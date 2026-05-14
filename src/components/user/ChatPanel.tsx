@@ -272,7 +272,7 @@ export default function ChatPanel() {
     // Chat View with Room Selected
     if (selectedRoom) {
         return (
-            <div className="flex flex-col h-[calc(100vh-8rem)]">
+            <div className="flex flex-col h-[calc(100dvh-8rem)] sm:h-[calc(100vh-8rem)]">
                 {/* Header */}
                 <div className="flex items-center space-x-4 mb-4">
                     <Button
@@ -425,7 +425,7 @@ export default function ChatPanel() {
                                                     <Lock className="h-3 w-3" /> Internal note
                                                 </div>
                                             )}
-                                            <div className={`max-w-[70%] ${msg.is_mine
+                                            <div className={`max-w-[85%] sm:max-w-[70%] ${msg.is_mine
                                                     ? msg.is_internal ? 'bg-amber-700 text-white' : 'bg-blue-600 text-white'
                                                     : msg.is_internal ? 'bg-amber-900/50 text-white border border-amber-700/50' : 'bg-gray-700 text-white'
                                                     } rounded-lg px-4 py-2`}>

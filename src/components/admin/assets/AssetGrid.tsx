@@ -78,14 +78,14 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
     // ── LIST VIEW ─────────────────────────────────────────────────────────────
     if (viewMode === 'list') {
         return (
-            <div className="border border-gray-700 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
+            <div className="border border-gray-700 rounded-xl overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[400px]">
                     <thead className="bg-gray-800/80 text-gray-400 text-xs uppercase tracking-wider">
                         <tr>
                             <th className="px-4 py-3 font-medium">Name</th>
-                            <th className="px-4 py-3 font-medium">Size</th>
-                            <th className="px-4 py-3 font-medium">Department</th>
-                            <th className="px-4 py-3 font-medium">Date</th>
+                            <th className="px-4 py-3 font-medium hidden sm:table-cell">Size</th>
+                            <th className="px-4 py-3 font-medium hidden md:table-cell">Department</th>
+                            <th className="px-4 py-3 font-medium hidden sm:table-cell">Date</th>
                             <th className="px-4 py-3 text-right font-medium">Actions</th>
                         </tr>
                     </thead>
@@ -118,7 +118,7 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
                                                 )}
                                             </div>
                                             <div className="min-w-0">
-                                                <span className={cn("font-medium text-gray-200 truncate max-w-xs block", asset.type === 'folder' && "hover:text-white")}>
+                                                <span className={cn("font-medium text-gray-200 truncate max-w-[140px] sm:max-w-xs block", asset.type === 'folder' && "hover:text-white")}>
                                                     {asset.name}
                                                 </span>
                                                 {asset.type === 'folder' && (asset.event_name || asset.event_date) && (
@@ -130,19 +130,19 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-500 text-xs">{formatSize(asset.size)}</td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 text-gray-500 text-xs hidden sm:table-cell">{formatSize(asset.size)}</td>
+                                    <td className="px-4 py-3 hidden md:table-cell">
                                         {asset.departments?.name && (
                                             <span className="px-2 py-0.5 rounded-full bg-gray-700 text-xs text-gray-300 border border-gray-600">
                                                 {asset.departments.name}
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 text-gray-500 text-xs">
+                                    <td className="px-4 py-3 text-gray-500 text-xs hidden sm:table-cell">
                                         {new Date(asset.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex">
+                                        <div className="inline-flex">
                                             <AssetMenu asset={asset} onDelete={onDelete} />
                                         </div>
                                     </td>
@@ -166,7 +166,7 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
             {folders.length > 0 && (
                 <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Folders</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                         {folders.map(folder => (
                             <div
                                 key={folder.id}
@@ -199,7 +199,7 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
                                         )}
                                     </div>
                                 )}
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                <div className="absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                                     <AssetMenu asset={folder} onDelete={onDelete} />
                                 </div>
                             </div>
@@ -212,7 +212,7 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
             {docs.length > 0 && (
                 <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Documents</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                         {docs.map(doc => (
                             <div
                                 key={doc.id}
@@ -245,7 +245,7 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
             {files.length > 0 && (
                 <div>
                     <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Files</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                         {files.map(file => {
                             const style = getFileStyle(file.mime_type)
                             const Icon = style.icon
@@ -271,7 +271,7 @@ export function AssetGrid({ assets, onNavigate, onDelete, onOpenDoc, viewMode }:
                                     </div>
 
                                     {/* Hover actions */}
-                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute top-2 right-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                         <AssetMenu asset={file} onDelete={onDelete} />
                                     </div>
                                 </div>

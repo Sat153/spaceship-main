@@ -195,12 +195,12 @@ export default function UserAssets() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Asset Library</h2>
-          <p className="text-gray-400 text-sm mt-0.5">Shared media and files from all connected sources</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">Asset Library</h2>
+          <p className="text-gray-400 text-xs sm:text-sm mt-0.5">Shared media and files from all connected sources</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {canUpload && (
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -363,7 +363,7 @@ export default function UserAssets() {
                     href={asset.url}
                     download
                     onClick={e => e.stopPropagation()}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-gray-700 transition-all"
+                    className="flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-gray-700 transition-all"
                   >
                     <Download className="w-3.5 h-3.5 text-gray-400" />
                   </a>

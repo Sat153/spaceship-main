@@ -336,7 +336,7 @@ export default function AdminKanban() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <div className="flex-1 min-w-48 relative">
+          <div className="flex-1 min-w-0 w-full sm:w-auto relative">
             <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
             <Input
               placeholder="Search tasks..."

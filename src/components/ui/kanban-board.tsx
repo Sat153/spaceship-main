@@ -134,7 +134,7 @@ const KanbanColumnComponent: React.FC<KanbanColumnComponentProps> = ({
 
   return (
     <DroppableColumn id={`column-${column.status}`}>
-      <Card className="flex-shrink-0 w-80 bg-gray-900 border-gray-700">
+      <Card className="flex-shrink-0 w-72 sm:w-80 bg-gray-900 border-gray-700">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-white text-lg flex items-center space-x-2">
@@ -319,7 +319,7 @@ const KanbanBoard = React.forwardRef<HTMLDivElement, KanbanBoardProps>(
         <div
           ref={ref}
           className={cn(
-            "flex space-x-6 overflow-x-auto pb-6 min-h-screen",
+            "flex space-x-4 overflow-x-auto pb-6 min-h-[60vh] sm:min-h-screen",
             className
           )}
         >
