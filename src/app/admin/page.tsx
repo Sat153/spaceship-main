@@ -206,10 +206,8 @@ function AdminDashboardContent() {
   }
 
   useEffect(() => {
-    const load = async () => {
-      try { await fetchStats() } catch (e) { console.error(e) } finally { setLoading(false) }
-    }
-    load()
+    setLoading(false)
+    fetchStats().catch(console.error)
   }, [])
 
   useEffect(() => {
