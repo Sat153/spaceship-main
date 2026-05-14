@@ -43,7 +43,7 @@ interface MediaAsset { id: string; name: string; url: string | null; mime_type: 
 
 function AssetThumb({ url, name, mime }: { url: string | null; name: string; mime: string | null }) {
     const isVideo = mime?.startsWith('video/')
-    const isImage = mime?.startsWith('image/')
+    const isImage = mime?.startsWith('image/') || (!mime && !!url)
 
     if (isImage && url) {
         return (
