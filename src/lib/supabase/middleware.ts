@@ -37,13 +37,12 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Try to get user, but handle errors gracefully for unauthenticated routes
+  // Read session from cookie — no network call, fast on every request
   let user = null
   try {
-    const { data } = await supabase.auth.getUser()
-    user = data.user
-  } catch (error) {
-    // No session exists - this is expected for login/signup pages
+    const { data } = await supabase.auth.getSession()
+    user = data.session?.user ?? null
+  } catch {
     user = null
   }
 
