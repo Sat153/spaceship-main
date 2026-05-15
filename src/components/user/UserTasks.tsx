@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
-import { Clock, CheckCircle2, Circle, AlertCircle, RotateCcw, XCircle, CalendarDays } from 'lucide-react'
+import { getMyTasks } from '@/app/actions/user-tasks'
+import { CheckCircle2, Circle, AlertCircle, RotateCcw, XCircle, CalendarDays } from 'lucide-react'
 
 interface Task {
   id: string
@@ -33,23 +32,15 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }>
 const STATUS_ORDER = ['in_progress', 'review', 'todo', 'completed', 'cancelled']
 
 export default function UserTasks() {
-  const { user } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user?.id) return
-    const fetchTasks = async () => {
-      const { data, error } = await supabase
-        .from('admin_tasks')
-        .select('id, title, description, status, priority, due_date, department_id')
-        .eq('assigned_to', user.id)
-        .order('due_date', { ascending: true, nullsFirst: false })
-      if (!error) setTasks(data || [])
+    getMyTasks().then(({ data }) => {
+      setTasks(data)
       setLoading(false)
-    }
-    fetchTasks()
-  }, [user?.id])
+    })
+  }, [])
 
   const grouped = STATUS_ORDER.reduce<Record<string, Task[]>>((acc, s) => {
     const list = tasks.filter(t => t.status === s)
