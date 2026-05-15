@@ -1,38 +1,71 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@supabase/supabase-js'
 
 export async function GET() {
   const admin = createAdminClient()
 
   try {
-    // Check current state of the user
-    const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 })
-    const ishika = users.find(u => u.email === 'ishika@anyasegen.com')
+    const ISHIKA_AUTH_ID = 'deba5498-2066-4960-80d8-838e1109e58d'
 
-    if (!ishika) {
-      return NextResponse.json({ ok: false, error: 'User not found in auth' })
+    // Get PR & Social Media department ID
+    const { data: dept, error: deptErr } = await admin
+      .from('departments')
+      .select('id, name')
+      .eq('name', 'PR & Social Media')
+      .single()
+
+    if (deptErr || !dept) {
+      return NextResponse.json({ ok: false, step: 'dept', error: deptErr?.message })
     }
 
-    // Test sign-in directly using the anon client
-    const testClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    const { data: signInData, error: signInError } = await testClient.auth.signInWithPassword({
-      email: 'ishika@anyasegen.com',
-      password: 'IshikaAnya2024',
-    })
+    // Check if profile already exists for this auth ID
+    const { data: existing } = await admin
+      .from('profiles')
+      .select('id, first_name, last_name, department_id')
+      .eq('id', ISHIKA_AUTH_ID)
+      .single()
 
-    return NextResponse.json({
-      userExists: true,
-      userId: ishika.id,
-      emailConfirmed: ishika.email_confirmed_at,
-      banned: (ishika as any).banned ?? false,
-      signInSuccess: !signInError,
-      signInError: signInError?.message ?? null,
-      signInUserId: signInData?.user?.id ?? null,
+    if (existing) {
+      return NextResponse.json({ ok: true, action: 'profile_already_exists', profile: existing })
+    }
+
+    // Check if there's an orphaned profile with her email (different ID)
+    const { data: orphan } = await admin
+      .from('profiles')
+      .select('id, first_name, last_name, department_id')
+      .eq('email', 'ishika@anyasegen.com')
+      .single()
+
+    if (orphan) {
+      // Delete orphan and recreate with correct ID
+      await admin.from('profiles').delete().eq('id', orphan.id)
+
+      const { error: insertErr } = await admin.from('profiles').insert({
+        id: ISHIKA_AUTH_ID,
+        email: 'ishika@anyasegen.com',
+        first_name: orphan.first_name || 'Ishika',
+        last_name: orphan.last_name || '',
+        role: 'user',
+        department_id: orphan.department_id || dept.id,
+        designation: 'Social Media Manager',
+      })
+      if (insertErr) return NextResponse.json({ ok: false, step: 'insert_from_orphan', error: insertErr.message })
+      return NextResponse.json({ ok: true, action: 'recreated_from_orphan', newId: ISHIKA_AUTH_ID, dept: dept.name })
+    }
+
+    // No profile at all — create fresh
+    const { error: insertErr } = await admin.from('profiles').insert({
+      id: ISHIKA_AUTH_ID,
+      email: 'ishika@anyasegen.com',
+      first_name: 'Ishika',
+      last_name: '',
+      role: 'user',
+      department_id: dept.id,
+      designation: 'Social Media Manager',
     })
+    if (insertErr) return NextResponse.json({ ok: false, step: 'insert_fresh', error: insertErr.message })
+    return NextResponse.json({ ok: true, action: 'created_fresh', newId: ISHIKA_AUTH_ID, dept: dept.name })
+
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message })
   }
