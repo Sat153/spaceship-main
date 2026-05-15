@@ -54,6 +54,7 @@ export async function getAssets(departmentId?: string, parentId: string | null =
             .select('*')
             .order('type', { ascending: false }) // Folders first
             .order('name', { ascending: true })
+            .limit(2000)
 
         if (parentId) {
             query = query.eq('parent_id', parentId)

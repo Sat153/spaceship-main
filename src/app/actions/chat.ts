@@ -505,12 +505,13 @@ export async function getMessages(roomId: string): Promise<{
         }
 
         // Build messages query — client role cannot see internal messages
+        // Fetch newest 500 messages descending, then reverse so display is oldest→newest
         let msgQuery = supabase
             .from('chat_messages')
             .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type')
             .eq('room_id', roomId)
-            .order('created_at', { ascending: true })
-            .limit(100)
+            .order('created_at', { ascending: false })
+            .limit(500)
 
         if (userProfile?.role === 'client') {
             msgQuery = msgQuery.eq('is_internal', false)
@@ -542,7 +543,8 @@ export async function getMessages(roomId: string): Promise<{
             }
         })
 
-        return { success: true, data: enrichedMessages }
+        // Reverse back to ascending order (oldest first) for chat display
+        return { success: true, data: enrichedMessages.reverse() }
     } catch (error) {
         console.error('Error in getMessages:', error)
         return { success: false, error: 'Failed to fetch messages' }
