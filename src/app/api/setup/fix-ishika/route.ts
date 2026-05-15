@@ -7,33 +7,38 @@ export async function GET() {
   try {
     const ISHIKA_AUTH_ID = 'deba5498-2066-4960-80d8-838e1109e58d'
 
-    // Get PR & Social Media department ID
-    const { data: dept, error: deptErr } = await admin
-      .from('departments')
+    // Find Ganesh Joshi client
+    const { data: clients, error: clientErr } = await admin
+      .from('clients')
       .select('id, name')
-      .eq('name', 'PR & Social Media')
-      .single()
+      .ilike('name', '%ganesh%')
 
-    if (deptErr || !dept) {
-      return NextResponse.json({ ok: false, step: 'dept', error: deptErr?.message })
+    if (clientErr) return NextResponse.json({ ok: false, step: 'find_client', error: clientErr.message })
+    if (!clients || clients.length === 0) return NextResponse.json({ ok: false, error: 'No Ganesh client found' })
+
+    const results = []
+    for (const client of clients) {
+      // Check if already shared
+      const { data: existing } = await admin
+        .from('client_shares')
+        .select('id')
+        .eq('client_id', client.id)
+        .eq('user_id', ISHIKA_AUTH_ID)
+        .single()
+
+      if (existing) {
+        results.push({ client: client.name, action: 'already_shared' })
+        continue
+      }
+
+      const { error: shareErr } = await admin.from('client_shares').insert({
+        client_id: client.id,
+        user_id: ISHIKA_AUTH_ID,
+      })
+      results.push({ client: client.name, action: shareErr ? 'error' : 'shared', error: shareErr?.message })
     }
 
-    // Update the profile with correct data
-    const { error: updateErr } = await admin
-      .from('profiles')
-      .update({
-        first_name: 'Ishika',
-        last_name: '',
-        role: 'user',
-        department_id: dept.id,
-        email: 'ishika@anyasegen.com',
-      })
-      .eq('id', ISHIKA_AUTH_ID)
-
-    if (updateErr) return NextResponse.json({ ok: false, step: 'update', error: updateErr.message })
-
-    return NextResponse.json({ ok: true, action: 'profile_updated', dept: dept.name, deptId: dept.id })
-
+    return NextResponse.json({ ok: true, results })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message })
   }
