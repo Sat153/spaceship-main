@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getAssets, uploadFile, getClientIdByName, Asset } from '@/app/actions/assets'
+import { getAssets, uploadFile, getClientIdByName, checkUploadPermission, Asset } from '@/app/actions/assets'
 import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw, Upload, X, CheckCircle, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { createBrowserClient } from '@supabase/ssr'
 
 interface Breadcrumb { id: string | null; name: string }
 
@@ -28,8 +27,6 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const UPLOAD_DEPARTMENTS = ['Media & Press Operations']
-
 export default function UserAssets() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,21 +45,9 @@ export default function UserAssets() {
 
   // Check if current user is in an upload-permitted department
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('department_id, departments(name)')
-        .eq('id', user.id)
-        .single()
-      const deptName = (profile?.departments as any)?.name
-      if (deptName && UPLOAD_DEPARTMENTS.includes(deptName)) {
+    checkUploadPermission().then(({ canUpload }) => {
+      if (canUpload) {
         setCanUpload(true)
-        // Pre-fetch Ganesh Joshi client ID
         getClientIdByName('Ganesh Joshi').then(({ id }) => setGaneshClientId(id))
       }
     })

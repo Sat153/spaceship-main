@@ -1,23 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
-import { CalendarDays, MapPin, Video, Clock, Users } from 'lucide-react'
-
-interface Event {
-  id: string
-  title: string
-  description?: string
-  event_type: string
-  start_date: string
-  end_date: string
-  all_day: boolean
-  location?: string
-  meeting_url?: string
-  priority: string
-  color: string
-}
+import { getMyCalendarEvents } from '@/app/actions/user-calendar'
+import type { CalendarEvent } from '@/app/actions/user-calendar'
+import { CalendarDays, MapPin, Video, Clock } from 'lucide-react'
 
 const TYPE_LABELS: Record<string, string> = {
   meeting: 'Meeting', deadline: 'Deadline', reminder: 'Reminder',
@@ -39,40 +25,15 @@ function formatTime(iso: string) {
 }
 
 export default function UserCalendar() {
-  const { user, profile } = useAuth()
-  const [events, setEvents] = useState<Event[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!profile?.department_id) return
-    const fetchEvents = async () => {
-      const now = new Date().toISOString()
-      // Get events for user's department
-      const { data: deptEvents } = await supabase
-        .from('admin_events')
-        .select('id, title, description, event_type, start_date, end_date, all_day, location, meeting_url, priority, color, assigned_to')
-        .eq('department_id', profile.department_id)
-        .gte('end_date', now)
-        .order('start_date', { ascending: true })
-        .limit(50)
-
-      const all: Event[] = []
-      for (const e of deptEvents || []) {
-        // Include if no specific assignees, or if user is in the assignee list
-        let include = true
-        if (e.assigned_to) {
-          try {
-            const ids: string[] = JSON.parse(e.assigned_to)
-            include = ids.length === 0 || ids.includes(user!.id)
-          } catch { include = true }
-        }
-        if (include) all.push(e)
-      }
-      setEvents(all)
+    getMyCalendarEvents().then(({ data }) => {
+      setEvents(data)
       setLoading(false)
-    }
-    fetchEvents()
-  }, [profile?.department_id, user?.id])
+    })
+  }, [])
 
   const upcoming = events.filter(e => new Date(e.start_date) >= new Date())
   const today = new Date().toDateString()
@@ -112,7 +73,7 @@ export default function UserCalendar() {
   )
 }
 
-function EventCard({ event, highlight }: { event: Event; highlight?: boolean }) {
+function EventCard({ event, highlight }: { event: CalendarEvent; highlight?: boolean }) {
   return (
     <div className={`rounded-xl border p-4 transition-colors ${highlight ? 'bg-blue-500/5 border-blue-500/30' : 'bg-gray-900 border-gray-800 hover:border-gray-700'}`}>
       <div className="flex items-start justify-between gap-3">

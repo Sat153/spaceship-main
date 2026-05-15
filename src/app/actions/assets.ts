@@ -423,6 +423,27 @@ export async function updateDoc(id: string, name: string, content: string) {
     }
 }
 
+const UPLOAD_DEPARTMENTS = ['Media & Press Operations']
+
+export async function checkUploadPermission(): Promise<{ canUpload: boolean }> {
+    try {
+        const info = await getCallerInfo()
+        if (!info?.user) return { canUpload: false }
+
+        const admin = createAdminClient()
+        const { data: profile } = await admin
+            .from('profiles')
+            .select('departments(name)')
+            .eq('id', info.user.id)
+            .single()
+
+        const deptName = (profile?.departments as any)?.name
+        return { canUpload: deptName ? UPLOAD_DEPARTMENTS.includes(deptName) : false }
+    } catch {
+        return { canUpload: false }
+    }
+}
+
 export async function deleteAsset(id: string) {
     try {
         const admin = createAdminClient()
