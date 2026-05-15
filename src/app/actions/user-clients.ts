@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 
 // ============ TYPES ============
@@ -64,8 +65,9 @@ export async function getSharedClients(): Promise<{
             return { success: false, error: 'Unauthorized' }
         }
 
-        // OPTIMIZED: Single query with joins instead of 3 separate queries
-        const { data: shares, error: sharesError } = await supabase
+        // Use admin client so RLS on clients table doesn't block the join
+        const admin = createAdminClient()
+        const { data: shares, error: sharesError } = await admin
             .from('client_shares')
             .select(`
                 id,
