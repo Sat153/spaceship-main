@@ -23,7 +23,7 @@ export async function GET() {
         .from('client_shares')
         .select('id')
         .eq('client_id', client.id)
-        .eq('user_id', ISHIKA_AUTH_ID)
+        .eq('shared_with_user_id', ISHIKA_AUTH_ID)
         .single()
 
       if (existing) {
@@ -33,7 +33,8 @@ export async function GET() {
 
       const { error: shareErr } = await admin.from('client_shares').insert({
         client_id: client.id,
-        user_id: ISHIKA_AUTH_ID,
+        shared_with_user_id: ISHIKA_AUTH_ID,
+        shared_by_user_id: ISHIKA_AUTH_ID,
       })
       results.push({ client: client.name, action: shareErr ? 'error' : 'shared', error: shareErr?.message })
     }
