@@ -1,53 +1,37 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@supabase/supabase-js'
 
 export async function GET() {
   const admin = createAdminClient()
 
   try {
-    // Find ALL users with this email
-    const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 })
-    if (listErr) return NextResponse.json({ ok: false, error: listErr.message })
+    // Check current state of the user
+    const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    const ishika = users.find(u => u.email === 'ishika@anyasegen.com')
 
-    const ishikaUsers = users.filter(u => u.email === 'ishika@anyasegen.com')
-
-    if (ishikaUsers.length === 0) {
-      // No user at all — create fresh
-      const { data, error } = await admin.auth.admin.createUser({
-        email: 'ishika@anyasegen.com',
-        password: 'IshikaAnya2024',
-        email_confirm: true,
-      })
-      if (error) return NextResponse.json({ ok: false, step: 'create', error: error.message })
-      await admin.from('profiles').update({ id: data.user.id }).eq('email', 'ishika@anyasegen.com')
-      return NextResponse.json({ ok: true, action: 'created_fresh', userId: data.user.id, password: 'IshikaAnya2024' })
+    if (!ishika) {
+      return NextResponse.json({ ok: false, error: 'User not found in auth' })
     }
 
-    // Delete all existing ishika accounts and recreate clean
-    for (const u of ishikaUsers) {
-      await admin.auth.admin.deleteUser(u.id)
-    }
-
-    // Recreate with a clean simple password
-    const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
+    // Test sign-in directly using the anon client
+    const testClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data: signInData, error: signInError } = await testClient.auth.signInWithPassword({
       email: 'ishika@anyasegen.com',
       password: 'IshikaAnya2024',
-      email_confirm: true,
     })
-    if (createErr) return NextResponse.json({ ok: false, step: 'recreate', error: createErr.message })
-
-    // Re-link profile
-    const { error: profileErr } = await admin.from('profiles')
-      .update({ id: newUser.user.id })
-      .eq('email', 'ishika@anyasegen.com')
 
     return NextResponse.json({
-      ok: true,
-      action: 'deleted_and_recreated',
-      deletedCount: ishikaUsers.length,
-      newUserId: newUser.user.id,
-      password: 'IshikaAnya2024',
-      profileUpdateError: profileErr?.message ?? null,
+      userExists: true,
+      userId: ishika.id,
+      emailConfirmed: ishika.email_confirmed_at,
+      banned: ishika.banned ?? false,
+      signInSuccess: !signInError,
+      signInError: signInError?.message ?? null,
+      signInUserId: signInData?.user?.id ?? null,
     })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message })
