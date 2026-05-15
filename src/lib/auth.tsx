@@ -153,8 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setProfile(null)
     try { sessionStorage.removeItem('anya_profile_cache') } catch {}
-    // Fire-and-forget — don't block redirect on network call
-    supabase.auth.signOut().catch(() => {})
+    try { await supabase.auth.signOut() } catch {}
     window.location.href = '/auth/login'
   }
 

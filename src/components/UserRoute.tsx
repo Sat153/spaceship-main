@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 
 interface UserRouteProps {
@@ -9,12 +10,13 @@ interface UserRouteProps {
 export default function UserRoute({ children }: UserRouteProps) {
   const { user, loading } = useAuth()
 
-  // Middleware already redirects unauthenticated users — render immediately
-  // while auth initializes to avoid the full-page loading spinner
-  if (!loading && !user) {
-    window.location.href = '/auth/login'
-    return null
-  }
+  useEffect(() => {
+    if (!loading && !user) {
+      window.location.href = '/auth/login'
+    }
+  }, [loading, user])
+
+  if (!loading && !user) return null
 
   return <>{children}</>
 }
