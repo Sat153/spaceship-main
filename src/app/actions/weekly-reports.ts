@@ -98,7 +98,7 @@ export async function generateMyWeeklyReport(): Promise<{ success: boolean; repo
     if (authError || !user) return { success: false, error: 'Unauthorized' }
 
     const admin = createAdminClient()
-    const { week_start: start, week_end: end } = getWeekRange()
+    const { start, end } = getWeekRange()
 
     // Get employee name
     const { data: profile } = await admin.from('profiles').select('first_name, last_name').eq('id', user.id).single()
@@ -215,7 +215,7 @@ export async function generateReportForEmployee(employeeId: string): Promise<{ s
     const { data: adminProfile } = await admin.from('profiles').select('role').eq('id', user.id).single()
     if (adminProfile?.role !== 'admin') return { success: false, error: 'Unauthorized' }
 
-    const { week_start: start, week_end: end } = getWeekRange()
+    const { start, end } = getWeekRange()
 
     const { data: profile } = await admin.from('profiles').select('first_name, last_name').eq('id', employeeId).single()
     const employeeName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'Employee'

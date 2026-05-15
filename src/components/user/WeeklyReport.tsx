@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getMyWeeklyReports, generateMyWeeklyReport, WeeklyReport } from '@/app/actions/weekly-reports'
+import { getMyWeeklyReports, generateMyWeeklyReport } from '@/app/actions/weekly-reports'
+import type { WeeklyReport } from '@/app/actions/weekly-reports'
 import { Loader2, RefreshCw, CheckCircle2, Clock, AlertCircle, XCircle, FileText, ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
