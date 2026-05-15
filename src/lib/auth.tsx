@@ -150,11 +150,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    setUser(null)
-    setProfile(null)
     try { sessionStorage.removeItem('anya_profile_cache') } catch {}
-    try { await supabase.auth.signOut() } catch {}
-    window.location.href = '/auth/login'
+    try { localStorage.removeItem('anya_profile_cache') } catch {}
+    try { await supabase.auth.signOut({ scope: 'local' }) } catch {}
+    window.location.replace('/auth/login')
   }
 
   // External refreshProfile function that can be called from components

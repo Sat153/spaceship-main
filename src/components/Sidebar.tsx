@@ -71,13 +71,7 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
   const { profile, signOut } = useAuth()
   const router = useRouter()
 
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-    } catch {
-      router.push('/')
-    }
-  }
+  const handleSignOut = () => signOut()
 
   const handleTabChange = (tab: string) => {
     onTabChange(tab)
