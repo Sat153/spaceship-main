@@ -26,7 +26,6 @@ export async function GET() {
         last_name: '',
         role: 'user',
         department_id: dept.id,
-        designation: 'Social Media Manager',
         email: 'ishika@anyasegen.com',
       })
       .eq('id', ISHIKA_AUTH_ID)
