@@ -14,6 +14,7 @@ import AdminAssets from "@/components/admin/assets/AdminAssets"
 import ContentHub from "@/components/admin/content/ContentHub"
 import MessagingBank from "@/components/admin/content/MessagingBank"
 import AdminSettings from "@/components/admin/settings/AdminSettings"
+import AdminWeeklyReports from "@/components/admin/AdminWeeklyReports"
 import ChatPanel from "@/components/user/ChatPanel"
 import { useAuth } from "@/lib/auth"
 import { supabase } from "@/lib/supabase"
@@ -587,6 +588,7 @@ function AdminDashboardContent() {
           <div className={`p-4 md:p-8 ${!fullBleedTabs.includes(activeTab) ? '' : 'hidden'}`}>
             <div className={activeTab === 'overview' ? '' : 'hidden'}>{renderOverview()}</div>
             {visitedTabs.has('members') && <div className={activeTab === 'members' ? '' : 'hidden'}><AdminTeamMembers /></div>}
+            {visitedTabs.has('weekly-reports') && <div className={activeTab === 'weekly-reports' ? '' : 'hidden'}><AdminWeeklyReports /></div>}
             {visitedTabs.has('settings') && <div className={activeTab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>}
             {visitedTabs.has('notifications') && <div className={activeTab === 'notifications' ? '' : 'hidden'}>{renderAdminNotifications()}</div>}
           </div>

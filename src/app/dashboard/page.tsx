@@ -12,6 +12,7 @@ import UserCalendar from "@/components/user/UserCalendar"
 import UserAssets from "@/components/user/UserAssets"
 import ContentHub from "@/components/admin/content/ContentHub"
 import MessagingBank from "@/components/admin/content/MessagingBank"
+import WeeklyReport from "@/components/user/WeeklyReport"
 import UserRoute from "@/components/UserRoute"
 import Sidebar from "@/components/Sidebar"
 import { useAuth } from "@/lib/auth"
@@ -414,6 +415,7 @@ export default function UserDashboard() {
             {visitedTabs.has('assets') && <div className={activeTab === 'assets' ? '' : 'hidden'}><UserAssets /></div>}
             {visitedTabs.has('content') && <div className={activeTab === 'content' ? 'h-full' : 'hidden'}><ContentHub /></div>}
             {visitedTabs.has('messaging') && <div className={activeTab === 'messaging' ? 'h-full' : 'hidden'}><MessagingBank readOnly /></div>}
+            {visitedTabs.has('weekly-report') && <div className={activeTab === 'weekly-report' ? '' : 'hidden'}><WeeklyReport /></div>}
             <div className={['knowledge-base','search','notifications','profile'].includes(activeTab) ? '' : 'hidden'}>
               {activeTab === 'knowledge-base' && renderKnowledgeBase()}
               {activeTab === 'search' && renderSearch()}

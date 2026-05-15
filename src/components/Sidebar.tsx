@@ -20,6 +20,7 @@ import {
   BookMarked,
   X,
   HardDrive,
+  BarChart2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
@@ -44,6 +45,7 @@ const baseUserMenuItems = [
   { id: 'assets', label: 'Asset Library', icon: HardDrive, color: 'from-amber-400 to-orange-500' },
   { id: 'messaging', label: 'Messaging Bank', icon: BookMarked, color: 'from-yellow-400 to-amber-500' },
   { id: 'knowledge-base', label: 'Knowledge Base', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
+  { id: 'weekly-report', label: 'Weekly Report', icon: BarChart2, color: 'from-teal-400 to-cyan-500' },
   { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
   { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },
 ]
@@ -59,6 +61,7 @@ const adminMenuItems = [
   { id: 'documents', label: 'KB Documents', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
   { id: 'calendar', label: 'Calendar', icon: Calendar, color: 'from-violet-400 to-indigo-500' },
   { id: 'kanban', label: 'Kanban Board', icon: Kanban, color: 'from-orange-400 to-red-500' },
+  { id: 'weekly-reports', label: 'Weekly Reports', icon: BarChart2, color: 'from-teal-400 to-cyan-500' },
   { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-amber-400 to-orange-500' },
   { id: 'settings', label: 'Settings', icon: Settings, color: 'from-slate-400 to-gray-500' },
 ]
@@ -218,6 +221,7 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
                       'from-violet-400 to-indigo-500': 'linear-gradient(135deg, #a78bfa, #6366f1)',
                       'from-orange-400 to-red-500': 'linear-gradient(135deg, #fb923c, #ef4444)',
                       'from-yellow-400 to-amber-500': 'linear-gradient(135deg, #facc15, #f59e0b)',
+                      'from-teal-400 to-cyan-500': 'linear-gradient(135deg, #2dd4bf, #06b6d4)',
                       'from-slate-400 to-gray-500': 'linear-gradient(135deg, #94a3b8, #6b7280)',
                     }
                     return {
