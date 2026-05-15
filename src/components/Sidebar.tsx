@@ -42,6 +42,7 @@ const baseUserMenuItems = [
   { id: 'calendar', label: 'Calendar', icon: Calendar, color: 'from-violet-400 to-indigo-500' },
   { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
   { id: 'assets', label: 'Asset Library', icon: HardDrive, color: 'from-amber-400 to-orange-500' },
+  { id: 'messaging', label: 'Messaging Bank', icon: BookMarked, color: 'from-yellow-400 to-amber-500' },
   { id: 'knowledge-base', label: 'Knowledge Base', icon: BookOpen, color: 'from-emerald-400 to-teal-500' },
   { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
   { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },
@@ -216,6 +217,7 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
                       'from-emerald-400 to-teal-500': 'linear-gradient(135deg, #34d399, #14b8a6)',
                       'from-violet-400 to-indigo-500': 'linear-gradient(135deg, #a78bfa, #6366f1)',
                       'from-orange-400 to-red-500': 'linear-gradient(135deg, #fb923c, #ef4444)',
+                      'from-yellow-400 to-amber-500': 'linear-gradient(135deg, #facc15, #f59e0b)',
                       'from-slate-400 to-gray-500': 'linear-gradient(135deg, #94a3b8, #6b7280)',
                     }
                     return {

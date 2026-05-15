@@ -32,7 +32,7 @@ const EMPTY_FORM: CreateTemplateData = {
     tags: [],
 }
 
-export default function MessagingBank() {
+export default function MessagingBank({ readOnly = false }: { readOnly?: boolean }) {
     const [templates, setTemplates] = useState<MessageTemplate[]>([])
     const [loading, setLoading] = useState(true)
     const [activeCategory, setActiveCategory] = useState<string>('all')
@@ -125,9 +125,11 @@ export default function MessagingBank() {
                         <h1 className="text-2xl font-bold text-white">Caption & Messaging Bank</h1>
                         <p className="text-gray-400 text-sm mt-0.5">Pre-approved phrases and messaging templates</p>
                     </div>
-                    <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                        <Plus className="h-4 w-4" /> New Template
-                    </Button>
+                    {!readOnly && (
+                        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                            <Plus className="h-4 w-4" /> New Template
+                        </Button>
+                    )}
                 </div>
 
                 {/* Category tabs */}
@@ -182,9 +184,11 @@ export default function MessagingBank() {
                             <BookMarked className="mx-auto h-12 w-12 text-gray-500 mb-3" />
                             <p className="text-white font-medium mb-1">No templates found</p>
                             <p className="text-gray-400 text-sm">Create your first messaging template</p>
-                            <Button onClick={openCreate} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                                <Plus className="h-4 w-4" /> Add Template
-                            </Button>
+                            {!readOnly && (
+                                <Button onClick={openCreate} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                                    <Plus className="h-4 w-4" /> Add Template
+                                </Button>
+                            )}
                         </CardContent>
                     </Card>
                 ) : (
@@ -209,6 +213,7 @@ export default function MessagingBank() {
                                                 </div>
                                                 <h3 className="text-white font-medium text-sm truncate">{t.title}</h3>
                                             </div>
+                                                            {!readOnly && (
                                             <div className="flex gap-1 shrink-0">
                                                 <button onClick={() => openEdit(t)} className="p-1.5 text-gray-500 hover:text-blue-400 rounded transition-colors">
                                                     <Edit2 className="h-3.5 w-3.5" />
@@ -217,6 +222,7 @@ export default function MessagingBank() {
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
                                             </div>
+                                            )}
                                         </div>
 
                                         {/* English body */}
