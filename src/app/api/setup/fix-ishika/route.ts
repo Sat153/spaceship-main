@@ -28,7 +28,7 @@ export async function GET() {
       userExists: true,
       userId: ishika.id,
       emailConfirmed: ishika.email_confirmed_at,
-      banned: ishika.banned ?? false,
+      banned: (ishika as any).banned ?? false,
       signInSuccess: !signInError,
       signInError: signInError?.message ?? null,
       signInUserId: signInData?.user?.id ?? null,
