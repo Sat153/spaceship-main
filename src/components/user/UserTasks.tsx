@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getMyTasks } from '@/app/actions/user-tasks'
+import { getMyTasks, completeTask } from '@/app/actions/user-tasks'
 import { CheckCircle2, Circle, AlertCircle, RotateCcw, XCircle, CalendarDays } from 'lucide-react'
 
 interface Task {
@@ -34,6 +34,7 @@ const STATUS_ORDER = ['in_progress', 'review', 'todo', 'completed', 'cancelled']
 export default function UserTasks() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [completing, setCompleting] = useState<string | null>(null)
 
   useEffect(() => {
     getMyTasks().then(({ data }) => {
@@ -41,6 +42,15 @@ export default function UserTasks() {
       setLoading(false)
     })
   }, [])
+
+  const handleComplete = async (taskId: string) => {
+    setCompleting(taskId)
+    const { success } = await completeTask(taskId)
+    if (success) {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t))
+    }
+    setCompleting(null)
+  }
 
   const grouped = STATUS_ORDER.reduce<Record<string, Task[]>>((acc, s) => {
     const list = tasks.filter(t => t.status === s)
@@ -83,10 +93,10 @@ export default function UserTasks() {
                 </div>
                 <div className="space-y-2">
                   {list.map(task => (
-                    <div key={task.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-gray-700 transition-colors">
+                    <div key={task.id} className={`bg-gray-900 border rounded-xl p-4 transition-colors ${task.status === 'completed' ? 'border-green-900/40 opacity-60' : 'border-gray-800 hover:border-gray-700'}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-medium truncate">{task.title}</p>
+                          <p className={`font-medium truncate ${task.status === 'completed' ? 'text-gray-400 line-through' : 'text-white'}`}>{task.title}</p>
                           {task.description && (
                             <p className="text-gray-500 text-sm mt-1 line-clamp-2">{task.description}</p>
                           )}
@@ -95,12 +105,29 @@ export default function UserTasks() {
                           {task.priority}
                         </span>
                       </div>
-                      {task.due_date && (
-                        <div className="flex items-center gap-1 mt-3 text-xs text-gray-500">
-                          <CalendarDays className="h-3 w-3" />
-                          Due {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between mt-3">
+                        {task.due_date ? (
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <CalendarDays className="h-3 w-3" />
+                            Due {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+                        ) : <div />}
+                        {task.status !== 'completed' && task.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleComplete(task.id)}
+                            disabled={completing === task.id}
+                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-green-600/10 text-green-400 border border-green-600/20 hover:bg-green-600/20 transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {completing === task.id ? 'Marking...' : 'Mark Complete'}
+                          </button>
+                        )}
+                        {task.status === 'completed' && (
+                          <span className="flex items-center gap-1 text-xs text-green-500">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Completed
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
