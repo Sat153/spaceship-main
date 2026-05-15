@@ -16,8 +16,8 @@ import WeeklyReport from "@/components/user/WeeklyReport"
 import UserRoute from "@/components/UserRoute"
 import Sidebar from "@/components/Sidebar"
 import { useAuth } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
 import { getNotifications, markAllRead, type Notification } from "@/app/actions/notifications"
+import { getMyDocuments } from "@/app/actions/user-documents"
 
 interface Document {
   id: string
@@ -63,41 +63,20 @@ export default function UserDashboard() {
   const [departmentName, setDepartmentName] = useState<string>('')
 
   const fetchDocuments = useCallback(async () => {
-    if (!profile?.department_id) {
-      setLoading(false)
-      return
-    }
-
     try {
-      // Fetch department name and documents in parallel
-      const [deptRes, docsRes] = await Promise.all([
-        supabase.from('departments').select('name').eq('id', profile.department_id).single(),
-        supabase.from('documents').select('id, title, content, document_type, tags, created_at')
-          .eq('department_id', profile.department_id)
-          .eq('is_published', true)
-          .order('created_at', { ascending: false })
-      ])
-
-      const deptName = deptRes.data?.name || 'Unknown'
+      const { data, departmentName: deptName } = await getMyDocuments()
       setDepartmentName(deptName)
-
-      if (!docsRes.error) {
-        setDocuments((docsRes.data || []).map(doc => ({ ...doc, department_name: deptName })))
-      }
+      setDocuments(data)
     } catch (err) {
       console.error('Error in fetchDocuments:', err)
     } finally {
       setLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id])
+  }, [])
 
   useEffect(() => {
-    if (profile?.department_id) {
-      fetchDocuments()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.department_id])
+    fetchDocuments()
+  }, [])
 
   const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

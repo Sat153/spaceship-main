@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense, useCallback } from "react"
 import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2, Menu, Bell, CheckCheck } from "lucide-react"
 import { getNotifications, markAllRead, type Notification } from "@/app/actions/notifications"
+import { getAdminStats } from "@/app/actions/admin-stats"
 import AdminRoute from "@/components/AdminRoute"
 import Sidebar from "@/components/Sidebar"
 import AdminDocuments from "@/components/admin/documents/AdminDocuments"
@@ -17,7 +18,6 @@ import AdminSettings from "@/components/admin/settings/AdminSettings"
 import AdminWeeklyReports from "@/components/admin/AdminWeeklyReports"
 import ChatPanel from "@/components/user/ChatPanel"
 import { useAuth } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
 import { useRouter, useSearchParams } from "next/navigation"
 
 interface DashboardStats {
@@ -120,87 +120,18 @@ function AdminDashboardContent() {
 
   const fetchStats = async () => {
     try {
-      const now = new Date()
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-      const today = new Date(now)
-      const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString()
-      const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString()
-
-      const [membersResult, documentsResult, departmentsResult, postsResult, tasksResult] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('documents').select('id', { count: 'exact', head: true }),
-        supabase.from('departments').select('id', { count: 'exact', head: true }),
-        supabase.from('content_posts').select('id, status, created_at, updated_at, title').gte('created_at', startOfMonth),
-        supabase.from('admin_tasks').select('id, status, title, updated_at'),
-      ])
-
-      const posts = postsResult.data || []
-      const tasks = tasksResult.data || []
-
-      const pipeline = { ...defaultPipeline }
-      posts.forEach((p: any) => { if (p.status in pipeline) (pipeline as any)[p.status]++ })
-
-      // Build real recent activity from latest DB changes
-      type ActivityItem = { dot: string; text: string; time: string; ts: number }
-      const activityItems: ActivityItem[] = []
-
-      const relTime = (iso: string) => {
-        const diff = Date.now() - new Date(iso).getTime()
-        const mins = Math.floor(diff / 60000)
-        if (mins < 1) return 'just now'
-        if (mins < 60) return `${mins}m ago`
-        const hrs = Math.floor(mins / 60)
-        if (hrs < 24) return `${hrs}h ago`
-        return `${Math.floor(hrs / 24)}d ago`
-      }
-
-      const statusDot: Record<string, string> = {
-        draft: '#6b7280', internal_review: '#60a5fa', pending_review: '#f59e0b',
-        approved: '#34d399', scheduled: '#a78bfa', rejected: '#f87171',
-      }
-
-      posts.slice(0, 5).forEach((p: any) => {
-        activityItems.push({
-          dot: statusDot[p.status] || '#60a5fa',
-          text: `Content "${p.title || 'Untitled'}" → ${p.status.replace('_', ' ')}`,
-          time: relTime(p.updated_at || p.created_at),
-          ts: new Date(p.updated_at || p.created_at).getTime(),
-        })
-      })
-
-      tasks.slice(0, 4).forEach((t: any) => {
-        activityItems.push({
-          dot: t.status === 'completed' ? '#34d399' : t.status === 'in_progress' ? '#60a5fa' : '#6b7280',
-          text: `Task "${t.title || 'Untitled'}" is ${(t.status as string).replace('_', ' ')}`,
-          time: relTime(t.updated_at),
-          ts: new Date(t.updated_at).getTime(),
-        })
-      })
-
-      activityItems.sort((a, b) => b.ts - a.ts)
-      setRecentActivity(activityItems.slice(0, 8).map(({ dot, text, time }) => ({ dot, text, time })))
-
-      // Pending approval: posts in pending_review + approved (waiting send to Akhilesh) status
-      const pendingPosts = posts.filter((p: any) => p.status === 'internal_review')
-      const scheduledToday = await supabase
-        .from('content_posts')
-        .select('id, title, scheduled_for')
-        .eq('is_scheduled', true)
-        .gte('scheduled_for', startOfDay)
-        .lte('scheduled_for', endOfDay)
-        .limit(5)
-
-      setContentAlerts({ pending: pendingPosts.length, scheduled: scheduledToday.data || [] })
-
+      const result = await getAdminStats()
       setStats({
-        total_members: membersResult.count || 0,
-        total_documents: documentsResult.count || 0,
-        total_departments: departmentsResult.count || 0,
-        content_this_month: posts.length,
-        tasks_completed: tasks.filter((t: any) => t.status === 'completed').length,
-        tasks_total: tasks.length,
-        content_pipeline: pipeline,
+        total_members: result.total_members,
+        total_documents: result.total_documents,
+        total_departments: result.total_departments,
+        content_this_month: result.content_this_month,
+        tasks_completed: result.tasks_completed,
+        tasks_total: result.tasks_total,
+        content_pipeline: result.content_pipeline,
       })
+      setRecentActivity(result.recent_activity)
+      setContentAlerts(result.content_alerts)
     } catch (err) {
       console.error('Error fetching stats:', err)
     }
