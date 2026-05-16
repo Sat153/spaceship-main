@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getAssets, uploadFile, getClientIdByName, checkUploadPermission, checkFolderPermission, createFolder, Asset } from '@/app/actions/assets'
-import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw, Upload, X, CheckCircle, Loader2, FolderPlus } from 'lucide-react'
+import { getAssets, uploadFile, getClientIdByName, checkUploadPermission, checkFolderPermission, createFolder, renameAsset, deleteAsset, Asset } from '@/app/actions/assets'
+import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw, Upload, X, CheckCircle, Loader2, FolderPlus, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface Breadcrumb { id: string | null; name: string }
@@ -44,6 +44,14 @@ export default function UserAssets() {
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
+
+  // Folder context menu
+  const [menuFolder, setMenuFolder] = useState<Asset | null>(null)
+  const [renameFolder, setRenameFolder] = useState<Asset | null>(null)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<Asset | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([])
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -150,6 +158,26 @@ export default function UserAssets() {
     }
   }
 
+  const handleRename = async () => {
+    if (!renameFolder || !renameName.trim()) return
+    setRenaming(true)
+    const result = await renameAsset(renameFolder.id, renameName)
+    setRenaming(false)
+    if (result.success) {
+      setRenameFolder(null)
+      load(currentFolderId)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+    setDeleting(true)
+    await deleteAsset(deleteConfirm.id)
+    setDeleting(false)
+    setDeleteConfirm(null)
+    load(currentFolderId)
+  }
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
@@ -178,6 +206,7 @@ export default function UserAssets() {
       onDragOver={e => { if (canUpload) { e.preventDefault(); setIsDragging(true) } }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
+      onClick={() => setMenuFolder(null)}
     >
       {/* Drag overlay */}
       {isDragging && (
@@ -371,47 +400,123 @@ export default function UserAssets() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {assets.map(asset => (
-            <button
-              key={asset.id}
-              onClick={() => navigate(asset)}
-              className="group text-left bg-gray-800 border border-gray-700 hover:border-blue-500 rounded-xl p-4 transition-all hover:bg-gray-750"
-            >
-              {asset.type === 'file' && asset.mime_type?.startsWith('image/') && asset.url ? (
-                <div className="w-full aspect-video rounded-lg overflow-hidden mb-3 bg-gray-900">
-                  <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
-                </div>
-              ) : asset.type === 'file' && asset.mime_type?.startsWith('video/') && asset.url ? (
-                <div className="w-full aspect-video rounded-lg overflow-hidden mb-3 bg-gray-900 flex items-center justify-center">
-                  <Video className="w-8 h-8 text-purple-400" />
-                </div>
-              ) : (
-                <div className={`w-full aspect-video rounded-lg mb-3 flex items-center justify-center ${asset.type === 'folder' ? 'bg-amber-500/10' : 'bg-gray-900'}`}>
-                  <span className="scale-150">{fileIcon(asset)}</span>
-                </div>
-              )}
+            <div key={asset.id} className="relative group">
+              <button
+                onClick={() => navigate(asset)}
+                className="w-full text-left bg-gray-800 border border-gray-700 hover:border-blue-500 rounded-xl p-4 transition-all hover:bg-gray-750"
+              >
+                {asset.type === 'file' && asset.mime_type?.startsWith('image/') && asset.url ? (
+                  <div className="w-full aspect-video rounded-lg overflow-hidden mb-3 bg-gray-900">
+                    <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : asset.type === 'file' && asset.mime_type?.startsWith('video/') && asset.url ? (
+                  <div className="w-full aspect-video rounded-lg overflow-hidden mb-3 bg-gray-900 flex items-center justify-center">
+                    <Video className="w-8 h-8 text-purple-400" />
+                  </div>
+                ) : (
+                  <div className={`w-full aspect-video rounded-lg mb-3 flex items-center justify-center ${asset.type === 'folder' ? 'bg-amber-500/10' : 'bg-gray-900'}`}>
+                    <span className="scale-150">{fileIcon(asset)}</span>
+                  </div>
+                )}
 
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-white text-sm font-medium truncate group-hover:text-blue-300 transition-colors">
-                    {asset.name}
-                  </p>
-                  {asset.size > 0 && (
-                    <p className="text-gray-500 text-xs mt-0.5">{formatSize(asset.size)}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-medium truncate group-hover:text-blue-300 transition-colors">
+                      {asset.name}
+                    </p>
+                    {asset.size > 0 && (
+                      <p className="text-gray-500 text-xs mt-0.5">{formatSize(asset.size)}</p>
+                    )}
+                  </div>
+                  {asset.type === 'file' && asset.url && (
+                    <a
+                      href={asset.url}
+                      download
+                      onClick={e => e.stopPropagation()}
+                      className="flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-gray-700 transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5 text-gray-400" />
+                    </a>
                   )}
                 </div>
-                {asset.type === 'file' && asset.url && (
-                  <a
-                    href={asset.url}
-                    download
-                    onClick={e => e.stopPropagation()}
-                    className="flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-gray-700 transition-all"
+              </button>
+
+              {/* Folder context menu — only for canCreateFolder users */}
+              {asset.type === 'folder' && canCreateFolder && (
+                <div className="absolute top-2 right-2">
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuFolder(menuFolder?.id === asset.id ? null : asset) }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 transition-all"
                   >
-                    <Download className="w-3.5 h-3.5 text-gray-400" />
-                  </a>
-                )}
-              </div>
-            </button>
+                    <MoreVertical className="w-3.5 h-3.5 text-gray-300" />
+                  </button>
+                  {menuFolder?.id === asset.id && (
+                    <div className="absolute right-0 top-8 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-36 overflow-hidden">
+                      <button
+                        onClick={e => { e.stopPropagation(); setRenameFolder(asset); setRenameName(asset.name); setMenuFolder(null) }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Rename
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeleteConfirm(asset); setMenuFolder(null) }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
+        </div>
+      )}
+
+      {/* Rename modal */}
+      {renameFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setRenameFolder(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-semibold mb-3">Rename Folder</h3>
+            <input
+              autoFocus
+              type="text"
+              value={renameName}
+              onChange={e => setRenameName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenameFolder(null) }}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 mb-3"
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setRenameFolder(null)} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+              <button
+                onClick={handleRename}
+                disabled={!renameName.trim() || renaming}
+                className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                {renaming && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setDeleteConfirm(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-semibold mb-1">Delete Folder</h3>
+            <p className="text-gray-400 text-sm mb-4">Delete <span className="text-white font-medium">"{deleteConfirm.name}"</span>? This cannot be undone.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors">Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

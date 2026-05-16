@@ -465,6 +465,23 @@ export async function checkFolderPermission(): Promise<{ canCreateFolder: boolea
     }
 }
 
+export async function renameAsset(id: string, newName: string) {
+    try {
+        if (!newName.trim()) return { success: false, error: 'Name cannot be empty' }
+        const admin = createAdminClient()
+        const { error } = await admin
+            .from('assets')
+            .update({ name: newName.trim() })
+            .eq('id', id)
+        if (error) throw error
+        revalidatePath('/admin')
+        return { success: true }
+    } catch (error) {
+        console.error('Error renaming asset:', error)
+        return { success: false, error: 'Failed to rename' }
+    }
+}
+
 export async function deleteAsset(id: string) {
     try {
         const admin = createAdminClient()
