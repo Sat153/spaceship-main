@@ -18,7 +18,7 @@ export async function GET() {
   if (!files || files.length === 0) return NextResponse.json({ ok: true, moved: 0 })
 
   // Get all folders referenced as parents
-  const parentIds = [...new Set(files.map(f => f.parent_id))]
+  const parentIds = Array.from(new Set(files.map(f => f.parent_id)))
   const { data: folders } = await admin
     .from('assets')
     .select('id, name, parent_id, department_id, created_by')
@@ -61,6 +61,7 @@ export async function GET() {
       .select('id')
       .single()
 
+    if (!created) throw new Error(`Failed to create date folder: ${dateLabel}`)
     dateFolderCache.set(key, created.id)
     return created.id
   }
