@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
@@ -554,8 +555,10 @@ export async function sendMessage(roomId: string, message: string, fileUrl?: str
             return { success: false, error: 'Message cannot be empty' }
         }
 
-        // Verify user is member of room
-        const { data: membership } = await supabase
+        const admin = createAdminClient()
+
+        // Verify user is member of room (use admin client to bypass RLS)
+        const { data: membership } = await admin
             .from('chat_room_members')
             .select('id')
             .eq('room_id', roomId)
@@ -566,8 +569,8 @@ export async function sendMessage(roomId: string, message: string, fileUrl?: str
             return { success: false, error: 'Not a member of this chat' }
         }
 
-        // Insert message
-        const { data: newMessage, error: insertError } = await supabase
+        // Insert message (use admin client to bypass RLS)
+        const { data: newMessage, error: insertError } = await admin
             .from('chat_messages')
             .insert({
                 room_id: roomId,
@@ -584,7 +587,7 @@ export async function sendMessage(roomId: string, message: string, fileUrl?: str
         }
 
         // Get sender profile
-        const { data: profile } = await supabase
+        const { data: profile } = await admin
             .from('profiles')
             .select('first_name, last_name')
             .eq('id', user.id)
