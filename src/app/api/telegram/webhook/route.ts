@@ -126,12 +126,10 @@ export async function POST(request: NextRequest) {
         }
 
         // ── MEDIA MESSAGE ──────────────────────────────────────────────────
-        // Build folder: Clients → Ganesh Joshi → {Group Name} → {DD Mon YYYY}
+        // Build parent folders — date folder is created AFTER successful upload only
         const clientsFolderId = await getOrCreateFolder(supabase, 'Clients', null, deptId, userId)
         const clientFolderId  = await getOrCreateFolder(supabase, client.name, clientsFolderId, deptId, userId)
         const groupFolderId   = await getOrCreateFolder(supabase, groupName, clientFolderId, deptId, userId)
-        const dateLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        const dateFolderId    = await getOrCreateFolder(supabase, dateLabel, groupFolderId, deptId, userId)
 
         // Resolve file info
         let fileId: string
@@ -206,6 +204,10 @@ export async function POST(request: NextRequest) {
         }
 
         const { data: { publicUrl } } = supabase.storage.from('team-assets').getPublicUrl(storagePath)
+
+        // Create date folder only now — after successful upload, so no empty folders
+        const dateLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        const dateFolderId = await getOrCreateFolder(supabase, dateLabel, groupFolderId, deptId, userId)
 
         // Save asset record
         const { error: dbError } = await supabase.from('assets').insert({
