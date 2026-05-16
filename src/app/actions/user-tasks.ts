@@ -10,8 +10,14 @@ export interface UserTask {
   description?: string
   status: string
   priority: string
+  type?: string
   due_date?: string
+  start_date?: string
   department_id?: string
+  department_name?: string
+  tags?: string[]
+  estimated_hours?: number
+  created_at?: string
 }
 
 export async function getMyTasks(): Promise<{ data: UserTask[]; error?: string }> {
@@ -23,12 +29,19 @@ export async function getMyTasks(): Promise<{ data: UserTask[]; error?: string }
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('admin_tasks')
-      .select('id, title, description, status, priority, due_date, department_id')
+      .select('id, title, description, status, priority, type, due_date, start_date, department_id, tags, estimated_hours, created_at, departments(name)')
       .eq('assigned_to', user.id)
       .order('due_date', { ascending: true, nullsFirst: false })
 
     if (error) return { data: [], error: error.message }
-    return { data: data || [] }
+
+    const tasks: UserTask[] = (data || []).map((t: any) => ({
+      ...t,
+      department_name: t.departments?.name ?? undefined,
+      departments: undefined,
+    }))
+
+    return { data: tasks }
   } catch (e: any) {
     return { data: [], error: e.message }
   }
@@ -41,7 +54,6 @@ export async function completeTask(taskId: string): Promise<{ success: boolean; 
     if (authError || !user) return { success: false, error: 'Unauthorized' }
 
     const admin = createAdminClient()
-    // Verify task belongs to this user before updating
     const { data: task } = await admin.from('admin_tasks').select('id').eq('id', taskId).eq('assigned_to', user.id).single()
     if (!task) return { success: false, error: 'Task not found' }
 
