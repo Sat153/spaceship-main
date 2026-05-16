@@ -68,6 +68,8 @@ export default function UserAssets() {
     checkFolderPermission().then(({ canCreateFolder }) => setCanCreateFolder(canCreateFolder))
   }, [])
 
+  const HIDDEN_ROOT_NAMES = ['_debug_test_', 'Office Assets']
+
   const load = useCallback(async (folderId: string | null) => {
     setLoading(true)
     setError(null)
@@ -76,10 +78,15 @@ export default function UserAssets() {
       setError('Failed to load files. Please try again.')
       setAssets([])
     } else {
-      setAssets(result.data ?? [])
+      const data = result.data ?? []
+      // Hide debug/internal folders from Vikas/Rakesh at root level
+      const filtered = (canCreateFolder && folderId === null)
+        ? data.filter(a => !HIDDEN_ROOT_NAMES.includes(a.name))
+        : data
+      setAssets(filtered)
     }
     setLoading(false)
-  }, [])
+  }, [canCreateFolder])
 
   useEffect(() => { load(currentFolderId) }, [currentFolderId, load])
 
