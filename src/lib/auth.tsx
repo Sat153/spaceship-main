@@ -28,10 +28,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function readCache(): Profile | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const raw = sessionStorage.getItem('anya_profile_cache')
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const cached = readCache()
   const [user, setUser] = useState<any | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState<Profile | null>(cached)
+  // If we have a cached profile the page can render immediately
+  const [loading, setLoading] = useState(!cached)
   const router = useRouter()
   
   const isAdmin = profile?.role === 'admin'
