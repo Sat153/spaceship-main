@@ -66,7 +66,10 @@ export default function UserDashboard() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const { data, departmentName: deptName } = await getMyDocuments()
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 8000)
+      )
+      const { data, departmentName: deptName } = await Promise.race([getMyDocuments(), timeout])
       setDepartmentName(deptName)
       setDocuments(data)
     } catch (err) {
