@@ -126,10 +126,12 @@ export async function POST(request: NextRequest) {
         }
 
         // ── MEDIA MESSAGE ──────────────────────────────────────────────────
-        // Build folder: Clients → Ganesh Joshi → {Group Name}
+        // Build folder: Clients → Ganesh Joshi → {Group Name} → {DD Mon YYYY}
         const clientsFolderId = await getOrCreateFolder(supabase, 'Clients', null, deptId, userId)
         const clientFolderId  = await getOrCreateFolder(supabase, client.name, clientsFolderId, deptId, userId)
         const groupFolderId   = await getOrCreateFolder(supabase, groupName, clientFolderId, deptId, userId)
+        const dateLabel = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        const dateFolderId    = await getOrCreateFolder(supabase, dateLabel, groupFolderId, deptId, userId)
 
         // Resolve file info
         let fileId: string
@@ -209,7 +211,7 @@ export async function POST(request: NextRequest) {
         const { error: dbError } = await supabase.from('assets').insert({
             name: fileName,
             type: 'file',
-            parent_id: groupFolderId,
+            parent_id: dateFolderId,
             department_id: deptId,
             url: publicUrl,
             size: fileBuffer.byteLength,
