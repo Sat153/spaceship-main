@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getAssets, uploadFile, getClientIdByName, checkUploadPermission, Asset } from '@/app/actions/assets'
-import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw, Upload, X, CheckCircle, Loader2 } from 'lucide-react'
+import { getAssets, uploadFile, getClientIdByName, checkUploadPermission, checkFolderPermission, createFolder, Asset } from '@/app/actions/assets'
+import { Folder, FileText, Image, Video, Download, ChevronRight, Home, ArrowLeft, HardDrive, AlertCircle, RefreshCw, Upload, X, CheckCircle, Loader2, FolderPlus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface Breadcrumb { id: string | null; name: string }
@@ -37,13 +37,19 @@ export default function UserAssets() {
 
   // Upload state
   const [canUpload, setCanUpload] = useState(false)
+  const [canCreateFolder, setCanCreateFolder] = useState(false)
   const [ganeshClientId, setGaneshClientId] = useState<string | null>(null)
+
+  // New folder state
+  const [showNewFolder, setShowNewFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [creatingFolder, setCreatingFolder] = useState(false)
   const [uploadQueue, setUploadQueue] = useState<UploadItem[]>([])
   const [showUploadPanel, setShowUploadPanel] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Check if current user is in an upload-permitted department
+  // Check permissions
   useEffect(() => {
     checkUploadPermission().then(({ canUpload }) => {
       if (canUpload) {
@@ -51,6 +57,7 @@ export default function UserAssets() {
         getClientIdByName('Ganesh Joshi').then(({ id }) => setGaneshClientId(id))
       }
     })
+    checkFolderPermission().then(({ canCreateFolder }) => setCanCreateFolder(canCreateFolder))
   }, [])
 
   const load = useCallback(async (folderId: string | null) => {
@@ -130,6 +137,19 @@ export default function UserAssets() {
     if (uploadQueue.every(u => u.status === 'done' || u.status === 'error')) setShowUploadPanel(false)
   }
 
+  const handleCreateFolder = async () => {
+    const name = newFolderName.trim()
+    if (!name) return
+    setCreatingFolder(true)
+    const result = await createFolder(name, currentFolderId)
+    setCreatingFolder(false)
+    if (result.success) {
+      setNewFolderName('')
+      setShowNewFolder(false)
+      load(currentFolderId)
+    }
+  }
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
@@ -186,6 +206,15 @@ export default function UserAssets() {
           <p className="text-gray-400 text-xs sm:text-sm mt-0.5">Shared media and files from all connected sources</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {canCreateFolder && (
+            <button
+              onClick={() => { setShowNewFolder(true); setNewFolderName('') }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 text-sm font-medium transition-colors"
+            >
+              <FolderPlus className="w-4 h-4" />
+              New Folder
+            </button>
+          )}
           {canUpload && (
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -239,6 +268,33 @@ export default function UserAssets() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* New Folder Dialog */}
+      {showNewFolder && (
+        <div className="bg-gray-800 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3">
+          <FolderPlus className="w-5 h-5 text-amber-400 flex-shrink-0" />
+          <input
+            autoFocus
+            type="text"
+            value={newFolderName}
+            onChange={e => setNewFolderName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') setShowNewFolder(false) }}
+            placeholder="Folder name"
+            className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+          />
+          <button
+            onClick={handleCreateFolder}
+            disabled={!newFolderName.trim() || creatingFolder}
+            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-black text-sm font-medium transition-colors flex items-center gap-1.5"
+          >
+            {creatingFolder ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+            Create
+          </button>
+          <button onClick={() => setShowNewFolder(false)} className="text-gray-500 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

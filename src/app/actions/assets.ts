@@ -425,6 +425,7 @@ export async function updateDoc(id: string, name: string, content: string) {
 }
 
 const UPLOAD_DEPARTMENTS = ['Media & Press Operations']
+const FOLDER_CREATE_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
 
 export async function checkUploadPermission(): Promise<{ canUpload: boolean }> {
     try {
@@ -442,6 +443,25 @@ export async function checkUploadPermission(): Promise<{ canUpload: boolean }> {
         return { canUpload: deptName ? UPLOAD_DEPARTMENTS.includes(deptName) : false }
     } catch {
         return { canUpload: false }
+    }
+}
+
+export async function checkFolderPermission(): Promise<{ canCreateFolder: boolean }> {
+    try {
+        const info = await getCallerInfo()
+        if (!info?.user) return { canCreateFolder: false }
+
+        const admin = createAdminClient()
+        const { data: profile } = await admin
+            .from('profiles')
+            .select('email')
+            .eq('id', info.user.id)
+            .single()
+
+        const email = profile?.email ?? info.user.email ?? ''
+        return { canCreateFolder: FOLDER_CREATE_EMAILS.includes(email.toLowerCase()) }
+    } catch {
+        return { canCreateFolder: false }
     }
 }
 
