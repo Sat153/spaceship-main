@@ -116,7 +116,11 @@ export async function moveTask(
     const supabase = await getSupabaseClient()
     const adminClient = createAdminClient()
 
-    const { data: currentTask, error: fetchError } = await supabase
+    // Verify caller is authenticated
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+
+    const { data: currentTask, error: fetchError } = await adminClient
       .from('admin_tasks')
       .select('status, kanban_position, title, assigned_to')
       .eq('id', taskId)
@@ -125,7 +129,7 @@ export async function moveTask(
     if (fetchError || !currentTask) return { success: false, error: 'Task not found' }
 
     if (currentTask.status === newStatus) {
-      const { data: columnTasks } = await supabase
+      const { data: columnTasks } = await adminClient
         .from('admin_tasks')
         .select('id, kanban_position')
         .eq('status', newStatus)
@@ -149,14 +153,14 @@ export async function moveTask(
               }
             }
             for (const update of updates) {
-              await supabase.from('admin_tasks').update({ kanban_position: update.position }).eq('id', update.id)
+              await adminClient.from('admin_tasks').update({ kanban_position: update.position }).eq('id', update.id)
             }
           }
         }
       }
     }
 
-    const { error } = await supabase
+    const { error } = await adminClient
       .from('admin_tasks')
       .update({
         status: newStatus,
@@ -205,10 +209,13 @@ export async function saveTask(
     const supabase = await getSupabaseClient()
     const adminClient = createAdminClient()
 
+    // Verify caller is authenticated
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+
     let previousAssignee: string | null = null
 
     if (taskId) {
-      // Fetch current assignee before update to detect change
       const { data: existing } = await adminClient
         .from('admin_tasks')
         .select('assigned_to')
@@ -216,10 +223,10 @@ export async function saveTask(
         .single()
       previousAssignee = existing?.assigned_to || null
 
-      const { error } = await supabase.from('admin_tasks').update(taskData).eq('id', taskId)
+      const { error } = await adminClient.from('admin_tasks').update(taskData).eq('id', taskId)
       if (error) return { success: false, error: error.message }
     } else {
-      const { error } = await supabase.from('admin_tasks').insert([taskData])
+      const { error } = await adminClient.from('admin_tasks').insert([taskData])
       if (error) return { success: false, error: error.message }
     }
 
@@ -287,7 +294,10 @@ export async function saveTask(
 export async function deleteTask(taskId: string): Promise<{ success: boolean; error: string | null }> {
   try {
     const supabase = await getSupabaseClient()
-    const { error } = await supabase.from('admin_tasks').delete().eq('id', taskId)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+    const adminClient = createAdminClient()
+    const { error } = await adminClient.from('admin_tasks').delete().eq('id', taskId)
     if (error) return { success: false, error: error.message }
     revalidateTag('admin-tasks')
     return { success: true, error: null }

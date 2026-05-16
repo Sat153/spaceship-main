@@ -1,24 +1,26 @@
 'use client'
 
 import { useEffect, useState, Suspense, useCallback } from "react"
+import dynamic from "next/dynamic"
 import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2, Menu, Bell, CheckCheck } from "lucide-react"
 import { getNotifications, markAllRead, type Notification } from "@/app/actions/notifications"
 import { getAdminStats } from "@/app/actions/admin-stats"
 import AdminRoute from "@/components/AdminRoute"
 import Sidebar from "@/components/Sidebar"
-import AdminDocuments from "@/components/admin/documents/AdminDocuments"
-import AdminClients from "@/components/admin/clients/AdminClients"
-import AdminCalendar from "@/components/admin/AdminCalendar"
-import AdminKanban from "@/components/admin/AdminKanban"
-import AdminTeamMembers from "@/components/admin/team/AdminTeamMembers"
-import AdminAssets from "@/components/admin/assets/AdminAssets"
-import ContentHub from "@/components/admin/content/ContentHub"
-import MessagingBank from "@/components/admin/content/MessagingBank"
-import AdminSettings from "@/components/admin/settings/AdminSettings"
-import AdminWeeklyReports from "@/components/admin/AdminWeeklyReports"
-import ChatPanel from "@/components/user/ChatPanel"
 import { useAuth } from "@/lib/auth"
 import { useRouter, useSearchParams } from "next/navigation"
+
+const AdminDocuments   = dynamic(() => import("@/components/admin/documents/AdminDocuments"), { ssr: false })
+const AdminClients     = dynamic(() => import("@/components/admin/clients/AdminClients"), { ssr: false })
+const AdminCalendar    = dynamic(() => import("@/components/admin/AdminCalendar"), { ssr: false })
+const AdminKanban      = dynamic(() => import("@/components/admin/AdminKanban"), { ssr: false })
+const AdminTeamMembers = dynamic(() => import("@/components/admin/team/AdminTeamMembers"), { ssr: false })
+const AdminAssets      = dynamic(() => import("@/components/admin/assets/AdminAssets"), { ssr: false })
+const ContentHub       = dynamic(() => import("@/components/admin/content/ContentHub"), { ssr: false })
+const MessagingBank    = dynamic(() => import("@/components/admin/content/MessagingBank"), { ssr: false })
+const AdminSettings    = dynamic(() => import("@/components/admin/settings/AdminSettings"), { ssr: false })
+const AdminWeeklyReports = dynamic(() => import("@/components/admin/AdminWeeklyReports"), { ssr: false })
+const ChatPanel        = dynamic(() => import("@/components/user/ChatPanel"), { ssr: false })
 
 interface DashboardStats {
   total_members: number
