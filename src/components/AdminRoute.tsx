@@ -5,27 +5,18 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { Loader2 } from 'lucide-react'
 
-interface AdminRouteProps {
-  children: React.ReactNode
-}
-
-export default function AdminRoute({ children }: AdminRouteProps) {
+export default function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, isAdmin } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      if (user && profile && !isAdmin) {
-        router.push('/dashboard')
-        return
-      }
-    }
+    if (loading) return
+    if (!user) { router.push('/auth/login'); return }
+    // Only redirect once profile is confirmed non-admin (avoid flicker on profile load)
+    if (user && profile && !isAdmin) { router.push('/dashboard') }
   }, [user, profile, loading, isAdmin, router])
 
+  // Only block on the initial auth check (session cookie validation)
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -34,6 +25,7 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
+  // No session at all → spinner while redirect fires
   if (!user) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -42,7 +34,8 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
-  if (user && profile && !isAdmin) {
+  // Profile confirmed non-admin → spinner while redirect fires
+  if (profile && !isAdmin) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
@@ -50,5 +43,6 @@ export default function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
+  // User is authenticated — render immediately, profile loads in background
   return <>{children}</>
 }

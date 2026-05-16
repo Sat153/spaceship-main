@@ -27,17 +27,44 @@ export async function getAdminStats(): Promise<AdminStats> {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).toISOString()
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString()
 
-  const [membersResult, documentsResult, departmentsResult, postsResult, tasksResult, scheduledResult] = await Promise.all([
+  const [
+    membersResult,
+    documentsResult,
+    departmentsResult,
+    postsResult,
+    tasksCompletedResult,
+    tasksTotalResult,
+    recentTasksResult,
+    scheduledResult,
+  ] = await Promise.all([
+    // Counts only — no row data fetched
     admin.from('profiles').select('id', { count: 'exact', head: true }),
     admin.from('documents').select('id', { count: 'exact', head: true }),
     admin.from('departments').select('id', { count: 'exact', head: true }),
-    admin.from('content_posts').select('id, status, created_at, updated_at, title').gte('created_at', startOfMonth),
-    admin.from('admin_tasks').select('id, status, title, updated_at'),
-    admin.from('content_posts').select('id, title, scheduled_for').eq('is_scheduled', true).gte('scheduled_for', startOfDay).lte('scheduled_for', endOfDay).limit(5),
+    // Content this month — limited to 100, only needed fields
+    admin.from('content_posts')
+      .select('id, status, updated_at, created_at, title')
+      .gte('created_at', startOfMonth)
+      .limit(100),
+    // Task counts via count queries — no row data
+    admin.from('admin_tasks').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+    admin.from('admin_tasks').select('id', { count: 'exact', head: true }),
+    // Only recent tasks for activity feed
+    admin.from('admin_tasks')
+      .select('id, title, status, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(5),
+    // Today's scheduled content
+    admin.from('content_posts')
+      .select('id, title, scheduled_for')
+      .eq('is_scheduled', true)
+      .gte('scheduled_for', startOfDay)
+      .lte('scheduled_for', endOfDay)
+      .limit(5),
   ])
 
   const posts = postsResult.data || []
-  const tasks = tasksResult.data || []
+  const recentTasks = recentTasksResult.data || []
 
   const pipeline = { draft: 0, internal_review: 0, pending_review: 0, approved: 0, scheduled: 0, rejected: 0 }
   posts.forEach((p: any) => { if (p.status in pipeline) (pipeline as any)[p.status]++ })
@@ -60,7 +87,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   type ActivityItem = { dot: string; text: string; time: string; ts: number }
   const activityItems: ActivityItem[] = []
 
-  posts.slice(0, 5).forEach((p: any) => {
+  posts.slice(0, 4).forEach((p: any) => {
     activityItems.push({
       dot: statusDot[p.status] || '#60a5fa',
       text: `Content "${p.title || 'Untitled'}" → ${p.status.replace('_', ' ')}`,
@@ -69,7 +96,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     })
   })
 
-  tasks.slice(0, 4).forEach((t: any) => {
+  recentTasks.forEach((t: any) => {
     activityItems.push({
       dot: t.status === 'completed' ? '#34d399' : t.status === 'in_progress' ? '#60a5fa' : '#6b7280',
       text: `Task "${t.title || 'Untitled'}" is ${(t.status as string).replace('_', ' ')}`,
@@ -85,8 +112,8 @@ export async function getAdminStats(): Promise<AdminStats> {
     total_documents: documentsResult.count || 0,
     total_departments: departmentsResult.count || 0,
     content_this_month: posts.length,
-    tasks_completed: tasks.filter((t: any) => t.status === 'completed').length,
-    tasks_total: tasks.length,
+    tasks_completed: tasksCompletedResult.count || 0,
+    tasks_total: tasksTotalResult.count || 0,
     content_pipeline: pipeline,
     recent_activity: activityItems.slice(0, 8).map(({ dot, text, time }) => ({ dot, text, time })),
     content_alerts: {
