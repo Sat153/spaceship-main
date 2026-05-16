@@ -97,24 +97,8 @@ export async function getMyRooms(): Promise<{
             return { success: false, error: roomsError.message }
         }
 
-        // For non-admin users filter workflow rooms by department access
-        let visibleRooms = rooms || []
-        if (profile?.role !== 'admin' && profile?.department_id) {
-            // Get rooms this department can access
-            const { data: accessible } = await supabase
-                .from('room_access')
-                .select('room_id')
-                .eq('department_id', profile.department_id)
-
-            const accessibleIds = new Set((accessible || []).map((r: { room_id: string }) => r.room_id))
-
-            visibleRooms = visibleRooms.filter(room => {
-                // Non-workflow rooms (direct/department): always visible
-                if (!room.stage_id) return true
-                // Workflow rooms: only if department has access
-                return accessibleIds.has(room.id)
-            })
-        }
+        // Show all rooms the user is directly a member of
+        const visibleRooms = rooms || []
 
         // Fetch stage orders for all stage IDs in one query
         const stageIds = Array.from(new Set(visibleRooms.map(r => r.stage_id).filter(Boolean)))
