@@ -33,15 +33,18 @@ interface Document {
 
 const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
 
+const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'weekly-report', 'notifications', 'profile'])
+
 function getInitialTab(): string {
   try {
     if (typeof window === 'undefined') return 'knowledge-base'
     const raw = sessionStorage.getItem('anya_profile_cache')
     if (!raw) return 'knowledge-base'
     const cached = JSON.parse(raw)
-    return cached?.email && VIKAS_RAKESH_EMAILS.includes(cached.email.toLowerCase())
-      ? 'clients'
-      : 'knowledge-base'
+    if (cached?.email && VIKAS_RAKESH_EMAILS.includes(cached.email.toLowerCase())) {
+      return 'clients'
+    }
+    return 'knowledge-base'
   } catch { return 'knowledge-base' }
 }
 
