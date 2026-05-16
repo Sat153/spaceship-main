@@ -36,6 +36,7 @@ interface SidebarProps {
 }
 
 const CONTENT_DEPARTMENTS = ['PR & Social Media', 'Creative Labs', 'Operations and strategy', 'Operations and Strategy']
+const KANBAN_ACCESS_EMAILS = ['ishika@anyasegen.com', 'utkarsh@anyasegen.com', 'iqra@anyasegen.com']
 
 const baseUserMenuItems = [
   { id: 'clients', label: 'My Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
@@ -82,6 +83,9 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
     const items = [...baseUserMenuItems]
     if (departmentName && CONTENT_DEPARTMENTS.includes(departmentName)) {
       items.splice(3, 0, { id: 'content', label: 'Content', icon: PenTool, color: 'from-pink-400 to-rose-500' })
+    }
+    if (profile?.email && KANBAN_ACCESS_EMAILS.includes(profile.email)) {
+      items.splice(2, 0, { id: 'kanban', label: 'Kanban Board', icon: Kanban, color: 'from-orange-400 to-red-500' })
     }
     return items
   })()
