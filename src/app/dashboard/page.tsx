@@ -33,8 +33,19 @@ interface Document {
 
 export default function UserDashboard() {
   const { profile } = useAuth()
-  const [activeTab, setActiveTab] = useState('knowledge-base')
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(['knowledge-base']))
+  const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
+  const isVikasRakesh = profile?.email ? VIKAS_RAKESH_EMAILS.includes(profile.email.toLowerCase()) : false
+  const defaultTab = isVikasRakesh ? 'clients' : 'knowledge-base'
+  const [activeTab, setActiveTab] = useState(defaultTab)
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([defaultTab]))
+
+  // If profile loads and current tab doesn't belong to this user, reset it
+  useEffect(() => {
+    if (profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email.toLowerCase()) && activeTab === 'knowledge-base') {
+      setActiveTab('clients')
+      setVisitedTabs(new Set(['clients']))
+    }
+  }, [profile?.email])
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleTabChange = (tab: string) => {
