@@ -37,6 +37,17 @@ interface SidebarProps {
 
 const CONTENT_DEPARTMENTS = ['PR & Social Media', 'Creative Labs', 'Operations and strategy', 'Operations and Strategy']
 const KANBAN_ACCESS_EMAILS = ['ishika@anyasegen.com', 'utkarsh@anyasegen.com', 'iqra@anyasegen.com']
+const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
+
+const vikasRakeshMenuItems = [
+  { id: 'clients', label: 'My Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
+  { id: 'departments', label: 'Departments', icon: Users, color: 'from-blue-400 to-cyan-500' },
+  { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
+  { id: 'assets', label: 'Asset Library', icon: HardDrive, color: 'from-amber-400 to-orange-500' },
+  { id: 'weekly-report', label: 'Weekly Report', icon: BarChart2, color: 'from-teal-400 to-cyan-500' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
+  { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },
+]
 
 const baseUserMenuItems = [
   { id: 'clients', label: 'My Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
@@ -80,6 +91,9 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
   }
 
   const userMenuItems = (() => {
+    if (profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email)) {
+      return vikasRakeshMenuItems
+    }
     const items = [...baseUserMenuItems]
     if (departmentName && CONTENT_DEPARTMENTS.includes(departmentName)) {
       items.splice(3, 0, { id: 'content', label: 'Content', icon: PenTool, color: 'from-pink-400 to-rose-500' })
