@@ -21,6 +21,7 @@ import {
   X,
   HardDrive,
   BarChart2,
+  CheckCircle2,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
@@ -38,6 +39,14 @@ interface SidebarProps {
 const CONTENT_DEPARTMENTS = ['PR & Social Media', 'Creative Labs', 'Operations and strategy', 'Operations and Strategy']
 const KANBAN_ACCESS_EMAILS = ['ishika@anyasegen.com', 'utkarsh@anyasegen.com', 'iqra@anyasegen.com']
 const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
+const AKHILESH_EMAIL = 'satyamkr2806@gmail.com'
+
+const akhileshMenuItems = [
+  { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
+  { id: 'approval', label: 'Approvals', icon: CheckCircle2, color: 'from-green-400 to-emerald-500' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
+  { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },
+]
 
 const vikasRakeshMenuItems = [
   { id: 'clients', label: 'My Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
@@ -90,6 +99,9 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
   }
 
   const userMenuItems = (() => {
+    if (profile?.email && profile.email.toLowerCase() === AKHILESH_EMAIL) {
+      return akhileshMenuItems
+    }
     if (profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email)) {
       return vikasRakeshMenuItems
     }

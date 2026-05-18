@@ -15,6 +15,7 @@ import MessagingBank from "@/components/admin/content/MessagingBank"
 import WeeklyReport from "@/components/user/WeeklyReport"
 import AdminKanban from "@/components/admin/AdminKanban"
 import UserDepartments from "@/components/user/UserDepartments"
+import AkhileshApproval from "@/components/user/AkhileshApproval"
 import UserRoute from "@/components/UserRoute"
 import Sidebar from "@/components/Sidebar"
 import { useAuth } from "@/lib/auth"
@@ -32,8 +33,10 @@ interface Document {
 }
 
 const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
+const AKHILESH_EMAIL = 'satyamkr2806@gmail.com'
 
 const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'assets', 'weekly-report', 'notifications', 'profile'])
+const AKHILESH_VALID_TABS = new Set(['messages', 'approval', 'notifications', 'profile'])
 
 function getInitialTab(): string {
   return 'clients'
@@ -44,18 +47,33 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([getInitialTab()]))
 
-  // Derived: true for Vikas/Rakesh regardless of whether profile.email is null
-  // Falls back to checking auth user id via profile.id matching known pattern — but simplest:
-  // check email if present, also check by role+department heuristic if email missing
   const isVikasRakesh = !!(profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email.toLowerCase()))
+  const isAkhilesh = !!(profile?.email && profile.email.toLowerCase() === AKHILESH_EMAIL)
 
-  // Always redirect Vikas/Rakesh off tabs they don't own
+  // Redirect Vikas/Rakesh off tabs they don't own
   useEffect(() => {
     if (isVikasRakesh && !VIKAS_RAKESH_VALID_TABS.has(activeTab)) {
       setActiveTab('clients')
       setVisitedTabs(new Set(['clients']))
     }
   }, [isVikasRakesh, activeTab])
+
+  // Redirect Akhilesh to 'approval' as home tab, block invalid tabs
+  useEffect(() => {
+    if (!isAkhilesh) return
+    if (!AKHILESH_VALID_TABS.has(activeTab)) {
+      setActiveTab('approval')
+      setVisitedTabs(new Set(['approval']))
+    }
+  }, [isAkhilesh, activeTab])
+
+  // Once Akhilesh's profile loads, switch from default 'clients' to 'approval'
+  useEffect(() => {
+    if (isAkhilesh && activeTab === 'clients') {
+      setActiveTab('approval')
+      setVisitedTabs(new Set(['approval']))
+    }
+  }, [isAkhilesh])
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleTabChange = (tab: string) => {
@@ -431,8 +449,9 @@ export default function UserDashboard() {
             {visitedTabs.has('weekly-report') && <div className={activeTab === 'weekly-report' ? '' : 'hidden'}><WeeklyReport /></div>}
             {visitedTabs.has('kanban') && <div className={activeTab === 'kanban' ? '' : 'hidden'}><AdminKanban /></div>}
             {visitedTabs.has('departments') && <div className={activeTab === 'departments' ? '' : 'hidden'}><UserDepartments /></div>}
+            {visitedTabs.has('approval') && <div className={activeTab === 'approval' ? '' : 'hidden'}><AkhileshApproval /></div>}
             <div className={['knowledge-base','search','notifications','profile'].includes(activeTab) ? '' : 'hidden'}>
-              {activeTab === 'knowledge-base' && !isVikasRakesh && renderKnowledgeBase()}
+              {activeTab === 'knowledge-base' && !isVikasRakesh && !isAkhilesh && renderKnowledgeBase()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'notifications' && renderNotifications()}
               {activeTab === 'profile' && renderProfile()}
