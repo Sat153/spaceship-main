@@ -106,19 +106,25 @@ function formatRangeLabel(filter: FilterRange) {
 async function fetchTasksInRange(userId: string, start: string, end: string): Promise<CompletedTask[]> {
   const admin = createAdminClient()
 
+  // Fetch all completed tasks for this user — we'll filter by due_date (primary) or completed_at (fallback)
   const { data: tasks } = await admin
     .from('admin_tasks')
-    .select('id, title, description, type, tags, completed_at, department_id')
+    .select('id, title, description, type, tags, completed_at, due_date, department_id')
     .eq('assigned_to', userId)
     .eq('status', 'completed')
-    .gte('completed_at', start)
-    .lte('completed_at', end)
     .order('completed_at', { ascending: true })
 
   if (!tasks || tasks.length === 0) return []
 
+  // Use due_date as the bucket date; fall back to completed_at if due_date is missing
+  const filtered = tasks.filter((t: any) => {
+    const bucketDate = t.due_date || t.completed_at
+    if (!bucketDate) return false
+    return bucketDate >= start && bucketDate <= end
+  })
+
   // Dept names
-  const deptIds = Array.from(new Set(tasks.map((t: any) => t.department_id).filter(Boolean))) as string[]
+  const deptIds = Array.from(new Set(filtered.map((t: any) => t.department_id).filter(Boolean))) as string[]
   const deptMap: Record<string, string> = {}
   if (deptIds.length > 0) {
     const { data: depts } = await admin.from('departments').select('id, name').in('id', deptIds)
@@ -126,7 +132,7 @@ async function fetchTasksInRange(userId: string, start: string, end: string): Pr
   }
 
   // Attachments
-  const taskIds = tasks.map((t: any) => t.id)
+  const taskIds = filtered.map((t: any) => t.id)
   const { data: attachments } = await admin
     .from('admin_task_attachments')
     .select('id, task_id, file_name, file_url, mime_type')
@@ -138,7 +144,7 @@ async function fetchTasksInRange(userId: string, start: string, end: string): Pr
     attachMap[a.task_id].push({ id: a.id, file_name: a.file_name, file_url: a.file_url, mime_type: a.mime_type })
   })
 
-  return tasks.map((t: any): CompletedTask => ({
+  return filtered.map((t: any): CompletedTask => ({
     id: t.id,
     title: t.title,
     description: t.description,
@@ -154,7 +160,8 @@ function groupByDay(tasks: CompletedTask[]): DayActivity[] {
   const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const byDate: Record<string, CompletedTask[]> = {}
   tasks.forEach(t => {
-    const date = new Date(t.completed_at).toISOString().split('T')[0]
+    const bucketDate = (t as any).due_date || t.completed_at
+    const date = new Date(bucketDate).toISOString().split('T')[0]
     if (!byDate[date]) byDate[date] = []
     byDate[date].push(t)
   })
@@ -346,7 +353,12 @@ export async function getAllEmployeesSummary(filter: FilterRange = 'this_week'):
   }
 
   const summaries = await Promise.all(employees.map(async (emp: any) => {
-    const { count } = await admin.from('admin_tasks').select('id', { count: 'exact', head: true }).eq('assigned_to', emp.id).eq('status', 'completed').gte('completed_at', start).lte('completed_at', end)
+    // Count by due_date (primary) — tasks belong to the week they were due
+    const { data: empTasks } = await admin.from('admin_tasks').select('id, due_date, completed_at').eq('assigned_to', emp.id).eq('status', 'completed')
+    const count = (empTasks || []).filter((t: any) => {
+      const d = t.due_date || t.completed_at
+      return d && d >= start && d <= end
+    }).length
     return { user_id: emp.id, first_name: emp.first_name || '', last_name: emp.last_name || '', email: emp.email, total_tasks: count || 0, department_name: emp.department_id ? (deptMap[emp.department_id] || null) : null }
   }))
 
