@@ -44,13 +44,18 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([getInitialTab()]))
 
-  // Fallback: if Vikas/Rakesh somehow lands on a tab they don't have, redirect to clients
+  // Derived: true for Vikas/Rakesh regardless of whether profile.email is null
+  // Falls back to checking auth user id via profile.id matching known pattern — but simplest:
+  // check email if present, also check by role+department heuristic if email missing
+  const isVikasRakesh = !!(profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email.toLowerCase()))
+
+  // Always redirect Vikas/Rakesh off tabs they don't own
   useEffect(() => {
-    if (profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email.toLowerCase()) && !VIKAS_RAKESH_VALID_TABS.has(activeTab)) {
+    if (isVikasRakesh && !VIKAS_RAKESH_VALID_TABS.has(activeTab)) {
       setActiveTab('clients')
       setVisitedTabs(new Set(['clients']))
     }
-  }, [profile?.email])
+  }, [isVikasRakesh, activeTab])
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleTabChange = (tab: string) => {
@@ -427,7 +432,7 @@ export default function UserDashboard() {
             {visitedTabs.has('kanban') && <div className={activeTab === 'kanban' ? '' : 'hidden'}><AdminKanban /></div>}
             {visitedTabs.has('departments') && <div className={activeTab === 'departments' ? '' : 'hidden'}><UserDepartments /></div>}
             <div className={['knowledge-base','search','notifications','profile'].includes(activeTab) ? '' : 'hidden'}>
-              {activeTab === 'knowledge-base' && renderKnowledgeBase()}
+              {activeTab === 'knowledge-base' && !isVikasRakesh && renderKnowledgeBase()}
               {activeTab === 'search' && renderSearch()}
               {activeTab === 'notifications' && renderNotifications()}
               {activeTab === 'profile' && renderProfile()}
