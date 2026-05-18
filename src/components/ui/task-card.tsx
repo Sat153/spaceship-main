@@ -109,7 +109,7 @@ const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(
           </div>
 
           {description && (
-            <p className="text-sm text-gray-400 line-clamp-2 mt-2">
+            <p className="text-sm text-gray-400 line-clamp-2 mt-2 break-all">
               {description}
             </p>
           )}
