@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 
 // ============ TYPES ============
@@ -239,15 +240,72 @@ export async function submitForReview(id: string): Promise<{
     return updateContentPost(id, { status: 'pending_review' })
 }
 
+// Post a system message to the client's Final Approval chat room
+async function postToFinalApprovalRoom(
+    userId: string,
+    clientId: string,
+    message: string
+) {
+    try {
+        const admin = createAdminClient()
+        // Find stage 4 (04 Final Approval)
+        const { data: stage } = await admin
+            .from('workflow_stages')
+            .select('id')
+            .eq('stage_order', 4)
+            .single()
+        if (!stage) return
+
+        const { data: room } = await admin
+            .from('chat_rooms')
+            .select('id')
+            .eq('client_id', clientId)
+            .eq('stage_id', stage.id)
+            .single()
+        if (!room) return
+
+        await admin.from('chat_messages').insert({
+            room_id: room.id,
+            sender_id: userId,
+            message,
+        })
+    } catch {
+        // non-critical — don't block the approval
+    }
+}
+
 // Approve content post
 export async function approveContentPost(id: string, notes?: string): Promise<{
     success: boolean
     error: string | null
 }> {
-    return updateContentPost(id, {
-        status: 'approved',
-        review_notes: notes
-    })
+    try {
+        const supabase = await getSupabaseClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return { success: false, error: 'Unauthorized' }
+
+        const result = await updateContentPost(id, { status: 'approved', review_notes: notes })
+        if (!result.success) return result
+
+        // Fetch post details for the chat message
+        const admin = createAdminClient()
+        const { data: post } = await admin
+            .from('content_posts')
+            .select('title, body, client_id, platforms')
+            .eq('id', id)
+            .single()
+
+        if (post?.client_id) {
+            const platforms = post.platforms?.join(', ') || ''
+            const preview = post.body?.slice(0, 200) + (post.body?.length > 200 ? '…' : '')
+            const msg = `✅ *Content Approved*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Approved by Akhilesh Ji`
+            await postToFinalApprovalRoom(user.id, post.client_id, msg)
+        }
+
+        return result
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
 }
 
 // Reject content post
@@ -255,10 +313,31 @@ export async function rejectContentPost(id: string, notes: string): Promise<{
     success: boolean
     error: string | null
 }> {
-    return updateContentPost(id, {
-        status: 'rejected',
-        review_notes: notes
-    })
+    try {
+        const supabase = await getSupabaseClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return { success: false, error: 'Unauthorized' }
+
+        const result = await updateContentPost(id, { status: 'rejected', review_notes: notes })
+        if (!result.success) return result
+
+        // Fetch post details for the chat message
+        const admin = createAdminClient()
+        const { data: post } = await admin
+            .from('content_posts')
+            .select('title, body, client_id, platforms')
+            .eq('id', id)
+            .single()
+
+        if (post?.client_id) {
+            const msg = `🔄 *Changes Requested*\n\n📌 ${post.title || 'Untitled Post'}\n\n📝 ${notes}\n\n— Akhilesh Ji`
+            await postToFinalApprovalRoom(user.id, post.client_id, msg)
+        }
+
+        return result
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
 }
 
 // Delete content post
