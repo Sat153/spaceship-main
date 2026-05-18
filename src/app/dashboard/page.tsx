@@ -37,21 +37,29 @@ const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'weekly-report',
 
 function getInitialTab(): string {
   try {
-    if (typeof window === 'undefined') return 'knowledge-base'
+    if (typeof window === 'undefined') return 'clients'
     const raw = sessionStorage.getItem('anya_profile_cache')
-    if (!raw) return 'knowledge-base'
+    if (!raw) return 'clients'
     const cached = JSON.parse(raw)
     if (cached?.email && VIKAS_RAKESH_EMAILS.includes(cached.email.toLowerCase())) {
       return 'clients'
     }
-    return 'knowledge-base'
-  } catch { return 'knowledge-base' }
+    return 'clients'
+  } catch { return 'clients' }
 }
 
 export default function UserDashboard() {
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([getInitialTab()]))
+
+  // Fallback: if Vikas/Rakesh somehow lands on a tab they don't have, redirect to clients
+  useEffect(() => {
+    if (profile?.email && VIKAS_RAKESH_EMAILS.includes(profile.email.toLowerCase()) && !VIKAS_RAKESH_VALID_TABS.has(activeTab)) {
+      setActiveTab('clients')
+      setVisitedTabs(new Set(['clients']))
+    }
+  }, [profile?.email, activeTab])
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleTabChange = (tab: string) => {
