@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getMyTasks, completeTask } from '@/app/actions/user-tasks'
+import { getMyTasks, completeTask, startTask } from '@/app/actions/user-tasks'
 import type { UserTask } from '@/app/actions/user-tasks'
-import { CheckCircle2, Circle, AlertCircle, RotateCcw, XCircle, CalendarDays, Eye, X, Clock, Tag, Building2, Loader2 } from 'lucide-react'
+import { CheckCircle2, Circle, AlertCircle, RotateCcw, XCircle, CalendarDays, Eye, X, Clock, Tag, Building2, Loader2, PlayCircle } from 'lucide-react'
 
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'text-red-400 bg-red-500/10 border-red-500/20',
@@ -33,11 +33,13 @@ function fmt(iso: string) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function TaskModal({ task, onClose, onComplete, completing }: {
+function TaskModal({ task, onClose, onComplete, onProgress, completing, progressing }: {
   task: UserTask
   onClose: () => void
   onComplete: (id: string) => void
+  onProgress: (id: string) => void
   completing: string | null
+  progressing: string | null
 }) {
   const cfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo
   const StatusIcon = cfg.icon
@@ -151,11 +153,23 @@ function TaskModal({ task, onClose, onComplete, completing }: {
 
         {/* Footer action */}
         {task.status !== 'completed' && task.status !== 'cancelled' && (
-          <div className="px-5 py-4 border-t border-gray-800">
+          <div className="px-5 py-4 border-t border-gray-800 flex gap-2">
+            {task.status === 'todo' && (
+              <button
+                onClick={() => onProgress(task.id)}
+                disabled={progressing === task.id}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+              >
+                {progressing === task.id
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Starting…</>
+                  : <><PlayCircle className="h-4 w-4" /> Mark In Progress</>
+                }
+              </button>
+            )}
             <button
               onClick={() => onComplete(task.id)}
               disabled={completing === task.id}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50"
             >
               {completing === task.id
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Marking complete…</>
@@ -178,6 +192,7 @@ export default function UserTasks() {
   const [tasks, setTasks] = useState<UserTask[]>([])
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState<string | null>(null)
+  const [progressing, setProgressing] = useState<string | null>(null)
   const [selected, setSelected] = useState<UserTask | null>(null)
 
   useEffect(() => {
@@ -186,6 +201,16 @@ export default function UserTasks() {
       setLoading(false)
     })
   }, [])
+
+  const handleProgress = async (taskId: string) => {
+    setProgressing(taskId)
+    const { success } = await startTask(taskId)
+    if (success) {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'in_progress' } : t))
+      if (selected?.id === taskId) setSelected(prev => prev ? { ...prev, status: 'in_progress' } : prev)
+    }
+    setProgressing(null)
+  }
 
   const handleComplete = async (taskId: string) => {
     setCompleting(taskId)
@@ -269,14 +294,26 @@ export default function UserTasks() {
                           </div>
                         ) : <div />}
                         {task.status !== 'completed' && task.status !== 'cancelled' && (
-                          <button
-                            onClick={() => handleComplete(task.id)}
-                            disabled={completing === task.id}
-                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-green-600/10 text-green-400 border border-green-600/20 hover:bg-green-600/20 transition-colors disabled:opacity-50"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            {completing === task.id ? 'Marking...' : 'Mark Complete'}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {task.status === 'todo' && (
+                              <button
+                                onClick={() => handleProgress(task.id)}
+                                disabled={progressing === task.id}
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-blue-600/10 text-blue-400 border border-blue-600/20 hover:bg-blue-600/20 transition-colors disabled:opacity-50"
+                              >
+                                <PlayCircle className="h-3.5 w-3.5" />
+                                {progressing === task.id ? 'Starting...' : 'In Progress'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleComplete(task.id)}
+                              disabled={completing === task.id}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-green-600/10 text-green-400 border border-green-600/20 hover:bg-green-600/20 transition-colors disabled:opacity-50"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              {completing === task.id ? 'Marking...' : 'Mark Complete'}
+                            </button>
+                          </div>
                         )}
                         {task.status === 'completed' && (
                           <span className="flex items-center gap-1 text-xs text-green-500">
@@ -298,7 +335,9 @@ export default function UserTasks() {
           task={selected}
           onClose={() => setSelected(null)}
           onComplete={handleComplete}
+          onProgress={handleProgress}
           completing={completing}
+          progressing={progressing}
         />
       )}
     </div>
