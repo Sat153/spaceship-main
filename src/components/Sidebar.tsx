@@ -43,6 +43,7 @@ const vikasRakeshMenuItems = [
   { id: 'clients', label: 'My Clients', icon: Building2, color: 'from-cyan-400 to-blue-500' },
   { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
   { id: 'assets', label: 'Asset Library', icon: HardDrive, color: 'from-amber-400 to-orange-500' },
+  { id: 'content', label: 'Content', icon: PenTool, color: 'from-pink-400 to-rose-500' },
   { id: 'weekly-report', label: 'Weekly Report', icon: BarChart2, color: 'from-teal-400 to-cyan-500' },
   { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
   { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },

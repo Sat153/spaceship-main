@@ -33,7 +33,7 @@ interface Document {
 
 const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
 
-const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'assets', 'weekly-report', 'notifications', 'profile'])
+const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'assets', 'content', 'weekly-report', 'notifications', 'profile'])
 
 function getInitialTab(): string {
   return 'clients'
