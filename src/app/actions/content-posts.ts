@@ -16,7 +16,7 @@ export interface ContentPost {
     platforms: string[]
     scheduled_for: string | null
     is_scheduled: boolean
-    status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'published'
+    status: 'draft' | 'pending_review' | 'awaiting_approval' | 'approved' | 'rejected' | 'published'
     reviewed_by: string | null
     reviewed_at: string | null
     review_notes: string | null
@@ -237,7 +237,32 @@ export async function submitForReview(id: string): Promise<{
     success: boolean
     error: string | null
 }> {
-    return updateContentPost(id, { status: 'pending_review' })
+    try {
+        const supabase = await getSupabaseClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return { success: false, error: 'Unauthorized' }
+
+        const result = await updateContentPost(id, { status: 'pending_review' })
+        if (!result.success) return result
+
+        const admin = createAdminClient()
+        const { data: post } = await admin
+            .from('content_posts')
+            .select('title, body, client_id, platforms')
+            .eq('id', id)
+            .single()
+
+        if (post?.client_id) {
+            const platforms = post.platforms?.join(', ') || ''
+            const preview = post.body?.slice(0, 150) + (post.body?.length > 150 ? '…' : '')
+            const msg = `📋 *Content Submitted for Approval*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Awaiting Akhilesh Ji's review`
+            await postToFinalApprovalRoom(user.id, post.client_id, msg)
+        }
+
+        return result
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
 }
 
 // Post a system message to the client's Final Approval chat room
@@ -375,7 +400,26 @@ export async function getPendingApprovals(): Promise<{
     data: ContentPost[] | null
     error: string | null
 }> {
-    return getContentPosts({ status: 'pending_review' })
+    try {
+        const admin = createAdminClient()
+        const { data, error } = await admin
+            .from('content_posts')
+            .select('*, clients:client_id (name)')
+            .in('status', ['pending_review', 'awaiting_approval'])
+            .order('created_at', { ascending: false })
+
+        if (error) return { data: null, error: error.message }
+
+        const posts = (data || []).map((p: any) => ({
+            ...p,
+            client_name: p.clients?.name ?? null,
+            clients: undefined,
+        })) as ContentPost[]
+
+        return { data: posts, error: null }
+    } catch (e: any) {
+        return { data: null, error: e.message }
+    }
 }
 
 // Get scheduled posts for today (for notifications)

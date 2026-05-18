@@ -16,11 +16,12 @@ import { sendApprovalRequest } from '@/app/actions/approval'
 
 // Map existing DB statuses to pipeline stage display names
 const STAGE_MAP: Record<ContentPost['status'], { stage: string; label: string; bg: string; icon: any }> = {
-    draft:          { stage: 'raw',             label: 'Raw',             bg: 'bg-gray-600',   icon: FileText },
-    pending_review: { stage: 'internal_review', label: 'Internal Review', bg: 'bg-yellow-600', icon: Eye },
-    approved:       { stage: 'approval',        label: 'Approval',        bg: 'bg-orange-600', icon: UserCheck },
-    published:      { stage: 'posted',          label: 'Posted',          bg: 'bg-green-600',  icon: CheckCircle },
-    rejected:       { stage: 'rejected',        label: 'Rejected',        bg: 'bg-red-600',    icon: XCircle },
+    draft:              { stage: 'raw',             label: 'Raw',             bg: 'bg-gray-600',   icon: FileText },
+    pending_review:     { stage: 'internal_review', label: 'Internal Review', bg: 'bg-yellow-600', icon: Eye },
+    awaiting_approval:  { stage: 'internal_review', label: 'Pending Approval', bg: 'bg-amber-600',  icon: Eye },
+    approved:           { stage: 'approval',        label: 'Approval',        bg: 'bg-orange-600', icon: UserCheck },
+    published:          { stage: 'posted',          label: 'Posted',          bg: 'bg-green-600',  icon: CheckCircle },
+    rejected:           { stage: 'rejected',        label: 'Rejected',        bg: 'bg-red-600',    icon: XCircle },
 }
 
 const PIPELINE = [
