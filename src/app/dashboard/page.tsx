@@ -49,7 +49,7 @@ function getInitialTab(): string {
 }
 
 export default function UserDashboard() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState(getInitialTab)
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([getInitialTab()]))
 
@@ -59,7 +59,7 @@ export default function UserDashboard() {
       setActiveTab('clients')
       setVisitedTabs(new Set(['clients']))
     }
-  }, [profile?.email, activeTab])
+  }, [profile?.email])
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const handleTabChange = (tab: string) => {
@@ -389,6 +389,14 @@ export default function UserDashboard() {
       </Card>
     </div>
   )
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <UserRoute>
