@@ -185,6 +185,25 @@ export default function UserAssets() {
     load(currentFolderId)
   }
 
+  const handleDownload = async (asset: Asset, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!asset.url) return
+    try {
+      const res = await fetch(asset.url)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = asset.name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      window.open(asset.url, '_blank')
+    }
+  }
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
@@ -436,14 +455,13 @@ export default function UserAssets() {
                     )}
                   </div>
                   {asset.type === 'file' && asset.url && (
-                    <a
-                      href={asset.url}
-                      download
-                      onClick={e => e.stopPropagation()}
-                      className="flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1.5 rounded-lg hover:bg-gray-700 transition-all"
+                    <button
+                      onClick={e => handleDownload(asset, e)}
+                      className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-blue-400 transition-all"
+                      title="Download"
                     >
-                      <Download className="w-3.5 h-3.5 text-gray-400" />
-                    </a>
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
                   )}
                 </div>
               </button>
