@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
     Plus, Search, Copy, Check, Trash2, Edit2, X, Loader2,
-    BookMarked, Wheat, Heart, Building, Zap, CalendarDays, Tag
+    BookMarked, Wheat, Heart, Building, Zap, CalendarDays, Tag, Maximize2
 } from 'lucide-react'
 import {
     getMessageTemplates, createMessageTemplate, updateMessageTemplate,
@@ -45,6 +45,7 @@ export default function MessagingBank({ readOnly = false }: { readOnly?: boolean
     const [saving, setSaving] = useState(false)
     const [langView, setLangView] = useState<'english' | 'hindi' | 'both'>('both')
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+    const [expandedTemplate, setExpandedTemplate] = useState<MessageTemplate | null>(null)
 
     useEffect(() => { fetchTemplates() }, [])
 
@@ -213,16 +214,21 @@ export default function MessagingBank({ readOnly = false }: { readOnly?: boolean
                                                 </div>
                                                 <h3 className="text-white font-medium text-sm truncate">{t.title}</h3>
                                             </div>
-                                                            {!readOnly && (
-                                            <div className="flex gap-1 shrink-0">
-                                                <button onClick={() => openEdit(t)} className="p-1.5 text-gray-500 hover:text-blue-400 rounded transition-colors">
-                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                            <div className="flex gap-1 shrink-0">
+                                                <button onClick={() => setExpandedTemplate(t)} className="p-1.5 text-gray-500 hover:text-purple-400 rounded transition-colors" title="Expand">
+                                                    <Maximize2 className="h-3.5 w-3.5" />
                                                 </button>
-                                                <button onClick={() => setConfirmDeleteId(t.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors">
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
+                                                {!readOnly && (
+                                                    <>
+                                                        <button onClick={() => openEdit(t)} className="p-1.5 text-gray-500 hover:text-blue-400 rounded transition-colors">
+                                                            <Edit2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button onClick={() => setConfirmDeleteId(t.id)} className="p-1.5 text-gray-500 hover:text-red-400 rounded transition-colors">
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
-                                            )}
                                         </div>
 
                                         {/* English body */}
@@ -279,6 +285,72 @@ export default function MessagingBank({ readOnly = false }: { readOnly?: boolean
                     </div>
                 )}
             </div>
+
+            {/* Expand Modal */}
+            {expandedTemplate && (() => {
+                const t = expandedTemplate
+                const catCfg = getCatConfig(t.category)
+                const CatIcon = catCfg.icon
+                const copyId = `expand-en-${t.id}`
+                const copyIdHi = `expand-hi-${t.id}`
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setExpandedTemplate(null)}>
+                        <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-start justify-between p-5 border-b border-gray-800">
+                                <div>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-white ${catCfg.color} mb-2`}>
+                                        <CatIcon className="h-3 w-3" /> {catCfg.labelHindi}
+                                    </span>
+                                    <h3 className="text-white font-semibold text-lg">{t.title}</h3>
+                                </div>
+                                <button onClick={() => setExpandedTemplate(null)} className="text-gray-400 hover:text-white shrink-0 ml-4">
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+                            <div className="p-5 space-y-5">
+                                {t.body_english && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">English</p>
+                                            <button onClick={() => copy(t.body_english, copyId)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-400 hover:text-white transition-all">
+                                                {copiedId === copyId ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                                                {copiedId === copyId ? 'Copied!' : 'Copy'}
+                                            </button>
+                                        </div>
+                                        <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap bg-gray-800 rounded-xl p-4">{t.body_english}</p>
+                                    </div>
+                                )}
+                                {t.body_hindi && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Hindi</p>
+                                            <button onClick={() => copy(t.body_hindi!, copyIdHi)} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-400 hover:text-white transition-all">
+                                                {copiedId === copyIdHi ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                                                {copiedId === copyIdHi ? 'Copied!' : 'Copy'}
+                                            </button>
+                                        </div>
+                                        <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap bg-gray-800 rounded-xl p-4">{t.body_hindi}</p>
+                                    </div>
+                                )}
+                                {t.tags && t.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {t.tags.map(tag => (
+                                            <span key={tag} className="px-2 py-0.5 bg-gray-800 text-gray-400 text-xs rounded-full">{tag}</span>
+                                        ))}
+                                    </div>
+                                )}
+                                <button onClick={() => copy([t.body_english, t.body_hindi].filter(Boolean).join('\n\n'), t.id)}
+                                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                                        copiedId === t.id ? 'bg-green-600/20 text-green-400' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    }`}>
+                                    {copiedId === t.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                    {copiedId === t.id ? 'Copied!' : 'Copy Full Template'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
 
             {/* Delete Confirm Modal */}
             {confirmDeleteId && (
