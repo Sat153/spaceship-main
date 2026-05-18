@@ -33,19 +33,10 @@ interface Document {
 
 const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
 
-const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'weekly-report', 'notifications', 'profile'])
+const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'assets', 'weekly-report', 'notifications', 'profile'])
 
 function getInitialTab(): string {
-  try {
-    if (typeof window === 'undefined') return 'clients'
-    const raw = sessionStorage.getItem('anya_profile_cache')
-    if (!raw) return 'clients'
-    const cached = JSON.parse(raw)
-    if (cached?.email && VIKAS_RAKESH_EMAILS.includes(cached.email.toLowerCase())) {
-      return 'clients'
-    }
-    return 'clients'
-  } catch { return 'clients' }
+  return 'clients'
 }
 
 export default function UserDashboard() {
