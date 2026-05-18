@@ -692,19 +692,85 @@ export default function ChatPanel() {
 
                     {/* Workflow rooms grouped by client */}
                     {Object.entries(workflowByClient).map(([clientId, stageRooms]) => {
-                        // Extract client name from first room (format: "ClientName — Stage")
                         const clientName = stageRooms[0]?.name.split(' — ')[0] || 'Client'
                         const sorted = [...stageRooms].sort((a, b) => {
-                            const aStage = a.name.split(' — ')[1] || ''
-                            const bStage = b.name.split(' — ')[1] || ''
-                            return aStage.localeCompare(bStage)
+                            const aNum = parseInt(a.name.split(' — ')[1]?.match(/^(\d+)/)?.[1] || '0')
+                            const bNum = parseInt(b.name.split(' — ')[1]?.match(/^(\d+)/)?.[1] || '0')
+                            return aNum - bNum
                         })
                         return (
-                            <div key={clientId} className="space-y-2">
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    {clientName} — Workflow
-                                </p>
-                                {sorted.map(renderRoomCard)}
+                            <div key={clientId}>
+                                {/* Client header */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)' }}>
+                                        <Building className="w-4 h-4 text-white" />
+                                    </div>
+                                    <div>
+                                        <p className="text-white font-semibold text-sm">{clientName}</p>
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider">Workflow Pipeline</p>
+                                    </div>
+                                    <div className="flex-1 h-px bg-gray-800 ml-2" />
+                                </div>
+
+                                {/* Pipeline stages */}
+                                <div className="space-y-2">
+                                    {sorted.map((room, index) => {
+                                        const stagePart = room.name.split(' — ').slice(1).join(' — ') || room.name
+                                        const stageNum = stagePart.match(/^(\d+)/)?.[1] || String(index + 1)
+                                        const stageName = stagePart.replace(/^\d+\s*/, '')
+                                        const hasActivity = !!room.last_message
+                                        const isLast = index === sorted.length - 1
+
+                                        // Stage color by index
+                                        const stageColors = [
+                                            'from-blue-500 to-cyan-500',
+                                            'from-violet-500 to-purple-500',
+                                            'from-orange-500 to-amber-500',
+                                            'from-green-500 to-emerald-500',
+                                            'from-pink-500 to-rose-500',
+                                            'from-teal-500 to-cyan-600',
+                                        ]
+                                        const gradient = stageColors[index % stageColors.length]
+
+                                        return (
+                                            <div key={room.id} className="flex gap-3">
+                                                {/* Stage number + connector */}
+                                                <div className="flex flex-col items-center shrink-0">
+                                                    <div
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${gradient} shrink-0`}
+                                                        style={{ boxShadow: hasActivity ? '0 0 10px rgba(139,92,246,0.4)' : 'none' }}
+                                                    >
+                                                        {stageNum}
+                                                    </div>
+                                                    {!isLast && <div className="w-px flex-1 bg-gray-700 my-1 min-h-[12px]" />}
+                                                </div>
+
+                                                {/* Room card */}
+                                                <div
+                                                    className={`flex-1 mb-${isLast ? '0' : '1'} p-3 rounded-xl border cursor-pointer transition-all group ${
+                                                        hasActivity
+                                                            ? 'bg-gray-800 border-gray-700 hover:border-blue-500/60 hover:bg-gray-750'
+                                                            : 'bg-gray-900/50 border-gray-800 hover:border-gray-600'
+                                                    }`}
+                                                    onClick={() => setSelectedRoom(room)}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className={`text-sm font-medium truncate ${hasActivity ? 'text-white' : 'text-gray-500'}`}>
+                                                            {stageName}
+                                                        </p>
+                                                        {room.last_message_at && (
+                                                            <span className="text-xs text-gray-600 shrink-0">{formatTime(room.last_message_at)}</span>
+                                                        )}
+                                                    </div>
+                                                    <p className={`text-xs truncate mt-0.5 ${hasActivity ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                        {room.last_message || 'No messages yet'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
                             </div>
                         )
                     })}
