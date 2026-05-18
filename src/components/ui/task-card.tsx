@@ -81,7 +81,7 @@ const TaskCard = React.forwardRef<HTMLDivElement, TaskCardProps>(
       <Card
         ref={ref}
         className={cn(
-          "cursor-pointer transition-all duration-200 hover:shadow-md",
+          "cursor-pointer transition-all duration-200 hover:shadow-md overflow-hidden",
           "bg-gray-900 border-gray-700 hover:border-gray-600",
           {
             "opacity-50 rotate-3 scale-105": isDragging,
