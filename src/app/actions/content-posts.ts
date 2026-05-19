@@ -497,22 +497,46 @@ export async function getClientsForContent(): Promise<{
 }> {
     try {
         const supabase = await getSupabaseClient()
+        const admin = createAdminClient()
 
         const { data: { user }, error: userError } = await supabase.auth.getUser()
         if (userError || !user) {
             return { data: null, error: 'Unauthorized' }
         }
 
-        const { data, error } = await supabase
-            .from('clients')
-            .select('id, name')
-            .order('name')
+        // Check if user is admin
+        const { data: profile } = await admin
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
 
-        if (error) {
-            console.error('Error fetching clients:', error)
-            return { data: null, error: error.message }
+        if (profile?.role === 'admin') {
+            // Admins see all clients
+            const { data, error } = await admin
+                .from('clients')
+                .select('id, name')
+                .order('name')
+            if (error) return { data: null, error: error.message }
+            return { data: data || [], error: null }
         }
 
+        // Non-admins (Akhilesh Ji, PR dept users) see only clients shared with them
+        const { data: shares } = await admin
+            .from('client_shares')
+            .select('client_id')
+            .eq('shared_with_user_id', user.id)
+
+        if (!shares || shares.length === 0) return { data: [], error: null }
+
+        const clientIds = shares.map(s => s.client_id)
+        const { data, error } = await admin
+            .from('clients')
+            .select('id, name')
+            .in('id', clientIds)
+            .order('name')
+
+        if (error) return { data: null, error: error.message }
         return { data: data || [], error: null }
     } catch (error) {
         console.error('Error in getClientsForContent:', error)
