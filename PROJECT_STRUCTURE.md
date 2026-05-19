@@ -121,151 +121,215 @@ spaceship-main/
 ├── src/
 │   ├── app/
 │   │   ├── actions/
-│   │   │   ├── admin-calendar.ts        # Server actions for content calendar CRUD
-│   │   │   ├── admin-departments.ts     # Server actions for department management
-│   │   │   ├── admin-documents.ts       # Server actions for knowledge-base documents
-│   │   │   ├── admin-kanban.ts          # Server actions for kanban tasks + email on assign/move
-│   │   │   ├── admin-team.ts            # Server actions for team member management
-│   │   │   ├── ai-analysis.ts           # AI-powered client/content analysis actions
+│   │   │   ├── admin-calendar.ts        # Content calendar CRUD
+│   │   │   ├── admin-departments.ts     # Department management
+│   │   │   ├── admin-documents.ts       # Knowledge-base document CRUD
+│   │   │   ├── admin-kanban.ts          # Kanban tasks + email + in-app notifications on assign/move
+│   │   │   ├── admin-stats.ts           # Dashboard stats aggregation
+│   │   │   ├── admin-team.ts            # Team member management (parallel queries)
+│   │   │   ├── ai-analysis.ts           # AI-powered client/content analysis
 │   │   │   ├── ai-chat.ts               # Gemini/Groq AI chat with fallback logic
-│   │   │   ├── assets.ts                # Server actions for file/asset management
-│   │   │   ├── chat.ts                  # Messaging/chat server actions (text + photo/video)
-│   │   │   ├── client-demographics.ts   # Client demographic data server actions
-│   │   │   ├── client-intelligence.ts   # Client intelligence/insights server actions
+│   │   │   ├── approval.ts              # Send for final approval → Final Approval chat room
+│   │   │   ├── approvals.ts             # Approval request helpers
+│   │   │   ├── assets.ts                # File/asset management
+│   │   │   ├── campaigns.ts             # Client campaign CRUD
+│   │   │   ├── chat.ts                  # Messaging/chat (text + photo/video)
+│   │   │   ├── client-demographics.ts   # Client demographic data
+│   │   │   ├── client-intelligence.ts   # Client intelligence/news/insights
 │   │   │   ├── client-sharing.ts        # Share clients with specific users
-│   │   │   ├── content-posts.ts         # Social content post CRUD actions
-│   │   │   └── user-clients.ts          # Fetch clients shared with a regular user
+│   │   │   ├── content-posts.ts         # Social content posts; routes messages to correct workflow stage room
+│   │   │   ├── grid-plans.ts            # Grid planner layout persistence
+│   │   │   ├── invite-client.ts         # Client invite flow
+│   │   │   ├── message-templates.ts     # Messaging bank template CRUD
+│   │   │   ├── notifications.ts         # createNotificationForUser / notifyAdmins
+│   │   │   ├── photo-approval.ts        # Photo approval token flow
+│   │   │   ├── photo-workflow.ts        # Photo capture → storage → client asset workflow
+│   │   │   ├── projects.ts              # Kanban project CRUD
+│   │   │   ├── settings.ts              # Admin settings
+│   │   │   ├── user-calendar.ts         # Calendar events for regular users
+│   │   │   ├── user-clients.ts          # Clients shared with a user (admin client bypasses RLS)
+│   │   │   ├── user-departments.ts      # Department info for regular users
+│   │   │   ├── user-documents.ts        # Dept-scoped documents + getMyDepartmentName()
+│   │   │   ├── user-tasks.ts            # Tasks assigned to a regular user
+│   │   │   └── weekly-reports.ts        # Weekly report generation
 │   │   ├── admin/
 │   │   │   ├── assets/page.tsx          # Standalone admin assets page
-│   │   │   ├── freepik/page.tsx         # Freepik stock asset browser page
-│   │   │   ├── istock/page.tsx          # iStock asset browser page
-│   │   │   └── page.tsx                 # Main admin dashboard shell (lazy-mount tabs, mobile-ready)
+│   │   │   ├── freepik/page.tsx         # Freepik stock asset browser
+│   │   │   ├── istock/page.tsx          # iStock asset browser
+│   │   │   └── page.tsx                 # Admin dashboard shell (lazy-mount tabs, mobile-ready)
 │   │   ├── api/
-│   │   │   ├── admin/users/route.ts     # REST endpoint: list/manage auth users
-│   │   │   ├── ai/generate-content/route.ts  # REST endpoint: AI social content generation
-│   │   │   ├── approval-reminders/route.ts   # Cron endpoint: send approval reminder emails
-│   │   │   ├── auth/profile/route.ts    # REST endpoint: fetch current user profile
-│   │   │   ├── clients/[id]/route.ts    # REST endpoint: single client CRUD
-│   │   │   ├── clients/route.ts         # REST endpoint: clients list
-│   │   │   ├── documents/route.ts       # REST endpoint: documents list
-│   │   │   ├── freepik-download/route.ts      # Proxy: download assets from Freepik
-│   │   │   ├── istock-download/route.ts       # Proxy: download assets from iStock
-│   │   │   ├── istock-media-manager/route.ts  # Proxy: iStock media management API
+│   │   │   ├── admin/users/route.ts     # List/manage auth users
+│   │   │   ├── ai/generate-content/route.ts  # AI social content generation
+│   │   │   ├── approval-reminders/route.ts   # Cron: send approval reminder emails every 5 min
+│   │   │   ├── auth/profile/route.ts    # Fetch current user profile
+│   │   │   ├── clients/[id]/route.ts    # Single client CRUD
+│   │   │   ├── clients/route.ts         # Clients list + auto-creates 6 workflow rooms on new client
+│   │   │   ├── demo-seed/route.ts       # Seed demo data
+│   │   │   ├── documents/route.ts       # Documents list
+│   │   │   ├── freepik-download/route.ts      # Proxy: download from Freepik
+│   │   │   ├── istock-download/route.ts       # Proxy: download from iStock
+│   │   │   ├── istock-media-manager/route.ts  # Proxy: iStock media management
+│   │   │   ├── setup/                   # One-time migration/fix/backfill endpoints
+│   │   │   │   ├── add-akhilesh-workflow-rooms/route.ts
+│   │   │   │   ├── add-vikas-rakesh-content-posting/route.ts
+│   │   │   │   ├── add-vikas-rakesh-stage1/route.ts
+│   │   │   │   ├── check-ganesh-workflow/route.ts
+│   │   │   │   ├── check-ishika/route.ts
+│   │   │   │   ├── check-rupin/route.ts
+│   │   │   │   ├── fix-deepanshu/route.ts
+│   │   │   │   ├── fix-deepanshu-dept/route.ts
+│   │   │   │   ├── fix-ganesh-workflow-members/route.ts
+│   │   │   │   ├── fix-iqra/route.ts
+│   │   │   │   ├── fix-mohit/route.ts
+│   │   │   │   ├── fix-profile-emails/route.ts
+│   │   │   │   ├── fix-rupin/route.ts
+│   │   │   │   ├── fix-utkarsh/route.ts
+│   │   │   │   ├── fix-vikas-rakesh/route.ts
+│   │   │   │   ├── migrate-assets-date-folders/route.ts
+│   │   │   │   ├── remove-vikas-rakesh-stages-2-3/route.ts
+│   │   │   │   ├── reset-all-passwords/route.ts
+│   │   │   │   ├── share-ganesh-team/route.ts
+│   │   │   │   └── share-ganesh-vikas-rakesh/route.ts
 │   │   │   ├── telegram/
-│   │   │   │   ├── setup/route.ts       # One-time endpoint to register Telegram webhook URL
-│   │   │   │   └── webhook/route.ts     # Receives Telegram updates, saves media to Supabase
+│   │   │   │   ├── setup/route.ts       # Register Telegram webhook URL
+│   │   │   │   └── webhook/route.ts     # Receive Telegram updates → save media to Supabase
+│   │   │   ├── test/route.ts            # Health check endpoint
 │   │   │   └── whatsapp/webhook/route.ts      # Twilio WhatsApp webhook (configured, not active)
+│   │   ├── approve/
+│   │   │   ├── [token]/
+│   │   │   │   ├── page.tsx             # Content approval landing page (token-based)
+│   │   │   │   └── ApprovalClient.tsx   # Client component for approval UI
+│   │   │   └── photo/[token]/
+│   │   │       ├── page.tsx             # Photo approval landing page
+│   │   │       └── PhotoApprovalClient.tsx
 │   │   ├── auth/
-│   │   │   ├── auth-code-error/page.tsx # Error page for OAuth code exchange failures
-│   │   │   ├── callback/page.tsx        # Supabase OAuth callback — handles invite/recovery/login tokens
-│   │   │   ├── confirm-email/page.tsx   # Email confirmation landing page
-│   │   │   ├── forgot-password/page.tsx # Trigger password reset email
-│   │   │   ├── login/page.tsx           # Email/password login page
-│   │   │   ├── reset-password/page.tsx  # Reset password with recovery token
+│   │   │   ├── auth-code-error/page.tsx
+│   │   │   ├── callback/page.tsx        # Supabase OAuth callback
+│   │   │   ├── confirm-email/page.tsx
+│   │   │   ├── forgot-password/page.tsx
+│   │   │   ├── login/page.tsx
+│   │   │   ├── reset-password/page.tsx
 │   │   │   ├── set-password/page.tsx    # Set password for new invited users
-│   │   │   └── signup/page.tsx          # New user registration page
-│   │   ├── dashboard/
-│   │   │   └── page.tsx                 # User dashboard shell (lazy-mount tabs, mobile-ready)
-│   │   ├── task/[id]/
-│   │   │   └── page.tsx                 # Individual task view page
-│   │   ├── globals.css                  # Primary global styles and Tailwind base
+│   │   │   └── signup/page.tsx
+│   │   ├── client/page.tsx              # Public client-facing page
+│   │   ├── dashboard/page.tsx           # User dashboard shell (lazy-mount, special-user routing)
+│   │   ├── task/[id]/page.tsx           # Individual task view
+│   │   ├── test-styles/page.tsx         # Style testing page
+│   │   ├── globals.css
 │   │   ├── layout.tsx                   # Root layout: AuthProvider, SWRProvider, fonts
-│   │   └── page.tsx                     # Landing/home page with auth redirect
+│   │   └── page.tsx                     # Landing page with auth redirect
 │   ├── components/
 │   │   ├── admin/
 │   │   │   ├── assets/
-│   │   │   │   ├── AdminAssets.tsx      # Admin asset library management UI
-│   │   │   │   ├── AssetGrid.tsx        # Grid display for uploaded assets
-│   │   │   │   └── AssetUploader.tsx    # Drag-and-drop asset upload component
+│   │   │   │   ├── AdminAssets.tsx
+│   │   │   │   ├── AssetGrid.tsx
+│   │   │   │   └── AssetUploader.tsx
+│   │   │   ├── assignments/
+│   │   │   │   └── AdminAssignments.tsx # Task assignment management
 │   │   │   ├── clients/
-│   │   │   │   ├── AdminClients.tsx     # Main client management panel
-│   │   │   │   ├── ClientAssets.tsx     # Assets linked to a specific client
-│   │   │   │   ├── ClientChat.tsx       # AI chat panel scoped to a client
-│   │   │   │   ├── ClientDemographics.tsx   # Demographic charts for a client
-│   │   │   │   ├── ClientNewsPanel.tsx  # Live news feed related to a client
-│   │   │   │   ├── ClientSharing.tsx    # UI to share a client with team members
-│   │   │   │   ├── ClientTwitterFeed.tsx    # Twitter/X feed embed for a client
-│   │   │   │   └── ManifestoPriorities.tsx  # Client manifesto/priority editor
+│   │   │   │   ├── AdminClients.tsx
+│   │   │   │   ├── ClientAssets.tsx
+│   │   │   │   ├── ClientCampaigns.tsx  # Client campaign UI
+│   │   │   │   ├── ClientChat.tsx
+│   │   │   │   ├── ClientDemographics.tsx
+│   │   │   │   ├── ClientNewsPanel.tsx
+│   │   │   │   ├── ClientSharing.tsx
+│   │   │   │   ├── ClientTwitterFeed.tsx
+│   │   │   │   └── ManifestoPriorities.tsx
 │   │   │   ├── content/
-│   │   │   │   ├── ContentCreator.tsx   # AI-assisted social content creation UI (mobile dialogs)
-│   │   │   │   └── GridPlanner.tsx      # Drag-and-drop social post grid planner (responsive)
+│   │   │   │   ├── AnySegen.tsx         # AnyaSegen content status view
+│   │   │   │   ├── ContentCreator.tsx   # AI-assisted content creation (mobile dialogs)
+│   │   │   │   ├── ContentHub.tsx       # Content tab shell (creator + grid planner tabs)
+│   │   │   │   ├── GridPlanner.tsx      # Drag-and-drop social post grid planner
+│   │   │   │   └── MessagingBank.tsx    # Saved messaging templates
 │   │   │   ├── departments/
-│   │   │   │   └── AdminDepartments.tsx # Department list and editor
+│   │   │   │   └── AdminDepartments.tsx
 │   │   │   ├── documents/
-│   │   │   │   └── AdminDocuments.tsx   # Knowledge-base document manager
+│   │   │   │   └── AdminDocuments.tsx
+│   │   │   ├── photos/
+│   │   │   │   └── PhotoWorkflow.tsx    # Photo capture → approval → publish workflow
+│   │   │   ├── settings/
+│   │   │   │   └── AdminSettings.tsx
 │   │   │   ├── team/
-│   │   │   │   └── AdminTeamMembers.tsx # Team member list, invite, and role editor
-│   │   │   ├── AdminCalendar.tsx        # Content calendar with scheduling UI
-│   │   │   └── AdminKanban.tsx          # Drag-and-drop kanban board (mobile-responsive)
+│   │   │   │   └── AdminTeamMembers.tsx
+│   │   │   ├── AdminCalendar.tsx
+│   │   │   ├── AdminKanban.tsx          # Kanban: clickable stat cards, calendar date-range filter
+│   │   │   ├── AdminWeeklyReports.tsx
+│   │   │   └── AnySegenRights.tsx       # Rights/permissions overview
 │   │   ├── user/
-│   │   │   ├── ChatPanel.tsx            # Team chat: direct + group, text + photo/video sharing
-│   │   │   ├── SharedClients.tsx        # Clients shared with the current user (SWR cached)
-│   │   │   ├── UserCalendar.tsx         # Calendar view for regular users
-│   │   │   └── UserTasks.tsx            # Task list for regular users
+│   │   │   ├── AkhileshApproval.tsx     # Final approval UI for Akhilesh Ji
+│   │   │   ├── ChatPanel.tsx            # Team chat: direct + group, text + photo/video
+│   │   │   ├── SharedClients.tsx        # Shared clients with RLS-bypass detail view
+│   │   │   ├── UserAssets.tsx           # Asset library for regular users
+│   │   │   ├── UserCalendar.tsx
+│   │   │   ├── UserDepartments.tsx
+│   │   │   ├── UserTasks.tsx
+│   │   │   └── WeeklyReport.tsx
 │   │   ├── ui/
-│   │   │   ├── badge.tsx                # Shadcn badge primitive
-│   │   │   ├── button.tsx               # Shadcn button with CVA variants
-│   │   │   ├── calendar.tsx             # Shadcn calendar (date picker)
-│   │   │   ├── card.tsx                 # Shadcn card container
-│   │   │   ├── dialog.tsx               # Shadcn modal/dialog
-│   │   │   ├── dropdown-menu.tsx        # Shadcn dropdown menu
-│   │   │   ├── event-modal.tsx          # Modal for creating/editing calendar events
-│   │   │   ├── input.tsx                # Shadcn text input
-│   │   │   ├── kanban-board.tsx         # Kanban column and card layout primitives
-│   │   │   ├── label.tsx                # Shadcn form label
-│   │   │   ├── loading.tsx              # Spinner/skeleton loading states
-│   │   │   ├── scroll-area.tsx          # Shadcn scrollable container
-│   │   │   ├── select.tsx               # Shadcn select/dropdown
-│   │   │   ├── table.tsx                # Shadcn data table
-│   │   │   ├── tabs.tsx                 # Shadcn tab navigation
-│   │   │   ├── task-card.tsx            # Kanban task card display
-│   │   │   ├── task-modal.tsx           # Modal for creating/editing kanban tasks (mobile-safe)
-│   │   │   ├── textarea.tsx             # Shadcn textarea input
-│   │   │   └── tooltip.tsx              # Shadcn tooltip
-│   │   ├── AdminRoute.tsx               # Route guard: redirects non-admins
-│   │   ├── ErrorBoundary.tsx            # React error boundary for graceful failures
-│   │   ├── LazyComponents.tsx           # Dynamic imports for code-split dashboard sections
-│   │   ├── Logo.tsx                     # Brand logo component
-│   │   ├── ProtectedRoute.tsx           # Route guard: redirects unauthenticated users
-│   │   ├── Sidebar.tsx                  # Sidebar: desktop sticky + mobile overlay drawer
-│   │   ├── SWRProvider.tsx              # SWR global config/cache provider
-│   │   └── UserRoute.tsx                # Route guard: redirects non-regular-users
+│   │   │   ├── badge.tsx
+│   │   │   ├── button.tsx
+│   │   │   ├── calendar.tsx             # Custom month-view calendar (used in AdminCalendar)
+│   │   │   ├── card.tsx
+│   │   │   ├── dialog.tsx
+│   │   │   ├── dropdown-menu.tsx
+│   │   │   ├── event-modal.tsx
+│   │   │   ├── input.tsx
+│   │   │   ├── kanban-board.tsx
+│   │   │   ├── label.tsx
+│   │   │   ├── loading.tsx
+│   │   │   ├── scroll-area.tsx
+│   │   │   ├── select.tsx
+│   │   │   ├── table.tsx
+│   │   │   ├── tabs.tsx
+│   │   │   ├── task-card.tsx
+│   │   │   ├── task-modal.tsx
+│   │   │   ├── textarea.tsx
+│   │   │   └── tooltip.tsx
+│   │   ├── AdminRoute.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── LazyComponents.tsx
+│   │   ├── Logo.tsx
+│   │   ├── ProtectedRoute.tsx
+│   │   ├── Sidebar.tsx                  # Sidebar: admin / user / Akhilesh / Vikas-Rakesh menu sets
+│   │   ├── SWRProvider.tsx
+│   │   └── UserRoute.tsx
 │   ├── hooks/
 │   │   ├── admin/
-│   │   │   ├── useDepartments.ts        # SWR hook to fetch department list
-│   │   │   └── useDocuments.ts          # SWR hook to fetch documents
-│   │   ├── useClients.ts                # SWR hook to fetch clients
-│   │   ├── useEvents.ts                 # SWR hook to fetch calendar events
-│   │   ├── useSWR.ts                    # Generic typed SWR wrapper (chat, clients, tasks)
-│   │   └── useTasks.ts                  # SWR hook to fetch kanban tasks
+│   │   │   ├── useDepartments.ts
+│   │   │   └── useDocuments.ts
+│   │   ├── useClients.ts
+│   │   ├── useEvents.ts
+│   │   ├── useSWR.ts                    # SWR hooks: shared clients, chat, tasks, admin team
+│   │   └── useTasks.ts
 │   ├── lib/
 │   │   ├── supabase/
-│   │   │   ├── admin.ts                 # Service-role Supabase client (server-only)
-│   │   │   ├── client.ts                # Browser Supabase client for client components
-│   │   │   ├── middleware.ts            # Session refresh + JWT-based role redirect (no DB call)
-│   │   │   └── server.ts                # Cookie-based Supabase client for server components
-│   │   ├── admin-helper.ts              # Utility helpers for admin server actions
-│   │   ├── auth.tsx                     # AuthProvider: session, profile (sessionStorage cached), signOut
-│   │   ├── demographics-constants.ts    # Static options for demographic form fields
-│   │   ├── email.ts                     # Resend: task assignment, status update, approval, meeting invite
-│   │   ├── errors.ts                    # Typed error classes and error handling utils
+│   │   │   ├── admin.ts                 # Service-role client (server-only)
+│   │   │   ├── client.ts                # Browser client (with env var guard)
+│   │   │   ├── middleware.ts            # Session refresh middleware
+│   │   │   └── server.ts               # Cookie-based server client
+│   │   ├── admin-helper.ts
+│   │   ├── auth.tsx                     # AuthProvider: 5s timeout fallback, sessionStorage cache
+│   │   ├── demographics-constants.ts
+│   │   ├── email.ts                     # Resend: task assign, status change, approval, meeting
+│   │   ├── errors.ts
 │   │   ├── supabase.ts                  # Legacy browser client re-export
 │   │   ├── supabase-server.ts           # Legacy server client re-export
-│   │   └── utils.ts                     # General utility functions (cn, etc.)
+│   │   ├── utils.ts
+│   │   └── whatsapp.ts                  # Twilio WhatsApp helper (configured, not active)
 │   └── middleware.ts                    # Next.js middleware: session refresh on every request
 ├── docs/
-│   ├── supabase-best-practices.md       # Internal Supabase usage guidelines
-│   └── supabase-issues-analysis.md      # Analysis of past Supabase auth/query issues
-├── deck/                                # Static portfolio/pitch deck images and HTML
-├── ANYA_SEGEN_MASTER_SUMMARY.md         # Full stakeholder, workflow, and requirements document
-├── BUGS_REPORT.html                     # Complete bug report — 20 bugs fixed across 5 categories
-├── PROJECT_STRUCTURE.md                 # This file — feature status, infra notes, file tree
-├── CLAUDE.md                            # Claude Code project instructions
+│   ├── supabase-best-practices.md
+│   └── supabase-issues-analysis.md
+├── deck/                                # Static portfolio/pitch deck assets
+├── ANYA_SEGEN_MASTER_SUMMARY.md
+├── BUGS_REPORT.html
+├── PROJECT_STRUCTURE.md                 # This file
+├── CLAUDE.md
 ├── vercel.json                          # Vercel cron config (approval-reminders every 5 min)
-├── next.config.js                       # Next.js config (image domains, redirects)
-├── tailwind.config.js                   # Tailwind CSS configuration
-├── postcss.config.js                    # PostCSS config for Tailwind
-├── tsconfig.json                        # TypeScript config with @/* path alias
-├── package.json                         # Dependencies and npm scripts
-└── .env.local                           # Local environment variables (not committed)
+├── next.config.js
+├── tailwind.config.js
+├── postcss.config.js
+├── tsconfig.json
+├── package.json
+└── .env.local                           # Not committed
 ```
