@@ -89,29 +89,17 @@ export default function ContentCreator() {
     }, [])
 
     const fetchData = async () => {
-        console.log('[ContentCreator] Starting fetchData...')
         setLoading(true)
-
         try {
-            // Fetch posts using server action
-            console.log('[ContentCreator] Fetching posts...')
-            const postsResult = await getContentPosts()
-            console.log('[ContentCreator] Posts fetched:', postsResult.data?.length || 0)
-            if (postsResult.data) {
-                setPosts(postsResult.data)
-            }
-
-            // Fetch clients using server action (not browser client)
-            console.log('[ContentCreator] Fetching clients...')
-            const clientsResult = await getClientsForContent()
-            console.log('[ContentCreator] Clients fetched:', clientsResult.data?.length || 0)
+            const [postsResult, clientsResult] = await Promise.all([
+                getContentPosts(),
+                getClientsForContent(),
+            ])
+            if (postsResult.data) setPosts(postsResult.data)
             setClients(clientsResult.data || [])
-
-            console.log('[ContentCreator] All fetches complete!')
         } catch (error) {
             console.error('[ContentCreator] Error fetching data:', error)
         } finally {
-            console.log('[ContentCreator] Setting loading to false')
             setLoading(false)
         }
     }

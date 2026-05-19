@@ -99,17 +99,19 @@ export default function UserDashboard() {
 
   const [documents, setDocuments] = useState<Document[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
-  const [departmentName, setDepartmentName] = useState<string>('')
+
+  // Department name comes from profile (no extra fetch needed)
+  const departmentName = profile?.department_name ?? ''
 
   const fetchDocuments = useCallback(async () => {
+    setLoading(true)
     try {
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 8000)
       )
-      const { data, departmentName: deptName } = await Promise.race([getMyDocuments(), timeout])
-      setDepartmentName(deptName)
+      const { data } = await Promise.race([getMyDocuments(), timeout])
       setDocuments(data)
     } catch (err) {
       console.error('Error in fetchDocuments:', err)
@@ -118,9 +120,12 @@ export default function UserDashboard() {
     }
   }, [])
 
+  // Only fetch documents when knowledge-base tab is first visited
   useEffect(() => {
-    fetchDocuments()
-  }, [])
+    if (activeTab === 'knowledge-base' && !isVikasRakesh && !isAkhilesh && documents.length === 0 && !loading) {
+      fetchDocuments()
+    }
+  }, [activeTab, isVikasRakesh, isAkhilesh])
 
   const filteredDocuments = documents.filter(doc =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

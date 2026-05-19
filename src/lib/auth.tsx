@@ -13,6 +13,7 @@ interface Profile {
   last_name: string
   role: string
   department_id: string | null
+  department_name: string | null
 }
 
 interface AuthContextType {
@@ -65,11 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {}
 
       // Fetch fresh from DB in background
-      const { data } = await supabase
+      const { data: rawProfile } = await supabase
         .from('profiles')
-        .select('id, email, first_name, last_name, role, department_id')
+        .select('id, email, first_name, last_name, role, department_id, departments(name)')
         .eq('id', currentUser.id)
         .maybeSingle()
+      const data = rawProfile ? {
+        ...rawProfile,
+        department_name: (rawProfile as any).departments?.name ?? null,
+      } : null
       if (mounted && data) {
         setProfile(data)
         try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(data)) } catch {}
