@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown, Calendar } from "lucide-react";
+import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,8 +64,7 @@ export default function AdminKanban() {
   const [filterProject, setFilterProject] = React.useState<string>("all");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
-  const [filterDateFrom, setFilterDateFrom] = React.useState<string>("");
-  const [filterDateTo, setFilterDateTo] = React.useState<string>("");
+  const [filterDate, setFilterDate] = React.useState<string>("all");
 
   // Project management state
   const [isProjectModalOpen, setIsProjectModalOpen] = React.useState(false);
@@ -217,10 +216,15 @@ export default function AdminKanban() {
       (filterStatus === "overdue"
         ? task.due_date && new Date(task.due_date) < now && task.status !== 'completed' && task.status !== 'cancelled'
         : task.status === filterStatus);
-    const taskDate = new Date(task.created_at);
-    const matchesDateFrom = !filterDateFrom || taskDate >= new Date(filterDateFrom);
-    const matchesDateTo = !filterDateTo || taskDate <= new Date(filterDateTo + 'T23:59:59');
-    return matchesSearch && matchesPriority && matchesAssignee && matchesProject && matchesStatus && matchesDateFrom && matchesDateTo;
+    let matchesDate = true;
+    if (filterDate !== "all") {
+      const taskDate = new Date(task.created_at);
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (filterDate === "today") matchesDate = taskDate >= today;
+      else if (filterDate === "week") { const w = new Date(today); w.setDate(today.getDate() - 7); matchesDate = taskDate >= w; }
+      else if (filterDate === "month") { const m = new Date(today); m.setDate(today.getDate() - 30); matchesDate = taskDate >= m; }
+    }
+    return matchesSearch && matchesPriority && matchesAssignee && matchesProject && matchesStatus && matchesDate;
   });
 
   const kanbanTasks: KanbanTask[] = filteredTasks.map(task => ({
@@ -417,39 +421,17 @@ export default function AdminKanban() {
             </SelectContent>
           </Select>
 
-          {/* Date range filter */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <Calendar className="h-4 w-4 absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
-              <input
-                type="date"
-                value={filterDateFrom}
-                onChange={e => setFilterDateFrom(e.target.value)}
-                title="Assigned from"
-                className="pl-9 pr-3 py-2 bg-gray-900 border border-gray-700 text-white rounded-md text-sm w-40 focus:outline-none focus:border-blue-500 [color-scheme:dark]"
-              />
-            </div>
-            <span className="text-gray-500 text-sm">to</span>
-            <div className="relative">
-              <Calendar className="h-4 w-4 absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
-              <input
-                type="date"
-                value={filterDateTo}
-                onChange={e => setFilterDateTo(e.target.value)}
-                title="Assigned to"
-                className="pl-9 pr-3 py-2 bg-gray-900 border border-gray-700 text-white rounded-md text-sm w-40 focus:outline-none focus:border-blue-500 [color-scheme:dark]"
-              />
-            </div>
-            {(filterDateFrom || filterDateTo) && (
-              <button
-                onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
-                className="text-gray-500 hover:text-white transition-colors"
-                title="Clear date filter"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <Select value={filterDate} onValueChange={setFilterDate}>
+            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
+              <SelectValue placeholder="Assigned Date" />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-gray-700">
+              <SelectItem value="all">All Dates</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="month">Last 30 Days</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Board */}
