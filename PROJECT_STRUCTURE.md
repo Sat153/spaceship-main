@@ -9,11 +9,14 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 | Admin dashboard | ✅ Live | Full tab-driven shell with lazy-loaded sections |
 | User dashboard | ✅ Live | My Clients, My Tasks, Calendar, Messages, Knowledge Base, Profile |
 | Mobile responsive layout | ✅ Done | Sidebar drawer overlay, responsive grids, mobile modals |
-| Kanban board | ✅ Live | Drag-and-drop, dept filter, auto hours, task modal |
+| Kanban board | ✅ Live | Drag-and-drop, dept filter, clickable stat cards, calendar date-range picker popover |
 | Content calendar | ✅ Live | Month/week/day view, event scheduling |
 | AI content generation | ✅ Live | Gemini 2.5 Flash Lite primary, Groq fallback |
 | Grid planner (content) | ✅ Live | Drag-and-drop post grid with platform columns |
 | Task assignment emails | ✅ Working | Resend + anyasegen.com Zoho domain; sends on assign & status change |
+| In-app notifications | ✅ Live | Task assignment, workflow group membership, content approval events |
+| Content workflow routing | ✅ Fixed | Internal Review (stage 3) → Final Approval (stage 4); correct chat room routing |
+| Shared client detail view | ✅ Fixed | Admin client bypasses RLS; Back button uses selectedClientId state not SWR cache |
 | Zoho Mail DNS setup | ✅ Complete | MX, SPF (merged), DKIM, DMARC all verified on anyasegen.com |
 | Knowledge base (docs) | ✅ Live | Dept-scoped, published-only docs for regular users |
 | Client management | ✅ Live | Admin CRUD + sharing with specific users |
@@ -24,7 +27,7 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 | Telegram media capture | ✅ Live | Bot captures photos/videos from groups → Supabase Storage → Client Files |
 | Photo sharing in chat | ✅ Live | Team members can send images/videos in Messages tab |
 | Vercel deployment | ✅ Live | app.anyasegen.com — domain verified and assigned to correct project |
-| Dashboard performance | ✅ Optimised | Lazy-mount tabs, sessionStorage profile cache, parallel DB queries |
+| Dashboard performance | ✅ Optimised | Lazy-mount tabs, sessionStorage profile cache, parallel DB queries, 5s auth timeout fallback |
 
 ## Team & Access
 
@@ -40,6 +43,14 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 | Iqra | iqra@anyasegen.com | Operations & Strategy | ✅ |
 
 All 8 team members have Ganesh Joshi shared in their My Clients section.
+
+## Special Users
+
+| Name | Email | Access | Notes |
+|---|---|---|---|
+| Akhilesh Ji | satyamkr2806@gmail.com | Messages, Approvals, Content, Notifications, Profile | Final approval authority for content posts |
+| Vikas | vikas@anyasegen.com | Clients, Messages, Assets, Weekly Report, Notifications, Profile | Restricted sidebar |
+| Rakesh | rakesh@anyasegen.com | Clients, Messages, Assets, Weekly Report, Notifications, Profile | Restricted sidebar |
 
 ## Telegram Bot
 
