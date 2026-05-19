@@ -44,6 +44,7 @@ const AKHILESH_EMAIL = 'satyamkr2806@gmail.com'
 const akhileshMenuItems = [
   { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-violet-400 to-purple-500' },
   { id: 'approval', label: 'Approvals', icon: CheckCircle2, color: 'from-green-400 to-emerald-500' },
+  { id: 'content', label: 'Content', icon: PenTool, color: 'from-pink-400 to-rose-500' },
   { id: 'notifications', label: 'Notifications', icon: Bell, color: 'from-rose-400 to-pink-500' },
   { id: 'profile', label: 'My Profile', icon: User, color: 'from-pink-400 to-rose-500' },
 ]

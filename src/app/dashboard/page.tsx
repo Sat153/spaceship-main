@@ -36,7 +36,7 @@ const VIKAS_RAKESH_EMAILS = ['vikas@anyasegen.com', 'rakesh@anyasegen.com']
 const AKHILESH_EMAIL = 'satyamkr2806@gmail.com'
 
 const VIKAS_RAKESH_VALID_TABS = new Set(['clients', 'messages', 'assets', 'weekly-report', 'notifications', 'profile'])
-const AKHILESH_VALID_TABS = new Set(['messages', 'approval', 'notifications', 'profile'])
+const AKHILESH_VALID_TABS = new Set(['messages', 'approval', 'content', 'notifications', 'profile'])
 
 function getInitialTab(): string {
   return 'clients'
