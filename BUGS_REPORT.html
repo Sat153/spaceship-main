@@ -209,7 +209,7 @@
     <h1>Bug Report</h1>
     <p>All bugs identified and resolved during the development of the ANYA SEGEN Agency Operations Platform</p>
     <div class="meta">
-      <span><strong>20</strong> Total Bugs Fixed</span>
+      <span><strong>25</strong> Total Bugs Fixed</span>
       <span><strong>5</strong> Categories</span>
       <span><strong>May 2026</strong> Report Date</span>
       <span><strong>Satyam</strong> Engineer</span>
@@ -654,10 +654,121 @@
       </div>
     </div>
 
+    <!-- UI / Layout Bugs (continued) -->
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ui">21</div>
+        <div>
+          <div class="bug-title">"Back to Clients" Button Frozen After Viewing Client Detail</div>
+          <div class="bug-subtitle">src/components/user/SharedClients.tsx</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>SWR v2 retains cached data even when its key is set to <code>null</code>. The detail view was rendered based on <code>if (selectedClient)</code> (the SWR result), so even after clearing <code>selectedClientId</code>, the cached client object remained truthy and the view never unmounted — the Back button appeared to do nothing.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Changed the view condition from <code>if (selectedClient)</code> to <code>if (selectedClientId)</code> — React state, not SWR cache. Back button now immediately returns to list view regardless of what SWR has cached.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deployment, Auth & Integration Bugs (continued) -->
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">22</div>
+        <div>
+          <div class="bug-title">Akhilesh Ji Content Tab Not Appearing After Sidebar Update</div>
+          <div class="bug-subtitle">src/app/dashboard/page.tsx</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The Content tab was added to Akhilesh Ji's sidebar menu items, but <code>AKHILESH_VALID_TABS</code> in <code>dashboard/page.tsx</code> was never updated to include <code>'content'</code>. Clicking the tab silently redirected to the notifications tab instead of loading content.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added <code>'content'</code> to <code>AKHILESH_VALID_TABS</code>: <code>new Set(['messages', 'approval', 'content', 'notifications', 'profile'])</code>. Content tab now mounts correctly on first visit via the lazy-mount pattern.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">23</div>
+        <div>
+          <div class="bug-title">Ishika's Client Detail View Not Loading — RLS Block</div>
+          <div class="bug-subtitle">src/app/actions/user-clients.ts — getClientDetails()</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p><code>getClientDetails</code> and <code>getClientFiles</code> used the regular browser Supabase client for DB queries. Ishika is in a different department than the Ganesh Joshi client, so Supabase RLS blocked all reads — clicking "Details" silently returned nothing despite the share being valid.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>After verifying the <code>client_shares</code> entry, all subsequent DB reads switched to <code>createAdminClient()</code> (service-role). Share verification still uses the user's session — admin client is only used after access is confirmed.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI & Content Bugs (continued) -->
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ai">24</div>
+        <div>
+          <div class="bug-title">Content Review Messages Routed to Wrong Workflow Chat Room</div>
+          <div class="bug-subtitle">src/app/actions/admin-content.ts</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>When submitting a post for review and when approving/rejecting at Internal Review, the server action was posting messages to stage 4 (Final Approval) instead of stage 3 (Internal Review). Wrong <code>stage_order</code> value used in the workflow chat room lookup.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Corrected all <code>stage_order</code> references: Internal Review actions now target stage 3, Final Approval actions target stage 4. Verified against the <code>workflow_stages</code> table definition.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ai">25</div>
+        <div>
+          <div class="bug-title">Admin In-App Notifications Missing for Content Workflow Actions</div>
+          <div class="bug-subtitle">src/app/actions/admin-content.ts</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>Content workflow server actions (submit for review, send for final approval) had no calls to <code>createAdminNotification()</code>. Admins received no in-app notification when a post moved through the workflow — they had to check the content list manually to discover pending items.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added <code>createAdminNotification()</code> calls at each workflow trigger point: on submit for review (notifies all admins) and on send for final approval (notifies all admins). Notifications appear in the admin notification badge immediately.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Summary -->
     <div class="summary-box">
       <div class="summary-item">
-        <div class="count">8</div>
+        <div class="count">9</div>
         <div class="label">UI / Layout Bugs</div>
       </div>
       <div class="summary-item">
@@ -665,11 +776,11 @@
         <div class="label">Email &amp; DNS Bugs</div>
       </div>
       <div class="summary-item">
-        <div class="count">2</div>
+        <div class="count">4</div>
         <div class="label">AI / Content Bugs</div>
       </div>
       <div class="summary-item">
-        <div class="count">6</div>
+        <div class="count">8</div>
         <div class="label">Deployment &amp; Auth</div>
       </div>
     </div>
@@ -677,7 +788,7 @@
   </div>
 
   <div class="footer">
-    ANYA SEGEN CRM &nbsp;·&nbsp; Bug Report &nbsp;·&nbsp; May 2026 &nbsp;·&nbsp; All 12 bugs resolved &nbsp;·&nbsp; Ready for production deployment
+    ANYA SEGEN CRM &nbsp;·&nbsp; Bug Report &nbsp;·&nbsp; May 2026 &nbsp;·&nbsp; All 25 bugs resolved &nbsp;·&nbsp; Ready for production deployment
   </div>
 
 </div>
