@@ -14,6 +14,19 @@ export interface UserDocument {
   department_name: string
 }
 
+export async function getMyDepartmentName(): Promise<string> {
+  try {
+    const supabase = createClient(await cookies())
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return ''
+    const admin = createAdminClient()
+    const { data: profile } = await admin.from('profiles').select('department_id').eq('id', user.id).single()
+    if (!profile?.department_id) return ''
+    const { data: dept } = await admin.from('departments').select('name').eq('id', profile.department_id).single()
+    return dept?.name || ''
+  } catch { return '' }
+}
+
 export async function getMyDocuments(): Promise<{ data: UserDocument[]; departmentName: string }> {
   try {
     const supabase = createClient(await cookies())

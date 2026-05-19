@@ -20,7 +20,7 @@ import UserRoute from "@/components/UserRoute"
 import Sidebar from "@/components/Sidebar"
 import { useAuth } from "@/lib/auth"
 import { getNotifications, markAllRead, type Notification } from "@/app/actions/notifications"
-import { getMyDocuments } from "@/app/actions/user-documents"
+import { getMyDocuments, getMyDepartmentName } from "@/app/actions/user-documents"
 
 interface Document {
   id: string
@@ -101,9 +101,11 @@ export default function UserDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [departmentName, setDepartmentName] = useState<string>('')
 
-  // Department name comes from profile (no extra fetch needed)
-  const departmentName = profile?.department_name ?? ''
+  useEffect(() => {
+    getMyDepartmentName().then(setDepartmentName)
+  }, [])
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true)
