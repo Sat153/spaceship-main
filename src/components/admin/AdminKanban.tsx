@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown } from "lucide-react";
+import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown, Calendar } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,9 @@ export default function AdminKanban() {
   const [filterAssignee, setFilterAssignee] = React.useState<string>("all");
   const [filterProject, setFilterProject] = React.useState<string>("all");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [filterStatus, setFilterStatus] = React.useState<string>("all");
+  const [filterDateFrom, setFilterDateFrom] = React.useState<string>("");
+  const [filterDateTo, setFilterDateTo] = React.useState<string>("");
 
   // Project management state
   const [isProjectModalOpen, setIsProjectModalOpen] = React.useState(false);
@@ -209,7 +212,15 @@ export default function AdminKanban() {
     const matchesPriority = filterPriority === "all" || task.priority === filterPriority;
     const matchesAssignee = filterAssignee === "all" || task.assigned_to === filterAssignee;
     const matchesProject = filterProject === "all" || task.project_id === filterProject;
-    return matchesSearch && matchesPriority && matchesAssignee && matchesProject;
+    const now = new Date();
+    const matchesStatus = filterStatus === "all" ||
+      (filterStatus === "overdue"
+        ? task.due_date && new Date(task.due_date) < now && task.status !== 'completed' && task.status !== 'cancelled'
+        : task.status === filterStatus);
+    const taskDate = new Date(task.created_at);
+    const matchesDateFrom = !filterDateFrom || taskDate >= new Date(filterDateFrom);
+    const matchesDateTo = !filterDateTo || taskDate <= new Date(filterDateTo + 'T23:59:59');
+    return matchesSearch && matchesPriority && matchesAssignee && matchesProject && matchesStatus && matchesDateFrom && matchesDateTo;
   });
 
   const kanbanTasks: KanbanTask[] = filteredTasks.map(task => ({
@@ -316,22 +327,31 @@ export default function AdminKanban() {
         {/* Stats */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 md:gap-4 mb-6">
           {[
-            { label: 'Total', value: stats.total, color: 'text-white' },
-            { label: 'To Do', value: stats.todo, color: 'text-gray-400' },
-            { label: 'In Progress', value: stats.in_progress, color: 'text-blue-400' },
-            { label: 'Review', value: stats.review, color: 'text-purple-400' },
-            { label: 'Completed', value: stats.completed, color: 'text-green-400' },
-            { label: 'Overdue', value: stats.overdue, color: stats.overdue > 0 ? 'text-red-400' : 'text-gray-600' },
-          ].map(s => (
-            <Card key={s.label} className={`border-gray-700 ${s.label === 'Overdue' && stats.overdue > 0 ? 'bg-red-900/20 border-red-700/40' : 'bg-gray-900'}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className={`text-sm font-medium ${s.label === 'Overdue' && stats.overdue > 0 ? 'text-red-400' : 'text-gray-400'}`}>{s.label}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-              </CardContent>
-            </Card>
-          ))}
+            { label: 'Total', key: 'all', value: stats.total, color: 'text-white', activeClass: 'ring-2 ring-white/40' },
+            { label: 'To Do', key: 'todo', value: stats.todo, color: 'text-gray-400', activeClass: 'ring-2 ring-gray-400/60' },
+            { label: 'In Progress', key: 'in_progress', value: stats.in_progress, color: 'text-blue-400', activeClass: 'ring-2 ring-blue-500/60' },
+            { label: 'Review', key: 'review', value: stats.review, color: 'text-purple-400', activeClass: 'ring-2 ring-purple-500/60' },
+            { label: 'Completed', key: 'completed', value: stats.completed, color: 'text-green-400', activeClass: 'ring-2 ring-green-500/60' },
+            { label: 'Overdue', key: 'overdue', value: stats.overdue, color: stats.overdue > 0 ? 'text-red-400' : 'text-gray-600', activeClass: 'ring-2 ring-red-500/60' },
+          ].map(s => {
+            const isActive = filterStatus === s.key;
+            return (
+              <Card
+                key={s.label}
+                onClick={() => setFilterStatus(isActive ? 'all' : s.key)}
+                className={`border-gray-700 cursor-pointer transition-all hover:border-gray-500 select-none
+                  ${s.key === 'overdue' && stats.overdue > 0 ? 'bg-red-900/20 border-red-700/40' : 'bg-gray-900'}
+                  ${isActive ? s.activeClass + ' bg-gray-800' : ''}`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className={`text-sm font-medium ${s.key === 'overdue' && stats.overdue > 0 ? 'text-red-400' : 'text-gray-400'}`}>{s.label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Filters */}
@@ -396,6 +416,40 @@ export default function AdminKanban() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* Date range filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Calendar className="h-4 w-4 absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={e => setFilterDateFrom(e.target.value)}
+                title="Assigned from"
+                className="pl-9 pr-3 py-2 bg-gray-900 border border-gray-700 text-white rounded-md text-sm w-40 focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+              />
+            </div>
+            <span className="text-gray-500 text-sm">to</span>
+            <div className="relative">
+              <Calendar className="h-4 w-4 absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={e => setFilterDateTo(e.target.value)}
+                title="Assigned to"
+                className="pl-9 pr-3 py-2 bg-gray-900 border border-gray-700 text-white rounded-md text-sm w-40 focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+              />
+            </div>
+            {(filterDateFrom || filterDateTo) && (
+              <button
+                onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
+                className="text-gray-500 hover:text-white transition-colors"
+                title="Clear date filter"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Board */}
