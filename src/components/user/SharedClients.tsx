@@ -64,6 +64,29 @@ export default function SharedClients() {
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
     }
 
+    // Loading state while fetching client details
+    if (selectedClientId && detailsLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center space-x-4">
+                    <Button variant="outline" onClick={handleBack} className="text-white border-gray-600 hover:bg-gray-700">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Clients
+                    </Button>
+                    <div className="h-7 w-48 bg-gray-700 rounded animate-pulse" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[1, 2, 3, 4].map(i => (
+                        <Card key={i} className="bg-gray-800 border-gray-700 animate-pulse">
+                            <CardHeader><div className="h-4 bg-gray-700 rounded w-3/4" /></CardHeader>
+                            <CardContent><div className="space-y-2"><div className="h-3 bg-gray-700 rounded" /><div className="h-3 bg-gray-700 rounded w-2/3" /></div></CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
     // Client Detail View
     if (selectedClient) {
         return (
