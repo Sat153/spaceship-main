@@ -52,7 +52,7 @@ export default function ChatPanel() {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Photo board state
-    const [photoBoardOpen, setPhotoBoardOpen] = useState(true)
+    const [photoBoardOpen, setPhotoBoardOpen] = useState(false)
     const [photoStatuses, setPhotoStatuses] = useState<Record<string, 'raw' | 'selected'>>({})
     const [photoCaptions, setPhotoCaptions] = useState<Record<string, string>>({})
     const [editingCaption, setEditingCaption] = useState<string | null>(null)
@@ -608,41 +608,41 @@ export default function ChatPanel() {
                     const selectedPhotos = photoMsgs.filter(m => photoStatuses[m.id] === 'selected')
 
                     return (
-                        <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900 overflow-hidden">
+                        <div className="mt-3 rounded-xl border border-gray-700 bg-gray-900 overflow-hidden flex-shrink-0">
                             {/* Board header */}
                             <button
                                 onClick={() => setPhotoBoardOpen(v => !v)}
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800 transition-colors"
+                                className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-800 transition-colors"
                             >
                                 <div className="flex items-center gap-2">
-                                    <ImageIcon className="h-4 w-4 text-purple-400" />
-                                    <span className="text-sm font-semibold text-white">Photo Board</span>
+                                    <ImageIcon className="h-3.5 w-3.5 text-purple-400" />
+                                    <span className="text-xs font-semibold text-white">Photo Board</span>
                                     <span className="text-xs text-gray-500">{photoMsgs.length} photos</span>
                                     {selectedPhotos.length > 0 && (
-                                        <span className="px-2 py-0.5 rounded-full bg-green-900/60 text-green-400 text-xs font-medium">
+                                        <span className="px-1.5 py-0.5 rounded-full bg-green-900/60 text-green-400 text-xs font-medium">
                                             {selectedPhotos.length} selected
                                         </span>
                                     )}
                                 </div>
                                 {photoBoardOpen
-                                    ? <ChevronUp className="h-4 w-4 text-gray-400" />
-                                    : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                                    ? <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
+                                    : <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
                             </button>
 
                             {photoBoardOpen && (
-                                <div className="grid grid-cols-2 divide-x divide-gray-700 border-t border-gray-700">
+                                <div className="grid grid-cols-2 divide-x divide-gray-700 border-t border-gray-700 max-h-[200px] overflow-y-auto">
                                     {/* ── Left column: Raw ── */}
                                     <div
-                                        className="p-3 min-h-[160px]"
+                                        className="p-2"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={() => handleDrop('raw')}
                                     >
-                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                                            Raw / Unreviewed
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                            Raw
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-1.5">
                                             {rawPhotos.length === 0 && (
-                                                <p className="text-xs text-gray-600 italic">Drag photos here</p>
+                                                <p className="text-xs text-gray-600 italic">Drag here</p>
                                             )}
                                             {rawPhotos.map(msg => (
                                                 <PhotoCard
@@ -664,16 +664,16 @@ export default function ChatPanel() {
 
                                     {/* ── Right column: Selected ── */}
                                     <div
-                                        className="p-3 min-h-[160px]"
+                                        className="p-2"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={() => handleDrop('selected')}
                                     >
-                                        <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-3">
+                                        <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2">
                                             Selected
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-1.5">
                                             {selectedPhotos.length === 0 && (
-                                                <p className="text-xs text-gray-600 italic">Drag photos here</p>
+                                                <p className="text-xs text-gray-600 italic">Drag here</p>
                                             )}
                                             {selectedPhotos.map(msg => (
                                                 <PhotoCard
@@ -949,7 +949,7 @@ function PhotoCard({
 }: PhotoCardProps) {
     return (
         <div
-            className={`w-28 rounded-lg overflow-hidden border cursor-grab active:cursor-grabbing transition-all ${
+            className={`w-20 rounded-lg overflow-hidden border cursor-grab active:cursor-grabbing transition-all ${
                 isSelected ? 'border-green-600/60 shadow-green-900/30 shadow-md' : 'border-gray-700'
             }`}
             draggable
@@ -958,7 +958,7 @@ function PhotoCard({
             <img
                 src={msg.file_url!}
                 alt="photo"
-                className="w-full h-20 object-cover"
+                className="w-full h-14 object-cover"
             />
             <div className="p-1.5 bg-gray-800">
                 {isEditing ? (
