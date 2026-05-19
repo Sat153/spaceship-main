@@ -421,20 +421,20 @@ export default function AdminKanban() {
             </SelectContent>
           </Select>
 
-          <Select value={filterDate} onValueChange={setFilterDate}>
-            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-                <SelectValue placeholder="Assigned Date" />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="bg-gray-900 border-gray-700">
-              <SelectItem value="all">All Dates</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">Last 7 Days</SelectItem>
-              <SelectItem value="month">Last 30 Days</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="relative w-full sm:w-44">
+            <Calendar className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
+            <select
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              className="w-full h-10 pl-9 pr-3 bg-gray-900 border border-gray-700 text-white rounded-md text-sm appearance-none cursor-pointer focus:outline-none focus:border-blue-500 [color-scheme:dark]"
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+            </select>
+            <ChevronDown className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Board */}
