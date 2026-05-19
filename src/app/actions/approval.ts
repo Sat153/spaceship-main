@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendApprovalWhatsApp, getWhatsAppNumber } from '@/lib/whatsapp'
 import { revalidateTag } from 'next/cache'
+import { notifyAdmins } from './notifications'
 
 export async function sendApprovalRequest(postId: string): Promise<{ success: boolean; error: string | null }> {
   try {
@@ -62,6 +63,13 @@ export async function sendApprovalRequest(postId: string): Promise<{ success: bo
     if (waResult.error) {
       console.error('[Approval] WhatsApp send failed:', waResult.error)
     }
+
+    // Notify admins that content was sent to Akhilesh
+    notifyAdmins(
+      '🔔 Content sent to Akhilesh Ji',
+      `"${post.title || 'Untitled Post'}" has been forwarded to Akhilesh Ji for final approval.`,
+      'approval_request'
+    ).catch(() => {})
 
     // Post to Final Approval chat room so Akhilesh sees it in Messages
     try {

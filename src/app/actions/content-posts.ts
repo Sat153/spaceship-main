@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
+import { notifyAdmins } from './notifications'
 
 // ============ TYPES ============
 
@@ -257,6 +258,11 @@ export async function submitForReview(id: string): Promise<{
             const preview = post.body?.slice(0, 150) + (post.body?.length > 150 ? '…' : '')
             const msg = `📋 *Content Submitted for Review*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Pending internal review`
             await postToWorkflowRoom(user.id, post.client_id, 3, msg)
+            notifyAdmins(
+                '📋 New content submitted for review',
+                `"${post.title || 'Untitled Post'}" is ready for internal review.`,
+                'info'
+            ).catch(() => {})
         }
 
         return result
@@ -323,10 +329,16 @@ export async function approveContentPost(id: string, notes?: string, stageOrder 
         if (post?.client_id) {
             const platforms = post.platforms?.join(', ') || ''
             const preview = post.body?.slice(0, 200) + (post.body?.length > 200 ? '…' : '')
-            const approver = stageOrder === 4 ? 'Akhilesh Ji' : 'Internal Reviewer'
             const suffix = stageOrder === 3 ? '\n\n— Ready for Akhilesh Ji\'s final approval' : '\n\n— Approved by Akhilesh Ji ✓'
             const msg = `✅ *Content Approved*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}${suffix}`
             await postToWorkflowRoom(user.id, post.client_id, stageOrder, msg)
+            if (stageOrder === 4) {
+                notifyAdmins(
+                    '✅ Akhilesh Ji approved content',
+                    `"${post.title || 'Untitled Post'}" has been approved and is ready for posting.`,
+                    'approved'
+                ).catch(() => {})
+            }
         }
 
         return result
@@ -360,6 +372,13 @@ export async function rejectContentPost(id: string, notes: string, stageOrder = 
             const sender = stageOrder === 4 ? 'Akhilesh Ji' : 'Internal Reviewer'
             const msg = `🔄 *Changes Requested*\n\n📌 ${post.title || 'Untitled Post'}\n\n📝 ${notes}\n\n— ${sender}`
             await postToWorkflowRoom(user.id, post.client_id, stageOrder, msg)
+            if (stageOrder === 4) {
+                notifyAdmins(
+                    '🔄 Akhilesh Ji requested changes',
+                    `"${post.title || 'Untitled Post'}" needs revision: ${notes}`,
+                    'changes_requested'
+                ).catch(() => {})
+            }
         }
 
         return result
