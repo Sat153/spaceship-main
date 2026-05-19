@@ -136,7 +136,8 @@ export async function getClientDetails(clientId: string): Promise<{
         }
 
         // Verify user has access to this client (is in client_shares)
-        const { data: share, error: shareError } = await supabase
+        const admin = createAdminClient()
+        const { data: share, error: shareError } = await admin
             .from('client_shares')
             .select('id')
             .eq('client_id', clientId)
@@ -147,10 +148,10 @@ export async function getClientDetails(clientId: string): Promise<{
             return { success: false, error: 'You do not have access to this client' }
         }
 
-        const { data: client, error: clientError } = await supabase
+        const { data: client, error: clientError } = await admin
             .from('clients')
             .select(`
-                id, name, primary_email, primary_phone, display_name, status, 
+                id, name, primary_email, primary_phone, display_name, status,
                 internal_notes, ai_summary, created_at, department_id
             `)
             .eq('id', clientId)
@@ -161,7 +162,7 @@ export async function getClientDetails(clientId: string): Promise<{
         }
 
         // Get department name
-        const { data: dept } = await supabase
+        const { data: dept } = await admin
             .from('departments')
             .select('name')
             .eq('id', client.department_id)
@@ -205,7 +206,8 @@ export async function getClientFiles(clientId: string): Promise<{
         }
 
         // Verify user has access to this client
-        const { data: share } = await supabase
+        const admin = createAdminClient()
+        const { data: share } = await admin
             .from('client_shares')
             .select('id')
             .eq('client_id', clientId)
@@ -217,11 +219,11 @@ export async function getClientFiles(clientId: string): Promise<{
         }
 
         // Get assets for this client
-        const { data: assets, error: assetsError } = await supabase
+        const { data: assets, error: assetsError } = await admin
             .from('assets')
             .select('id, name, url, mime_type, size, created_at, created_by')
             .eq('client_id', clientId)
-            .eq('type', 'file') // Only files, not folders
+            .eq('type', 'file')
             .order('created_at', { ascending: false })
 
         if (assetsError) {
@@ -235,7 +237,7 @@ export async function getClientFiles(clientId: string): Promise<{
 
         // Get creator names
         const creatorIds = Array.from(new Set(assets.map(a => a.created_by).filter(Boolean)))
-        const { data: creators } = await supabase
+        const { data: creators } = await admin
             .from('profiles')
             .select('id, first_name, last_name')
             .in('id', creatorIds)
