@@ -423,8 +423,10 @@ export default function AdminKanban() {
 
           <Select value={filterDate} onValueChange={setFilterDate}>
             <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
-              <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-              <SelectValue placeholder="Assigned Date" />
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                <SelectValue placeholder="Assigned Date" />
+              </div>
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-700">
               <SelectItem value="all">All Dates</SelectItem>
