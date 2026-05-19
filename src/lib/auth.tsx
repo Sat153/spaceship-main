@@ -79,6 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Safety net: if INITIAL_SESSION never fires (e.g. network blip), stop blocking after 5s
+    const loadingTimeout = setTimeout(() => {
+      if (mounted) setLoading(false)
+    }, 5000)
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return
@@ -86,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentUser)
 
         if (event === 'INITIAL_SESSION') {
+          clearTimeout(loadingTimeout)
           if (mounted) setLoading(false)
           if (currentUser) {
             loadProfile(currentUser)
@@ -104,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false
+      clearTimeout(loadingTimeout)
       subscription.unsubscribe()
     }
   }, [])
