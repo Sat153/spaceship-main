@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
     MessageCircle, Send, Users, Plus, Loader2,
-    User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen, CheckCircle2
+    User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen, CheckCircle2,
+    ChevronDown, ChevronUp, Tag
 } from 'lucide-react'
 import {
     sendMessage,
     getOrCreateDirectRoom,
+    updatePhotoStatus,
+    updatePhotoCaption,
     ChatRoom,
 } from '@/app/actions/chat'
 import {
@@ -48,6 +51,15 @@ export default function ChatPanel() {
     const [isInternal, setIsInternal] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    // Photo board state
+    const [photoBoardOpen, setPhotoBoardOpen] = useState(true)
+    const [photoStatuses, setPhotoStatuses] = useState<Record<string, 'raw' | 'selected'>>({})
+    const [photoCaptions, setPhotoCaptions] = useState<Record<string, string>>({})
+    const [editingCaption, setEditingCaption] = useState<string | null>(null)
+    const [captionDraft, setCaptionDraft] = useState('')
+    const [draggedId, setDraggedId] = useState<string | null>(null)
+    const [savingCaption, setSavingCaption] = useState(false)
+
     // Approval state
     const [approval, setApproval] = useState<Approval | null>(null)
     const [approvalLoading, setApprovalLoading] = useState(false)
@@ -67,6 +79,22 @@ export default function ChatPanel() {
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [messages])
+
+    // Sync photo statuses/captions from DB when messages load
+    useEffect(() => {
+        const photos = messages.filter(m => m.file_url && m.file_type?.startsWith('image/'))
+        if (photos.length === 0) return
+        setPhotoStatuses(prev => {
+            const next = { ...prev }
+            photos.forEach(p => { if (!(p.id in next)) next[p.id] = p.photo_status || 'raw' })
+            return next
+        })
+        setPhotoCaptions(prev => {
+            const next = { ...prev }
+            photos.forEach(p => { if (!(p.id in next)) next[p.id] = p.photo_caption || '' })
+            return next
+        })
     }, [messages])
 
     // Detect stage order from room name (e.g. "Ganesh Joshi — 03 Internal Review" → 3)
@@ -188,6 +216,26 @@ export default function ChatPanel() {
             e.preventDefault()
             handleSendMessage()
         }
+    }
+
+    const handleDrop = async (targetStatus: 'raw' | 'selected') => {
+        if (!draggedId) return
+        setPhotoStatuses(prev => ({ ...prev, [draggedId]: targetStatus }))
+        setDraggedId(null)
+        await updatePhotoStatus(draggedId, targetStatus)
+    }
+
+    const handleSaveCaption = async (msgId: string) => {
+        setSavingCaption(true)
+        setPhotoCaptions(prev => ({ ...prev, [msgId]: captionDraft }))
+        await updatePhotoCaption(msgId, captionDraft)
+        setSavingCaption(false)
+        setEditingCaption(null)
+    }
+
+    const openCaptionEdit = (msgId: string) => {
+        setCaptionDraft(photoCaptions[msgId] || '')
+        setEditingCaption(msgId)
     }
 
     const formatTime = (dateString: string) => {
@@ -551,6 +599,105 @@ export default function ChatPanel() {
                         </div>
                     </div>
                 </Card>
+
+                {/* ── Photo Board (stage 1 — Raw Assets rooms only) ── */}
+                {stageOrderFromName === 1 && (() => {
+                    const photoMsgs = messages.filter(m => m.file_url && m.file_type?.startsWith('image/'))
+                    if (photoMsgs.length === 0) return null
+                    const rawPhotos = photoMsgs.filter(m => (photoStatuses[m.id] || 'raw') === 'raw')
+                    const selectedPhotos = photoMsgs.filter(m => photoStatuses[m.id] === 'selected')
+
+                    return (
+                        <div className="mt-4 rounded-xl border border-gray-700 bg-gray-900 overflow-hidden">
+                            {/* Board header */}
+                            <button
+                                onClick={() => setPhotoBoardOpen(v => !v)}
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800 transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <ImageIcon className="h-4 w-4 text-purple-400" />
+                                    <span className="text-sm font-semibold text-white">Photo Board</span>
+                                    <span className="text-xs text-gray-500">{photoMsgs.length} photos</span>
+                                    {selectedPhotos.length > 0 && (
+                                        <span className="px-2 py-0.5 rounded-full bg-green-900/60 text-green-400 text-xs font-medium">
+                                            {selectedPhotos.length} selected
+                                        </span>
+                                    )}
+                                </div>
+                                {photoBoardOpen
+                                    ? <ChevronUp className="h-4 w-4 text-gray-400" />
+                                    : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                            </button>
+
+                            {photoBoardOpen && (
+                                <div className="grid grid-cols-2 divide-x divide-gray-700 border-t border-gray-700">
+                                    {/* ── Left column: Raw ── */}
+                                    <div
+                                        className="p-3 min-h-[160px]"
+                                        onDragOver={e => e.preventDefault()}
+                                        onDrop={() => handleDrop('raw')}
+                                    >
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                                            Raw / Unreviewed
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {rawPhotos.length === 0 && (
+                                                <p className="text-xs text-gray-600 italic">Drag photos here</p>
+                                            )}
+                                            {rawPhotos.map(msg => (
+                                                <PhotoCard
+                                                    key={msg.id}
+                                                    msg={msg}
+                                                    caption={photoCaptions[msg.id] || ''}
+                                                    isEditing={editingCaption === msg.id}
+                                                    captionDraft={captionDraft}
+                                                    savingCaption={savingCaption}
+                                                    onDragStart={() => setDraggedId(msg.id)}
+                                                    onEditCaption={() => openCaptionEdit(msg.id)}
+                                                    onCaptionChange={setCaptionDraft}
+                                                    onSaveCaption={() => handleSaveCaption(msg.id)}
+                                                    onCancelCaption={() => setEditingCaption(null)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* ── Right column: Selected ── */}
+                                    <div
+                                        className="p-3 min-h-[160px]"
+                                        onDragOver={e => e.preventDefault()}
+                                        onDrop={() => handleDrop('selected')}
+                                    >
+                                        <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-3">
+                                            Selected
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedPhotos.length === 0 && (
+                                                <p className="text-xs text-gray-600 italic">Drag photos here</p>
+                                            )}
+                                            {selectedPhotos.map(msg => (
+                                                <PhotoCard
+                                                    key={msg.id}
+                                                    msg={msg}
+                                                    caption={photoCaptions[msg.id] || ''}
+                                                    isEditing={editingCaption === msg.id}
+                                                    captionDraft={captionDraft}
+                                                    savingCaption={savingCaption}
+                                                    onDragStart={() => setDraggedId(msg.id)}
+                                                    onEditCaption={() => openCaptionEdit(msg.id)}
+                                                    onCaptionChange={setCaptionDraft}
+                                                    onSaveCaption={() => handleSaveCaption(msg.id)}
+                                                    onCancelCaption={() => setEditingCaption(null)}
+                                                    isSelected
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })()}
             </div>
         )
     }
@@ -776,6 +923,85 @@ export default function ChatPanel() {
                     })}
                 </div>
             )}
+        </div>
+    )
+}
+
+// ─── PhotoCard subcomponent ───────────────────────────────────────────────────
+
+interface PhotoCardProps {
+    msg: { id: string; file_url?: string | null; message?: string }
+    caption: string
+    isEditing: boolean
+    captionDraft: string
+    savingCaption: boolean
+    isSelected?: boolean
+    onDragStart: () => void
+    onEditCaption: () => void
+    onCaptionChange: (v: string) => void
+    onSaveCaption: () => void
+    onCancelCaption: () => void
+}
+
+function PhotoCard({
+    msg, caption, isEditing, captionDraft, savingCaption, isSelected,
+    onDragStart, onEditCaption, onCaptionChange, onSaveCaption, onCancelCaption,
+}: PhotoCardProps) {
+    return (
+        <div
+            className={`w-28 rounded-lg overflow-hidden border cursor-grab active:cursor-grabbing transition-all ${
+                isSelected ? 'border-green-600/60 shadow-green-900/30 shadow-md' : 'border-gray-700'
+            }`}
+            draggable
+            onDragStart={onDragStart}
+        >
+            <img
+                src={msg.file_url!}
+                alt="photo"
+                className="w-full h-20 object-cover"
+            />
+            <div className="p-1.5 bg-gray-800">
+                {isEditing ? (
+                    <div className="space-y-1">
+                        <textarea
+                            autoFocus
+                            value={captionDraft}
+                            onChange={e => onCaptionChange(e.target.value)}
+                            placeholder="Write caption..."
+                            rows={2}
+                            className="w-full text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-1 text-white resize-none focus:outline-none focus:border-purple-500"
+                        />
+                        <div className="flex gap-1">
+                            <button
+                                onClick={onSaveCaption}
+                                disabled={savingCaption}
+                                className="flex-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded py-0.5 transition-colors"
+                            >
+                                {savingCaption ? '...' : 'Save'}
+                            </button>
+                            <button
+                                onClick={onCancelCaption}
+                                className="text-xs text-gray-400 hover:text-white px-1"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <button
+                        onClick={onEditCaption}
+                        className="w-full text-left group"
+                    >
+                        {caption ? (
+                            <p className="text-xs text-gray-300 line-clamp-2 group-hover:text-white transition-colors">{caption}</p>
+                        ) : (
+                            <p className="text-xs text-gray-600 flex items-center gap-1 group-hover:text-gray-400 transition-colors">
+                                <Tag className="h-3 w-3" /> Add caption
+                            </p>
+                        )}
+                    </button>
+                )}
+            </div>
         </div>
     )
 }

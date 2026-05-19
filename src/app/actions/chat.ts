@@ -31,6 +31,8 @@ export interface ChatMessage {
     is_internal?: boolean
     file_url?: string | null
     file_type?: string | null
+    photo_status?: 'raw' | 'selected'
+    photo_caption?: string | null
 }
 
 export interface ChatableUser {
@@ -493,7 +495,7 @@ export async function getMessages(roomId: string): Promise<{
         // Fetch newest 500 messages descending, then reverse so display is oldest→newest
         let msgQuery = supabase
             .from('chat_messages')
-            .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type')
+            .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type, photo_status, photo_caption')
             .eq('room_id', roomId)
             .order('created_at', { ascending: false })
             .limit(500)
@@ -725,5 +727,51 @@ export async function getChatableUsers(): Promise<{
     } catch (error) {
         console.error('Error in getChatableUsers:', error)
         return { success: false, error: 'Failed to fetch users' }
+    }
+}
+
+// ============ PHOTO BOARD ============
+
+export async function updatePhotoStatus(messageId: string, status: 'raw' | 'selected'): Promise<{
+    success: boolean; error?: string
+}> {
+    try {
+        const supabase = await getSupabaseClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return { success: false, error: 'Unauthorized' }
+
+        const admin = createAdminClient()
+        const { error } = await admin
+            .from('chat_messages')
+            .update({ photo_status: status })
+            .eq('id', messageId)
+
+        if (error) return { success: false, error: error.message }
+        return { success: true }
+    } catch (error) {
+        console.error('Error in updatePhotoStatus:', error)
+        return { success: false, error: 'Failed to update photo' }
+    }
+}
+
+export async function updatePhotoCaption(messageId: string, caption: string): Promise<{
+    success: boolean; error?: string
+}> {
+    try {
+        const supabase = await getSupabaseClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return { success: false, error: 'Unauthorized' }
+
+        const admin = createAdminClient()
+        const { error } = await admin
+            .from('chat_messages')
+            .update({ photo_caption: caption })
+            .eq('id', messageId)
+
+        if (error) return { success: false, error: error.message }
+        return { success: true }
+    } catch (error) {
+        console.error('Error in updatePhotoCaption:', error)
+        return { success: false, error: 'Failed to save caption' }
     }
 }
