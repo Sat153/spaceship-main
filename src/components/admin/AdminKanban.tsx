@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown, Calendar } from "lucide-react";
+import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,31 @@ export default function AdminKanban() {
   const [filterProject, setFilterProject] = React.useState<string>("all");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
-  const [filterDate, setFilterDate] = React.useState<string>("all");
+  const [filterDateFrom, setFilterDateFrom] = React.useState<Date | null>(null);
+  const [filterDateTo, setFilterDateTo] = React.useState<Date | null>(null);
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
+  const [calendarMonth, setCalendarMonth] = React.useState(new Date());
+  const calendarRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setCalendarOpen(false);
+      }
+    }
+    if (calendarOpen) document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [calendarOpen]);
+
+  const handleCalendarDayClick = (date: Date) => {
+    if (!filterDateFrom || (filterDateFrom && filterDateTo)) {
+      setFilterDateFrom(date); setFilterDateTo(null);
+    } else {
+      if (date < filterDateFrom) { setFilterDateTo(filterDateFrom); setFilterDateFrom(date); }
+      else { setFilterDateTo(date); }
+      setCalendarOpen(false);
+    }
+  };
 
   // Project management state
   const [isProjectModalOpen, setIsProjectModalOpen] = React.useState(false);
@@ -217,12 +242,11 @@ export default function AdminKanban() {
         ? task.due_date && new Date(task.due_date) < now && task.status !== 'completed' && task.status !== 'cancelled'
         : task.status === filterStatus);
     let matchesDate = true;
-    if (filterDate !== "all") {
-      const taskDate = new Date(task.created_at);
-      const today = new Date(); today.setHours(0,0,0,0);
-      if (filterDate === "today") matchesDate = taskDate >= today;
-      else if (filterDate === "week") { const w = new Date(today); w.setDate(today.getDate() - 7); matchesDate = taskDate >= w; }
-      else if (filterDate === "month") { const m = new Date(today); m.setDate(today.getDate() - 30); matchesDate = taskDate >= m; }
+    if (filterDateFrom || filterDateTo) {
+      const taskDate = new Date(task.created_at); taskDate.setHours(0,0,0,0);
+      if (filterDateFrom && filterDateTo) matchesDate = isWithinInterval(taskDate, { start: filterDateFrom, end: filterDateTo });
+      else if (filterDateFrom) matchesDate = taskDate >= filterDateFrom;
+      else if (filterDateTo) matchesDate = taskDate <= filterDateTo;
     }
     return matchesSearch && matchesPriority && matchesAssignee && matchesProject && matchesStatus && matchesDate;
   });
@@ -421,19 +445,69 @@ export default function AdminKanban() {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center w-full sm:w-44 h-10 bg-gray-900 border border-gray-700 rounded-md px-3 gap-2">
-            <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
-            <select
-              value={filterDate}
-              onChange={e => setFilterDate(e.target.value)}
-              className="flex-1 bg-transparent text-white text-sm outline-none cursor-pointer [color-scheme:dark] appearance-none"
+          <div className="relative" ref={calendarRef}>
+            <button
+              onClick={() => setCalendarOpen(v => !v)}
+              className={`flex items-center gap-2 h-10 px-3 rounded-md border text-sm transition-colors ${filterDateFrom ? 'bg-blue-600/20 border-blue-500/50 text-blue-300' : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500'}`}
             >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="week">Last 7 Days</option>
-              <option value="month">Last 30 Days</option>
-            </select>
-            <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">
+                {filterDateFrom && filterDateTo
+                  ? `${format(filterDateFrom,'MMM d')} – ${format(filterDateTo,'MMM d')}`
+                  : filterDateFrom
+                  ? `From ${format(filterDateFrom,'MMM d')}`
+                  : 'Pick Dates'}
+              </span>
+              {filterDateFrom && (
+                <X className="h-3.5 w-3.5 ml-1 hover:text-white" onClick={e => { e.stopPropagation(); setFilterDateFrom(null); setFilterDateTo(null); }} />
+              )}
+            </button>
+
+            {calendarOpen && (
+              <div className="absolute right-0 top-12 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 w-72">
+                {/* Month nav */}
+                <div className="flex items-center justify-between mb-3">
+                  <button onClick={() => setCalendarMonth(m => subMonths(m, 1))} className="p-1 hover:bg-gray-700 rounded">
+                    <ChevronLeft className="h-4 w-4 text-gray-400" />
+                  </button>
+                  <span className="text-white font-medium text-sm">{format(calendarMonth, 'MMMM yyyy')}</span>
+                  <button onClick={() => setCalendarMonth(m => addMonths(m, 1))} className="p-1 hover:bg-gray-700 rounded">
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  </button>
+                </div>
+                {/* Day headers */}
+                <div className="grid grid-cols-7 mb-1">
+                  {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                    <div key={d} className="text-center text-xs text-gray-500 py-1">{d}</div>
+                  ))}
+                </div>
+                {/* Days */}
+                <div className="grid grid-cols-7 gap-y-1">
+                  {eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) }).map(day => {
+                    const isFrom = filterDateFrom && isSameDay(day, filterDateFrom);
+                    const isTo = filterDateTo && isSameDay(day, filterDateTo);
+                    const inRange = filterDateFrom && filterDateTo && isWithinInterval(day, { start: filterDateFrom, end: filterDateTo });
+                    const isCurrentMonth = isSameMonth(day, calendarMonth);
+                    return (
+                      <button
+                        key={day.toISOString()}
+                        onClick={() => handleCalendarDayClick(day)}
+                        className={`text-xs py-1.5 rounded transition-colors
+                          ${!isCurrentMonth ? 'text-gray-600' : 'text-gray-300 hover:bg-gray-700'}
+                          ${(isFrom || isTo) ? '!bg-blue-600 !text-white font-bold' : ''}
+                          ${inRange && !isFrom && !isTo ? '!bg-blue-600/20 !text-blue-300' : ''}
+                        `}
+                      >
+                        {format(day, 'd')}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  {!filterDateFrom ? 'Click to set start date' : !filterDateTo ? 'Click to set end date' : ''}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
