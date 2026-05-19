@@ -255,8 +255,8 @@ export async function submitForReview(id: string): Promise<{
         if (post?.client_id) {
             const platforms = post.platforms?.join(', ') || ''
             const preview = post.body?.slice(0, 150) + (post.body?.length > 150 ? '…' : '')
-            const msg = `📋 *Content Submitted for Approval*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Awaiting Akhilesh Ji's review`
-            await postToFinalApprovalRoom(user.id, post.client_id, msg)
+            const msg = `📋 *Content Submitted for Review*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Pending internal review`
+            await postToWorkflowRoom(user.id, post.client_id, 3, msg)
         }
 
         return result
@@ -265,19 +265,19 @@ export async function submitForReview(id: string): Promise<{
     }
 }
 
-// Post a system message to the client's Final Approval chat room
-async function postToFinalApprovalRoom(
+// Post a system message to a workflow stage chat room (non-critical)
+async function postToWorkflowRoom(
     userId: string,
     clientId: string,
+    stageOrder: number,
     message: string
 ) {
     try {
         const admin = createAdminClient()
-        // Find stage 4 (04 Final Approval)
         const { data: stage } = await admin
             .from('workflow_stages')
             .select('id')
-            .eq('stage_order', 4)
+            .eq('stage_order', stageOrder)
             .single()
         if (!stage) return
 
@@ -295,12 +295,13 @@ async function postToFinalApprovalRoom(
             message,
         })
     } catch {
-        // non-critical — don't block the approval
+        // non-critical — don't block the operation
     }
 }
 
 // Approve content post
-export async function approveContentPost(id: string, notes?: string): Promise<{
+// stageOrder: 3 = Internal Review (AnySegen admin), 4 = Final Approval (Akhilesh Ji)
+export async function approveContentPost(id: string, notes?: string, stageOrder = 3): Promise<{
     success: boolean
     error: string | null
 }> {
@@ -312,7 +313,6 @@ export async function approveContentPost(id: string, notes?: string): Promise<{
         const result = await updateContentPost(id, { status: 'approved', review_notes: notes })
         if (!result.success) return result
 
-        // Fetch post details for the chat message
         const admin = createAdminClient()
         const { data: post } = await admin
             .from('content_posts')
@@ -323,8 +323,10 @@ export async function approveContentPost(id: string, notes?: string): Promise<{
         if (post?.client_id) {
             const platforms = post.platforms?.join(', ') || ''
             const preview = post.body?.slice(0, 200) + (post.body?.length > 200 ? '…' : '')
-            const msg = `✅ *Content Approved*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Approved by Akhilesh Ji`
-            await postToFinalApprovalRoom(user.id, post.client_id, msg)
+            const approver = stageOrder === 4 ? 'Akhilesh Ji' : 'Internal Reviewer'
+            const suffix = stageOrder === 3 ? '\n\n— Ready for Akhilesh Ji\'s final approval' : '\n\n— Approved by Akhilesh Ji ✓'
+            const msg = `✅ *Content Approved*\n\n📌 ${post.title || 'Untitled Post'}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}${suffix}`
+            await postToWorkflowRoom(user.id, post.client_id, stageOrder, msg)
         }
 
         return result
@@ -334,7 +336,8 @@ export async function approveContentPost(id: string, notes?: string): Promise<{
 }
 
 // Reject content post
-export async function rejectContentPost(id: string, notes: string): Promise<{
+// stageOrder: 3 = Internal Review (AnySegen admin), 4 = Final Approval (Akhilesh Ji)
+export async function rejectContentPost(id: string, notes: string, stageOrder = 3): Promise<{
     success: boolean
     error: string | null
 }> {
@@ -346,7 +349,6 @@ export async function rejectContentPost(id: string, notes: string): Promise<{
         const result = await updateContentPost(id, { status: 'rejected', review_notes: notes })
         if (!result.success) return result
 
-        // Fetch post details for the chat message
         const admin = createAdminClient()
         const { data: post } = await admin
             .from('content_posts')
@@ -355,8 +357,9 @@ export async function rejectContentPost(id: string, notes: string): Promise<{
             .single()
 
         if (post?.client_id) {
-            const msg = `🔄 *Changes Requested*\n\n📌 ${post.title || 'Untitled Post'}\n\n📝 ${notes}\n\n— Akhilesh Ji`
-            await postToFinalApprovalRoom(user.id, post.client_id, msg)
+            const sender = stageOrder === 4 ? 'Akhilesh Ji' : 'Internal Reviewer'
+            const msg = `🔄 *Changes Requested*\n\n📌 ${post.title || 'Untitled Post'}\n\n📝 ${notes}\n\n— ${sender}`
+            await postToWorkflowRoom(user.id, post.client_id, stageOrder, msg)
         }
 
         return result

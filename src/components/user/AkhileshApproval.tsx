@@ -35,7 +35,7 @@ export default function AkhileshApproval() {
 
   const handleApprove = async (id: string) => {
     setActionPost(id)
-    await approveContentPost(id)
+    await approveContentPost(id, undefined, 4)
     setDone(d => [...d, { id, action: 'approved' }])
     setPosts(p => p.filter(x => x.id !== id))
     setActionPost(null)
@@ -44,7 +44,7 @@ export default function AkhileshApproval() {
   const handleReject = async (id: string) => {
     if (!rejectNotes.trim()) return
     setActionPost(id)
-    await rejectContentPost(id, rejectNotes)
+    await rejectContentPost(id, rejectNotes, 4)
     setDone(d => [...d, { id, action: 'rejected' }])
     setPosts(p => p.filter(x => x.id !== id))
     setShowRejectInput(null)

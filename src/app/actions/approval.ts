@@ -63,6 +63,23 @@ export async function sendApprovalRequest(postId: string): Promise<{ success: bo
       console.error('[Approval] WhatsApp send failed:', waResult.error)
     }
 
+    // Post to Final Approval chat room so Akhilesh sees it in Messages
+    try {
+      const { data: stage } = await supabase.from('workflow_stages').select('id').eq('stage_order', 4).single()
+      if (stage) {
+        const { data: room } = await supabase.from('chat_rooms').select('id').eq('client_id', post.client_id).eq('stage_id', stage.id).single()
+        if (room) {
+          const platforms = (post.platforms || []).join(', ')
+          const preview = (post.body || '').slice(0, 150) + ((post.body || '').length > 150 ? '…' : '')
+          const clientName = (post.clients as any)?.name || ''
+          const msg = `🔔 *Content Ready for Your Approval*\n\n📌 ${post.title || 'Untitled Post'}${clientName ? `\n🏢 ${clientName}` : ''}${platforms ? `\n📱 ${platforms}` : ''}\n\n${preview}\n\n— Awaiting Akhilesh Ji's final decision`
+          await supabase.from('chat_messages').insert({ room_id: room.id, sender_id: post.created_by, message: msg })
+        }
+      }
+    } catch {
+      // non-critical
+    }
+
     revalidateTag('content-posts')
     return { success: true, error: null }
   } catch (err) {
