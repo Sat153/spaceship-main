@@ -72,81 +72,53 @@ export async function inviteTeamMember(params: InviteMemberParams) {
 
 
 export async function getTeamMembers() {
-    console.log('🔍 ACTION: getTeamMembers')
     try {
         if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.error('Missing SUPABASE_SERVICE_ROLE_KEY')
             return { success: false, error: 'Server configuration error: Missing Service Role Key' }
         }
 
         const cookieStore = await cookies()
         const supabase = createClient(cookieStore)
         const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return { success: false, error: 'Unauthorized' }
 
-        if (authError || !user) {
-            return { success: false, error: 'Unauthorized' }
-        }
-
-        // Use Admin Client for full access to profiles/depts to determine permissions
         const adminClient = createAdminClient()
 
-        // 1. Get Caller's Profile to check their Department
-        const { data: callerProfile, error: callerError } = await adminClient
-            .from('profiles')
-            .select('department_id, role')
-            .eq('id', user.id)
-            .single()
+        // Fetch caller profile, admin dept, and all departments in parallel
+        const [
+            { data: callerProfile, error: callerError },
+            { data: adminDept },
+            { data: departments, error: deptError },
+        ] = await Promise.all([
+            adminClient.from('profiles').select('department_id, role').eq('id', user.id).single(),
+            adminClient.from('departments').select('id').eq('name', 'Administration').single(),
+            adminClient.from('departments').select('id, name'),
+        ])
 
-        if (callerError || !callerProfile) {
-            console.error('Error fetching caller profile:', callerError)
-            return { success: false, error: 'Profile not found' }
-        }
-
-        // 2. Identify "Admin" Department
-        const { data: adminDept } = await adminClient
-            .from('departments')
-            .select('id')
-            .eq('name', 'Administration')
-            .single()
-
-        // Dynamically get Admin ID
-        const adminDeptId = await getAdminDepartmentId()
+        if (callerError || !callerProfile) return { success: false, error: 'Profile not found' }
+        if (deptError) throw deptError
 
         const isSuperAdmin =
             callerProfile.role === 'admin' ||
-            callerProfile.department_id === adminDept?.id ||
-            (adminDeptId && callerProfile.department_id === adminDeptId)
+            callerProfile.department_id === adminDept?.id
 
-        // 3. Build Query
         let query = adminClient
             .from('profiles')
             .select('id, email, first_name, last_name, role, created_at, department_id')
             .order('created_at', { ascending: false })
 
-        // Apply RBAC: If not super admin, restrict to own department
         if (!isSuperAdmin) {
             query = query.eq('department_id', callerProfile.department_id)
         }
 
         const { data: profiles, error: profilesError } = await query
-
         if (profilesError) throw profilesError
 
-        // Fetch departments
-        const { data: departments, error: deptError } = await adminClient
-            .from('departments')
-            .select('id, name')
-
-        if (deptError) throw deptError
-
-        // Combine data
-        const members = profiles.map(member => {
-            const department = departments.find(d => d.id === member.department_id)
-            return {
-                ...member,
-                department_name: department?.name || 'No Department'
-            }
-        })
+        const deptMap = Object.fromEntries((departments || []).map((d: any) => [d.id, d.name]))
+        const members = (profiles || []).map((m: any) => ({
+            ...m,
+            department_name: deptMap[m.department_id] || 'No Department',
+        }))
 
         return { success: true, data: members }
     } catch (error) {
