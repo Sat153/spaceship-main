@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown } from "lucide-react";
+import { Plus, Filter, Search, FolderKanban, Trash2, X, ChevronDown, Calendar } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -423,6 +423,7 @@ export default function AdminKanban() {
 
           <Select value={filterDate} onValueChange={setFilterDate}>
             <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
+              <Calendar className="h-4 w-4 mr-2 text-gray-400" />
               <SelectValue placeholder="Assigned Date" />
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-700">
