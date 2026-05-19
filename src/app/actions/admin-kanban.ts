@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { revalidateTag } from 'next/cache'
 import { sendTaskAssignmentEmail } from '@/lib/email'
+import { createNotificationForUser } from './notifications'
 
 export interface AdminTask {
   id: string
@@ -264,6 +265,14 @@ export async function saveTask(
             ? `${creatorProfile.first_name || ''} ${creatorProfile.last_name || ''}`.trim() || 'Admin'
             : 'Admin'
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+          // In-app notification
+          await createNotificationForUser(
+            newAssignee,
+            `📋 New task assigned: ${taskData.title}`,
+            `Assigned by ${assignedBy}${taskData.priority && taskData.priority !== 'normal' ? ` · Priority: ${taskData.priority}` : ''}${taskData.due_date ? ` · Due: ${new Date(taskData.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}`,
+            'info'
+          )
 
           await sendTaskAssignmentEmail({
             toEmail: assigneeProfile.email,

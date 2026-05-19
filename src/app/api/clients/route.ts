@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createNotificationForUser } from '@/app/actions/notifications'
 
 // Validation schema for client creation/update
 const clientSchema = z.object({
@@ -262,6 +264,15 @@ async function setupClientWorkflow(supabase: any, clientId: string, clientName: 
       await supabase.from('chat_room_members').insert(
         uniqueMembers.map((uid: string) => ({ room_id: room.id, user_id: uid }))
       )
+      // Notify each member they've been added to this workflow room
+      await Promise.all(uniqueMembers.map((uid: string) =>
+        createNotificationForUser(
+          uid,
+          `💬 Added to workflow: ${stage.name}`,
+          `You've been added to the "${stage.name}" group for client workflow. Open Messages to view it.`,
+          'info'
+        )
+      ))
     }
   }
 
