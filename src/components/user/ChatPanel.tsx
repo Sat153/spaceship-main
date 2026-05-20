@@ -175,7 +175,8 @@ export default function ChatPanel() {
             try {
                 const supabase = createClient()
                 const ext = selectedFile.name.split('.').pop()
-                const path = `chat/${selectedRoom.id}/${Date.now()}.${ext}`
+                const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+                const path = `chat/${selectedRoom.id}/${today}/${Date.now()}.${ext}`
                 const { error: uploadError } = await supabase.storage
                     .from('team-assets')
                     .upload(path, selectedFile, { contentType: selectedFile.type, upsert: false })
