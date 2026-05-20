@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input'
 import {
     MessageCircle, Send, Users, Plus, Loader2,
     User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen, CheckCircle2,
-    ChevronDown, ChevronUp, Tag
+    ChevronDown, ChevronUp, Tag, Music, Film, Layers, Palette, FolderOpen, Play
 } from 'lucide-react'
 import {
     sendMessage,
     getOrCreateDirectRoom,
     updatePhotoStatus,
     updatePhotoCaption,
+    updateAssetCategory,
     ChatRoom,
 } from '@/app/actions/chat'
 import {
@@ -60,6 +61,14 @@ export default function ChatPanel() {
     const [draggedId, setDraggedId] = useState<string | null>(null)
     const [savingCaption, setSavingCaption] = useState(false)
 
+    // Message color state
+    const [selectedColor, setSelectedColor] = useState<string | null>(null)
+
+    // Creative assets panel state
+    const [assetPanelOpen, setAssetPanelOpen] = useState(false)
+    const [assetTab, setAssetTab] = useState<'all' | 'sfx' | 'music' | 'templates' | 'color_grades' | 'other'>('all')
+    const [assetCategories, setAssetCategories] = useState<Record<string, string>>({})
+
     // Approval state
     const [approval, setApproval] = useState<Approval | null>(null)
     const [approvalLoading, setApprovalLoading] = useState(false)
@@ -93,6 +102,17 @@ export default function ChatPanel() {
         setPhotoCaptions(prev => {
             const next = { ...prev }
             photos.forEach(p => { if (!(p.id in next)) next[p.id] = p.photo_caption || '' })
+            return next
+        })
+    }, [messages])
+
+    // Sync asset categories from DB when messages load
+    useEffect(() => {
+        const assets = messages.filter(m => m.file_url && m.asset_category)
+        if (assets.length === 0) return
+        setAssetCategories(prev => {
+            const next = { ...prev }
+            assets.forEach(a => { if (!(a.id in next) && a.asset_category) next[a.id] = a.asset_category })
             return next
         })
     }, [messages])
@@ -192,10 +212,11 @@ export default function ChatPanel() {
             setUploading(false)
         }
 
-        const result = await sendMessage(selectedRoom.id, newMessage, fileUrl, fileType, isInternal)
+        const result = await sendMessage(selectedRoom.id, newMessage, fileUrl, fileType, isInternal, selectedColor || undefined)
         if (result.success) {
             setNewMessage('')
             clearFile()
+            setSelectedColor(null)
             refreshMessages()
         }
         setSending(false)
@@ -474,10 +495,13 @@ export default function ChatPanel() {
                                                     <Lock className="h-3 w-3" /> Internal note
                                                 </div>
                                             )}
-                                            <div className={`max-w-[85%] sm:max-w-[70%] ${msg.is_mine
+                                            <div
+                                                className={`max-w-[85%] sm:max-w-[70%] ${msg.is_mine
                                                     ? msg.is_internal ? 'bg-amber-700 text-white' : 'bg-blue-600 text-white'
                                                     : msg.is_internal ? 'bg-amber-900/50 text-white border border-amber-700/50' : 'bg-gray-700 text-white'
-                                                    } rounded-lg px-4 py-2`}>
+                                                    } rounded-lg px-4 py-2`}
+                                                style={msg.message_color ? { borderLeft: `4px solid ${msg.message_color}` } : undefined}
+                                            >
                                                     {!msg.is_mine && (
                                                         <p className="text-xs text-blue-300 mb-1">{msg.sender_name}</p>
                                                     )}
@@ -545,11 +569,36 @@ export default function ChatPanel() {
                                 </button>
                             </div>
                         )}
+                        {/* Color label picker */}
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="text-xs text-gray-500">Label:</span>
+                            {[
+                                { color: '#ef4444', label: 'Urgent' },
+                                { color: '#f59e0b', label: 'Note' },
+                                { color: '#3b82f6', label: 'Reference' },
+                                { color: '#22c55e', label: 'Done' },
+                                { color: '#a855f7', label: 'Idea' },
+                                { color: '#f97316', label: 'Review' },
+                            ].map(({ color, label }) => (
+                                <button
+                                    key={color}
+                                    title={label}
+                                    onClick={() => setSelectedColor(selectedColor === color ? null : color)}
+                                    className={`w-5 h-5 rounded-full transition-all ${selectedColor === color ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-800 scale-110' : 'opacity-70 hover:opacity-100'}`}
+                                    style={{ backgroundColor: color }}
+                                />
+                            ))}
+                            {selectedColor && (
+                                <span className="text-xs ml-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: selectedColor + '33', color: selectedColor }}>
+                                    {['Urgent','Note','Reference','Done','Idea','Review'][['#ef4444','#f59e0b','#3b82f6','#22c55e','#a855f7','#f97316'].indexOf(selectedColor)]}
+                                </span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-1.5">
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/*,video/*"
+                                accept="image/*,video/*,audio/*"
                                 onChange={handleFileSelect}
                                 className="hidden"
                             />
@@ -693,6 +742,105 @@ export default function ChatPanel() {
                                                 />
                                             ))}
                                         </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })()}
+
+                {/* ── Creative Assets Panel (stage 2 — Creative Production rooms only) ── */}
+                {stageOrderFromName === 2 && (() => {
+                    const CATEGORIES = [
+                        { id: 'all', label: 'All', icon: FolderOpen },
+                        { id: 'sfx', label: 'SFX', icon: Play },
+                        { id: 'music', label: 'Music', icon: Music },
+                        { id: 'templates', label: 'Templates', icon: Layers },
+                        { id: 'color_grades', label: 'Color Grades', icon: Palette },
+                        { id: 'other', label: 'Other', icon: Film },
+                    ] as const
+
+                    const assetMsgs = messages.filter(m => m.file_url)
+                    if (assetMsgs.length === 0) return null
+
+                    const filteredAssets = assetTab === 'all'
+                        ? assetMsgs
+                        : assetMsgs.filter(m => (assetCategories[m.id] || m.asset_category) === assetTab)
+
+                    const handleCategoryChange = async (msgId: string, cat: string) => {
+                        setAssetCategories(prev => ({ ...prev, [msgId]: cat }))
+                        await updateAssetCategory(msgId, cat)
+                    }
+
+                    const getFileIcon = (fileType: string | null | undefined) => {
+                        if (fileType?.startsWith('audio/')) return <Play className="h-4 w-4 text-green-400" />
+                        if (fileType?.startsWith('video/')) return <Film className="h-4 w-4 text-blue-400" />
+                        if (fileType?.startsWith('image/')) return <ImageIcon className="h-4 w-4 text-purple-400" />
+                        return <Layers className="h-4 w-4 text-gray-400" />
+                    }
+
+                    return (
+                        <div className="mt-3 rounded-xl border border-gray-700 bg-gray-900 overflow-hidden flex-shrink-0">
+                            <button
+                                onClick={() => setAssetPanelOpen(v => !v)}
+                                className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-800 transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <FolderOpen className="h-3.5 w-3.5 text-orange-400" />
+                                    <span className="text-xs font-semibold text-white">Creative Assets</span>
+                                    <span className="text-xs text-gray-500">{assetMsgs.length} files</span>
+                                </div>
+                                {assetPanelOpen ? <ChevronUp className="h-3.5 w-3.5 text-gray-400" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
+                            </button>
+
+                            {assetPanelOpen && (
+                                <div className="border-t border-gray-700 p-3 space-y-3">
+                                    {/* Category tabs */}
+                                    <div className="flex gap-1 flex-wrap">
+                                        {CATEGORIES.map(({ id, label, icon: Icon }) => (
+                                            <button
+                                                key={id}
+                                                onClick={() => setAssetTab(id)}
+                                                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${assetTab === id ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                            >
+                                                <Icon className="h-3 w-3" /> {label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Asset list */}
+                                    <div className="space-y-1 max-h-[220px] overflow-y-auto">
+                                        {filteredAssets.length === 0 && (
+                                            <p className="text-xs text-gray-600 italic text-center py-4">No files in this category</p>
+                                        )}
+                                        {filteredAssets.map(m => {
+                                            const cat = assetCategories[m.id] || m.asset_category || ''
+                                            const fileName = m.file_url?.split('/').pop()?.split('?')[0] || 'File'
+                                            return (
+                                                <div key={m.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-800 hover:bg-gray-750 group">
+                                                    {getFileIcon(m.file_type)}
+                                                    <div className="flex-1 min-w-0">
+                                                        <a href={m.file_url!} target="_blank" rel="noopener noreferrer"
+                                                            className="text-xs text-gray-200 hover:text-white truncate block">{fileName}</a>
+                                                        {m.file_type?.startsWith('audio/') && (
+                                                            <audio src={m.file_url!} controls className="mt-1 h-6 w-full" style={{ height: '28px' }} />
+                                                        )}
+                                                    </div>
+                                                    <select
+                                                        value={cat}
+                                                        onChange={e => handleCategoryChange(m.id, e.target.value)}
+                                                        className="text-xs bg-gray-700 border border-gray-600 text-gray-300 rounded px-1 py-0.5 shrink-0"
+                                                    >
+                                                        <option value="">— tag —</option>
+                                                        <option value="sfx">SFX</option>
+                                                        <option value="music">Music</option>
+                                                        <option value="templates">Templates</option>
+                                                        <option value="color_grades">Color Grades</option>
+                                                        <option value="other">Other</option>
+                                                    </select>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             )}

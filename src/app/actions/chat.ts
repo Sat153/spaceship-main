@@ -33,6 +33,8 @@ export interface ChatMessage {
     file_type?: string | null
     photo_status?: 'raw' | 'selected'
     photo_caption?: string | null
+    message_color?: string | null
+    asset_category?: 'sfx' | 'music' | 'templates' | 'color_grades' | 'other' | null
 }
 
 export interface ChatableUser {
@@ -495,7 +497,7 @@ export async function getMessages(roomId: string): Promise<{
         // Fetch newest 500 messages descending, then reverse so display is oldest→newest
         let msgQuery = supabase
             .from('chat_messages')
-            .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type, photo_status, photo_caption')
+            .select('id, room_id, sender_id, message, created_at, is_internal, file_url, file_type, photo_status, photo_caption, message_color, asset_category')
             .eq('room_id', roomId)
             .order('created_at', { ascending: false })
             .limit(500)
@@ -540,7 +542,7 @@ export async function getMessages(roomId: string): Promise<{
 
 // ============ SEND MESSAGE ============
 
-export async function sendMessage(roomId: string, message: string, fileUrl?: string, fileType?: string, isInternal?: boolean): Promise<{
+export async function sendMessage(roomId: string, message: string, fileUrl?: string, fileType?: string, isInternal?: boolean, messageColor?: string): Promise<{
     success: boolean;
     data?: ChatMessage;
     error?: string
@@ -579,7 +581,8 @@ export async function sendMessage(roomId: string, message: string, fileUrl?: str
                 sender_id: user.id,
                 message: message.trim() || '',
                 ...(fileUrl && { file_url: fileUrl, file_type: fileType }),
-                ...(isInternal && { is_internal: true })
+                ...(isInternal && { is_internal: true }),
+                ...(messageColor && { message_color: messageColor })
             })
             .select()
             .single()
@@ -773,5 +776,24 @@ export async function updatePhotoCaption(messageId: string, caption: string): Pr
     } catch (error) {
         console.error('Error in updatePhotoCaption:', error)
         return { success: false, error: 'Failed to save caption' }
+    }
+}
+
+export async function updateAssetCategory(messageId: string, category: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const supabase = await getSupabaseClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return { success: false, error: 'Unauthorized' }
+
+        const admin = createAdminClient()
+        const { error } = await admin
+            .from('chat_messages')
+            .update({ asset_category: category })
+            .eq('id', messageId)
+
+        if (error) return { success: false, error: error.message }
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: 'Failed to update category' }
     }
 }
