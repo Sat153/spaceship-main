@@ -397,7 +397,7 @@ async function aiCorrectAndSave(postId: string, originalBody: string, feedback: 
     try {
         const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
-        const prompt = `You are a professional social media content editor. A post was rejected with this feedback: "${feedback}"\n\nOriginal post:\n"${originalBody}"\n\nRewrite the post to fix all grammatical errors and address the reviewer's feedback. Keep the same meaning, tone, and formatting. Return ONLY the corrected post text, nothing else.`
+        const prompt = `You are a grammar and punctuation editor. Your ONLY job is to fix grammar and punctuation errors in the post below. Do NOT change the meaning, tone, style, structure, or content. Do NOT rewrite sentences. Only fix: spelling mistakes, wrong tenses, missing/extra commas, incorrect apostrophes, missing full stops, capitalization errors, and similar grammar/punctuation issues.\n\nRejection feedback (for context only): "${feedback}"\n\nOriginal post:\n"${originalBody}"\n\nReturn ONLY the grammar-and-punctuation-corrected post text. Nothing else.`
         const result = await model.generateContent(prompt)
         const corrected = result.response.text().trim()
         if (corrected) {
