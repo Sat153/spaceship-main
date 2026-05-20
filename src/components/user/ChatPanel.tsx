@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import {
     MessageCircle, Send, Users, Plus, Loader2,
     User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen, CheckCircle2,
-    ChevronDown, ChevronUp, Tag, Music, Film, Layers, Palette, FolderOpen, Play, Sparkles, History, Copy, Check
+    ChevronDown, ChevronUp, Tag, Music, Film, Layers, Palette, FolderOpen, Play, Sparkles, History, Copy, Check, Search
 } from 'lucide-react'
 import {
     sendMessage,
@@ -82,6 +82,7 @@ export default function ChatPanel() {
     const [suggestionHistory, setSuggestionHistory] = useState<CreativeHistoryItem[]>([])
     const [showHistory, setShowHistory] = useState(false)
     const [copiedId, setCopiedId] = useState<string | null>(null)
+    const [assetSearch, setAssetSearch] = useState('')
 
     // Approval state
     const [approval, setApproval] = useState<Approval | null>(null)
@@ -842,7 +843,7 @@ export default function ChatPanel() {
                                     {/* Category tabs with AI button */}
                                     <div className="flex gap-1 flex-wrap items-center">
                                         <button
-                                            onClick={() => { setAssetTab('all'); setAiSuggestTab(null); setAiSuggestions([]) }}
+                                            onClick={() => { setAssetTab('all'); setAiSuggestTab(null); setAiSuggestions([]); setAssetSearch('') }}
                                             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${assetTab === 'all' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                                         >
                                             <FolderOpen className="h-3 w-3" /> All
@@ -850,12 +851,29 @@ export default function ChatPanel() {
                                         {CATEGORIES.map(({ id, label, icon: Icon }) => (
                                             <button
                                                 key={id}
-                                                onClick={() => { setAssetTab(id); setAiSuggestions([]); setAiSuggestTab(null) }}
+                                                onClick={() => { setAssetTab(id); setAiSuggestions([]); setAiSuggestTab(null); setAssetSearch('') }}
                                                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${assetTab === id ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                                             >
                                                 <Icon className="h-3 w-3" /> {label}
                                             </button>
                                         ))}
+                                    </div>
+
+                                    {/* Search bar */}
+                                    <div className="relative">
+                                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search suggestions, history, files..."
+                                            value={assetSearch}
+                                            onChange={e => setAssetSearch(e.target.value)}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                                        />
+                                        {assetSearch && (
+                                            <button onClick={() => setAssetSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* AI Suggest + History buttons (shown when non-all tab selected) */}
@@ -885,7 +903,7 @@ export default function ChatPanel() {
                                         <div className="space-y-1.5">
                                             <p className="text-xs text-purple-400 font-medium">✨ AI Suggestions — click Use to copy & save</p>
                                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                                                {aiSuggestions.map((s, i) => (
+                                                {aiSuggestions.filter(s => !assetSearch || s.toLowerCase().includes(assetSearch.toLowerCase())).map((s, i) => (
                                                     <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-purple-900/20 border border-purple-700/30">
                                                         <p className="flex-1 text-xs text-gray-200 leading-relaxed">{s}</p>
                                                         <button
@@ -908,7 +926,7 @@ export default function ChatPanel() {
                                             {suggestionHistory.length === 0
                                                 ? <p className="text-xs text-gray-600 italic">No history yet</p>
                                                 : <div className="space-y-1 max-h-[160px] overflow-y-auto">
-                                                    {suggestionHistory.map(h => (
+                                                    {suggestionHistory.filter(h => !assetSearch || h.suggestion.toLowerCase().includes(assetSearch.toLowerCase())).map(h => (
                                                         <div key={h.id} className="p-2 rounded-lg bg-gray-800 space-y-0.5">
                                                             <p className="text-xs text-gray-200">{h.suggestion}</p>
                                                             <p className="text-xs text-gray-500">{h.used_by_name} · {new Date(h.used_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
@@ -926,7 +944,7 @@ export default function ChatPanel() {
                                             {filteredAssets.length === 0 && (
                                                 <p className="text-xs text-gray-600 italic text-center py-2">No files in this category</p>
                                             )}
-                                            {filteredAssets.map(m => {
+                                            {filteredAssets.filter(m => !assetSearch || (m.file_url?.split('/').pop() || '').toLowerCase().includes(assetSearch.toLowerCase())).map(m => {
                                                 const cat = assetCategories[m.id] || m.asset_category || ''
                                                 const fileName = m.file_url?.split('/').pop()?.split('?')[0] || 'File'
                                                 return (
