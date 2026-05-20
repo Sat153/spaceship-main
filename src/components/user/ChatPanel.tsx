@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import {
     MessageCircle, Send, Users, Plus, Loader2,
     User, ArrowLeft, Building, Paperclip, X, Image as ImageIcon, Lock, LockOpen, CheckCircle2,
-    ChevronDown, ChevronUp, Tag, Music, Film, Layers, Palette, FolderOpen, Play
+    ChevronDown, ChevronUp, Tag, Music, Film, Layers, Palette, FolderOpen, Play, Sparkles, History, Copy, Check
 } from 'lucide-react'
 import {
     sendMessage,
@@ -17,6 +17,12 @@ import {
     updateAssetCategory,
     ChatRoom,
 } from '@/app/actions/chat'
+import {
+    generateCreativeSuggestions,
+    saveCreativeSuggestion,
+    getCreativeHistory,
+    CreativeHistoryItem,
+} from '@/app/actions/creative-ai'
 import {
     getLatestApproval,
     submitForApproval,
@@ -68,6 +74,14 @@ export default function ChatPanel() {
     const [assetPanelOpen, setAssetPanelOpen] = useState(false)
     const [assetTab, setAssetTab] = useState<'all' | 'sfx' | 'music' | 'templates' | 'color_grades' | 'other'>('all')
     const [assetCategories, setAssetCategories] = useState<Record<string, string>>({})
+
+    // AI suggestions state
+    const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+    const [aiLoading, setAiLoading] = useState(false)
+    const [aiSuggestTab, setAiSuggestTab] = useState<string | null>(null)
+    const [suggestionHistory, setSuggestionHistory] = useState<CreativeHistoryItem[]>([])
+    const [showHistory, setShowHistory] = useState(false)
+    const [copiedId, setCopiedId] = useState<string | null>(null)
 
     // Approval state
     const [approval, setApproval] = useState<Approval | null>(null)
@@ -752,7 +766,6 @@ export default function ChatPanel() {
                 {/* ── Creative Assets Panel (stage 2 — Creative Production rooms only) ── */}
                 {stageOrderFromName === 2 && (() => {
                     const CATEGORIES = [
-                        { id: 'all', label: 'All', icon: FolderOpen },
                         { id: 'sfx', label: 'SFX', icon: Play },
                         { id: 'music', label: 'Music', icon: Music },
                         { id: 'templates', label: 'Templates', icon: Layers },
@@ -760,9 +773,9 @@ export default function ChatPanel() {
                         { id: 'other', label: 'Other', icon: Film },
                     ] as const
 
-                    const assetMsgs = messages.filter(m => m.file_url)
-                    if (assetMsgs.length === 0) return null
+                    const clientName = selectedRoom?.name?.split(' — ')[0] || 'Client'
 
+                    const assetMsgs = messages.filter(m => m.file_url)
                     const filteredAssets = assetTab === 'all'
                         ? assetMsgs
                         : assetMsgs.filter(m => (assetCategories[m.id] || m.asset_category) === assetTab)
@@ -779,6 +792,37 @@ export default function ChatPanel() {
                         return <Layers className="h-4 w-4 text-gray-400" />
                     }
 
+                    const handleGenerate = async (cat: string) => {
+                        setAiSuggestTab(cat)
+                        setAiSuggestions([])
+                        setShowHistory(false)
+                        setAiLoading(true)
+                        const result = await generateCreativeSuggestions(cat, clientName)
+                        setAiSuggestions(result.data)
+                        setAiLoading(false)
+                    }
+
+                    const handleUseSuggestion = async (suggestion: string) => {
+                        if (!selectedRoom) return
+                        await saveCreativeSuggestion(selectedRoom.id, aiSuggestTab || 'other', suggestion)
+                        // copy to clipboard
+                        navigator.clipboard.writeText(suggestion).catch(() => {})
+                        setCopiedId(suggestion)
+                        setTimeout(() => setCopiedId(null), 2000)
+                        // refresh history if showing
+                        if (showHistory) {
+                            const h = await getCreativeHistory(selectedRoom.id, aiSuggestTab || undefined)
+                            setSuggestionHistory(h.data)
+                        }
+                    }
+
+                    const handleShowHistory = async () => {
+                        if (!selectedRoom) return
+                        const h = await getCreativeHistory(selectedRoom.id, aiSuggestTab || undefined)
+                        setSuggestionHistory(h.data)
+                        setShowHistory(v => !v)
+                    }
+
                     return (
                         <div className="mt-3 rounded-xl border border-gray-700 bg-gray-900 overflow-hidden flex-shrink-0">
                             <button
@@ -788,19 +832,25 @@ export default function ChatPanel() {
                                 <div className="flex items-center gap-2">
                                     <FolderOpen className="h-3.5 w-3.5 text-orange-400" />
                                     <span className="text-xs font-semibold text-white">Creative Assets</span>
-                                    <span className="text-xs text-gray-500">{assetMsgs.length} files</span>
+                                    {assetMsgs.length > 0 && <span className="text-xs text-gray-500">{assetMsgs.length} files</span>}
                                 </div>
                                 {assetPanelOpen ? <ChevronUp className="h-3.5 w-3.5 text-gray-400" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
                             </button>
 
                             {assetPanelOpen && (
                                 <div className="border-t border-gray-700 p-3 space-y-3">
-                                    {/* Category tabs */}
-                                    <div className="flex gap-1 flex-wrap">
+                                    {/* Category tabs with AI button */}
+                                    <div className="flex gap-1 flex-wrap items-center">
+                                        <button
+                                            onClick={() => { setAssetTab('all'); setAiSuggestTab(null); setAiSuggestions([]) }}
+                                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${assetTab === 'all' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                        >
+                                            <FolderOpen className="h-3 w-3" /> All
+                                        </button>
                                         {CATEGORIES.map(({ id, label, icon: Icon }) => (
                                             <button
                                                 key={id}
-                                                onClick={() => setAssetTab(id)}
+                                                onClick={() => { setAssetTab(id); setAiSuggestions([]); setAiSuggestTab(null) }}
                                                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${assetTab === id ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
                                             >
                                                 <Icon className="h-3 w-3" /> {label}
@@ -808,40 +858,104 @@ export default function ChatPanel() {
                                         ))}
                                     </div>
 
-                                    {/* Asset list */}
-                                    <div className="space-y-1 max-h-[220px] overflow-y-auto">
-                                        {filteredAssets.length === 0 && (
-                                            <p className="text-xs text-gray-600 italic text-center py-4">No files in this category</p>
-                                        )}
-                                        {filteredAssets.map(m => {
-                                            const cat = assetCategories[m.id] || m.asset_category || ''
-                                            const fileName = m.file_url?.split('/').pop()?.split('?')[0] || 'File'
-                                            return (
-                                                <div key={m.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-800 hover:bg-gray-750 group">
-                                                    {getFileIcon(m.file_type)}
-                                                    <div className="flex-1 min-w-0">
-                                                        <a href={m.file_url!} target="_blank" rel="noopener noreferrer"
-                                                            className="text-xs text-gray-200 hover:text-white truncate block">{fileName}</a>
-                                                        {m.file_type?.startsWith('audio/') && (
-                                                            <audio src={m.file_url!} controls className="mt-1 h-6 w-full" style={{ height: '28px' }} />
-                                                        )}
+                                    {/* AI Suggest + History buttons (shown when non-all tab selected) */}
+                                    {assetTab !== 'all' && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleGenerate(assetTab)}
+                                                disabled={aiLoading}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-medium transition-all"
+                                            >
+                                                {aiLoading && aiSuggestTab === assetTab
+                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                    : <Sparkles className="h-3 w-3" />}
+                                                AI Suggest
+                                            </button>
+                                            <button
+                                                onClick={handleShowHistory}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showHistory ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+                                            >
+                                                <History className="h-3 w-3" /> History
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* AI Suggestions */}
+                                    {aiSuggestions.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            <p className="text-xs text-purple-400 font-medium">✨ AI Suggestions — click Use to copy & save</p>
+                                            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                                                {aiSuggestions.map((s, i) => (
+                                                    <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-purple-900/20 border border-purple-700/30">
+                                                        <p className="flex-1 text-xs text-gray-200 leading-relaxed">{s}</p>
+                                                        <button
+                                                            onClick={() => handleUseSuggestion(s)}
+                                                            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md bg-purple-600 hover:bg-purple-700 text-white text-xs transition-all"
+                                                        >
+                                                            {copiedId === s ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                            {copiedId === s ? 'Copied!' : 'Use'}
+                                                        </button>
                                                     </div>
-                                                    <select
-                                                        value={cat}
-                                                        onChange={e => handleCategoryChange(m.id, e.target.value)}
-                                                        className="text-xs bg-gray-700 border border-gray-600 text-gray-300 rounded px-1 py-0.5 shrink-0"
-                                                    >
-                                                        <option value="">— tag —</option>
-                                                        <option value="sfx">SFX</option>
-                                                        <option value="music">Music</option>
-                                                        <option value="templates">Templates</option>
-                                                        <option value="color_grades">Color Grades</option>
-                                                        <option value="other">Other</option>
-                                                    </select>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* History */}
+                                    {showHistory && (
+                                        <div className="space-y-1.5">
+                                            <p className="text-xs text-gray-400 font-medium">History</p>
+                                            {suggestionHistory.length === 0
+                                                ? <p className="text-xs text-gray-600 italic">No history yet</p>
+                                                : <div className="space-y-1 max-h-[160px] overflow-y-auto">
+                                                    {suggestionHistory.map(h => (
+                                                        <div key={h.id} className="p-2 rounded-lg bg-gray-800 space-y-0.5">
+                                                            <p className="text-xs text-gray-200">{h.suggestion}</p>
+                                                            <p className="text-xs text-gray-500">{h.used_by_name} · {new Date(h.used_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
+                                            }
+                                        </div>
+                                    )}
+
+                                    {/* Asset file list */}
+                                    {assetMsgs.length > 0 && (
+                                        <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                                            <p className="text-xs text-gray-500 font-medium">Uploaded Files</p>
+                                            {filteredAssets.length === 0 && (
+                                                <p className="text-xs text-gray-600 italic text-center py-2">No files in this category</p>
+                                            )}
+                                            {filteredAssets.map(m => {
+                                                const cat = assetCategories[m.id] || m.asset_category || ''
+                                                const fileName = m.file_url?.split('/').pop()?.split('?')[0] || 'File'
+                                                return (
+                                                    <div key={m.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-800">
+                                                        {getFileIcon(m.file_type)}
+                                                        <div className="flex-1 min-w-0">
+                                                            <a href={m.file_url!} target="_blank" rel="noopener noreferrer"
+                                                                className="text-xs text-gray-200 hover:text-white truncate block">{fileName}</a>
+                                                            {m.file_type?.startsWith('audio/') && (
+                                                                <audio src={m.file_url!} controls className="mt-1 w-full" style={{ height: '28px' }} />
+                                                            )}
+                                                        </div>
+                                                        <select
+                                                            value={cat}
+                                                            onChange={e => handleCategoryChange(m.id, e.target.value)}
+                                                            className="text-xs bg-gray-700 border border-gray-600 text-gray-300 rounded px-1 py-0.5 shrink-0"
+                                                        >
+                                                            <option value="">— tag —</option>
+                                                            <option value="sfx">SFX</option>
+                                                            <option value="music">Music</option>
+                                                            <option value="templates">Templates</option>
+                                                            <option value="color_grades">Color Grades</option>
+                                                            <option value="other">Other</option>
+                                                        </select>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
