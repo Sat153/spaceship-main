@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { notifyAdmins } from './notifications'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // ============ TYPES ============
 
@@ -23,6 +24,7 @@ export interface ContentPost {
     review_notes: string | null
     ai_generated: boolean
     prompt_used: string | null
+    ai_corrected_body: string | null
     priority: 'low' | 'normal' | 'high' | 'urgent'
     created_at: string
     updated_at: string
@@ -378,12 +380,32 @@ export async function rejectContentPost(id: string, notes: string, stageOrder = 
                     `"${post.title || 'Untitled Post'}" needs revision: ${notes}`,
                     'changes_requested'
                 ).catch(() => {})
+
+                // AI auto-correct grammar using Akhilesh Ji's feedback
+                aiCorrectAndSave(id, post.body, notes).catch(() => {})
             }
         }
 
         return result
     } catch (error: any) {
         return { success: false, error: error.message }
+    }
+}
+
+// Called fire-and-forget after Akhilesh Ji rejects — corrects grammar and saves suggestion
+async function aiCorrectAndSave(postId: string, originalBody: string, feedback: string) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+        const prompt = `You are a professional social media content editor. A post was rejected with this feedback: "${feedback}"\n\nOriginal post:\n"${originalBody}"\n\nRewrite the post to fix all grammatical errors and address the reviewer's feedback. Keep the same meaning, tone, and formatting. Return ONLY the corrected post text, nothing else.`
+        const result = await model.generateContent(prompt)
+        const corrected = result.response.text().trim()
+        if (corrected) {
+            const admin = createAdminClient()
+            await admin.from('content_posts').update({ ai_corrected_body: corrected }).eq('id', postId)
+        }
+    } catch {
+        // silent — non-blocking
     }
 }
 

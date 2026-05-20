@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     PenTool, Sparkles, CalendarDays, Send, Loader2, Plus,
     FileText, Clock, CheckCircle, XCircle, Edit2, Trash2, ExternalLink, ShieldCheck, Bell,
-    BookMarked, Wheat, Heart, Building, Tag, Zap, Search
+    BookMarked, Wheat, Heart, Building, Tag, Zap, Search, Wand2
 } from 'lucide-react'
 import {
     getContentPosts,
@@ -77,6 +77,7 @@ export default function ContentCreator() {
     const [rejectNotes, setRejectNotes] = useState('')
     const [rejectSaving, setRejectSaving] = useState(false)
     const [editError, setEditError] = useState<string | null>(null)
+    const [applyingAIFix, setApplyingAIFix] = useState(false)
     // Messaging bank picker
     const [showBankPicker, setShowBankPicker] = useState<'create' | 'edit' | null>(null)
     const [bankTemplates, setBankTemplates] = useState<MessageTemplate[]>([])
@@ -201,6 +202,17 @@ export default function ContentCreator() {
             fetchData()
         } else {
             setEditError('Failed to save changes. Please try again.')
+        }
+    }
+
+    const handleApplyAIFix = async (post: ContentPost) => {
+        if (!post.ai_corrected_body) return
+        setApplyingAIFix(true)
+        const result = await updateContentPost(post.id, { body: post.ai_corrected_body, status: 'draft' })
+        setApplyingAIFix(false)
+        if (result.success) {
+            setViewingPost(null)
+            fetchData()
         }
     }
 
@@ -870,6 +882,24 @@ export default function ContentCreator() {
                                 <div className={`px-3 py-2 rounded-lg text-xs border ${viewingPost.status === 'rejected' ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-blue-500/10 border-blue-500/20 text-blue-300'}`}>
                                     <span className="font-semibold">{viewingPost.status === 'rejected' ? 'Rejected' : 'Feedback'}: </span>
                                     {viewingPost.review_notes}
+                                </div>
+                            )}
+                            {/* AI grammar-corrected suggestion */}
+                            {viewingPost.status === 'rejected' && viewingPost.ai_corrected_body && (
+                                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 space-y-2">
+                                    <div className="flex items-center gap-1.5 text-purple-300 text-xs font-semibold">
+                                        <Wand2 className="w-3.5 h-3.5" />
+                                        AI-corrected suggestion
+                                    </div>
+                                    <p className="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{viewingPost.ai_corrected_body}</p>
+                                    <button
+                                        onClick={() => handleApplyAIFix(viewingPost)}
+                                        disabled={applyingAIFix}
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-medium transition-all"
+                                    >
+                                        {applyingAIFix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                                        Apply AI Fix
+                                    </button>
                                 </div>
                             )}
                             {/* Footer */}
