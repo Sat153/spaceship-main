@@ -20,6 +20,7 @@ const ContentHub       = dynamic(() => import("@/components/admin/content/Conten
 const MessagingBank    = dynamic(() => import("@/components/admin/content/MessagingBank"), { ssr: false })
 const AdminSettings    = dynamic(() => import("@/components/admin/settings/AdminSettings"), { ssr: false })
 const AdminWeeklyReports = dynamic(() => import("@/components/admin/AdminWeeklyReports"), { ssr: false })
+const AgentsPanel      = dynamic(() => import("@/components/admin/agents/AgentsPanel"), { ssr: false })
 const ChatPanel        = dynamic(() => import("@/components/user/ChatPanel"), { ssr: false })
 
 interface DashboardStats {
@@ -520,6 +521,7 @@ function AdminDashboardContent() {
           {/* Padded tabs — lazy mount on first visit, then keep alive */}
           <div className={`p-4 md:p-8 ${!fullBleedTabs.includes(activeTab) ? '' : 'hidden'}`}>
             <div className={activeTab === 'overview' ? '' : 'hidden'}>{renderOverview()}</div>
+            {visitedTabs.has('agents') && <div className={activeTab === 'agents' ? '' : 'hidden'}><AgentsPanel /></div>}
             {visitedTabs.has('members') && <div className={activeTab === 'members' ? '' : 'hidden'}><AdminTeamMembers /></div>}
             {visitedTabs.has('weekly-reports') && <div className={activeTab === 'weekly-reports' ? '' : 'hidden'}><AdminWeeklyReports /></div>}
             {visitedTabs.has('settings') && <div className={activeTab === 'settings' ? '' : 'hidden'}><AdminSettings /></div>}

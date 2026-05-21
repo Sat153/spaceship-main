@@ -73,6 +73,7 @@ const baseUserMenuItems = [
 
 const adminMenuItems = [
   { id: 'overview', label: 'Overview', icon: Home, color: 'from-violet-400 to-purple-600' },
+  { id: 'agents', label: 'Agent Workflows', icon: CheckCircle2, color: 'from-purple-400 to-violet-600' },
   { id: 'members', label: 'Departments', icon: Users, color: 'from-blue-400 to-cyan-500' },
   { id: 'messages', label: 'Messages', icon: MessageCircle, color: 'from-fuchsia-400 to-pink-500' },
   { id: 'assets', label: 'Asset Library', icon: FileText, color: 'from-amber-400 to-orange-500' },
@@ -246,6 +247,7 @@ export default function Sidebar({ activeTab, onTabChange, userRole, isMobileOpen
                       'from-orange-400 to-red-500': 'linear-gradient(135deg, #fb923c, #ef4444)',
                       'from-yellow-400 to-amber-500': 'linear-gradient(135deg, #facc15, #f59e0b)',
                       'from-teal-400 to-cyan-500': 'linear-gradient(135deg, #2dd4bf, #06b6d4)',
+                      'from-purple-400 to-violet-600': 'linear-gradient(135deg, #c084fc, #7c3aed)',
                       'from-slate-400 to-gray-500': 'linear-gradient(135deg, #94a3b8, #6b7280)',
                     }
                     return {
