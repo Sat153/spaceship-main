@@ -39,12 +39,7 @@ export async function getPostsForVerification(): Promise<{
 
     const { data, error } = await supabase
       .from('content_posts')
-      .select(`
-        id, title, body, status, platforms, created_at,
-        verification_status, verification_notes,
-        clients!content_posts_client_id_fkey(name),
-        profiles!content_posts_created_by_fkey(first_name, last_name)
-      `)
+      .select('id, title, body, status, platforms, created_at, verification_status, verification_notes')
       .not('status', 'eq', 'draft')
       .order('created_at', { ascending: false })
 
@@ -52,17 +47,15 @@ export async function getPostsForVerification(): Promise<{
 
     const posts: VerifiablePost[] = (data ?? []).map((p: any) => ({
       id: p.id,
-      title: p.title,
-      body: p.body,
-      status: p.status,
-      platforms: p.platforms ?? [],
-      created_at: p.created_at,
-      verification_status: p.verification_status ?? null,
+      title: p.title ?? null,
+      body: p.body ?? '',
+      status: p.status ?? '',
+      platforms: Array.isArray(p.platforms) ? p.platforms : [],
+      created_at: p.created_at ?? '',
+      verification_status: (p.verification_status as VerificationStatus) ?? null,
       verification_notes: p.verification_notes ?? null,
-      client_name: p.clients?.name ?? null,
-      created_by_name: p.profiles
-        ? `${p.profiles.first_name ?? ''} ${p.profiles.last_name ?? ''}`.trim()
-        : null,
+      client_name: null,
+      created_by_name: null,
     }))
 
     const stats: VerificationStats = {
