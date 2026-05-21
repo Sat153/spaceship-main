@@ -11,6 +11,10 @@ import {
   getAgents, getAgentTasks, createAgentTask, updateTaskStatus, deleteAgentTask,
   type WorkflowAgent, type AgentTask,
 } from '@/app/actions/agent-workflow'
+import {
+  getPostsForVerification, updateVerificationStatus,
+  type VerifiablePost, type VerificationStats, type VerificationStatus,
+} from '@/app/actions/verification'
 
 // ─── Status config ─────────────────────────────────────────────────────────
 const STATUS = {
@@ -382,6 +386,253 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
   )
 }
 
+// ─── Verification Agent Panel ───────────────────────────────────────────────
+const VSTATUS = {
+  verified:   { label: 'Verified',   color: '#22c55e', bg: 'rgba(34,197,94,0.12)',   border: 'rgba(34,197,94,0.35)',   leftBorder: '#22c55e', Icon: CheckCircle2 },
+  in_review:  { label: 'In Review',  color: '#f97316', bg: 'rgba(249,115,22,0.12)',  border: 'rgba(249,115,22,0.35)',  leftBorder: '#f97316', Icon: Clock },
+  has_errors: { label: 'Has Errors', color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   leftBorder: '#ef4444', Icon: AlertTriangle },
+} as const
+
+const WORKFLOW_STATUS_LABEL: Record<string, string> = {
+  pending_review: 'Pending Review', internal_review: 'Internal Review',
+  awaiting_approval: 'Awaiting Approval', approved: 'Approved',
+  scheduled: 'Scheduled', published: 'Published', rejected: 'Rejected',
+}
+
+function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpdated: () => void }) {
+  const [expanded,    setExpanded]    = useState(false)
+  const [notes,       setNotes]       = useState(post.verification_notes ?? '')
+  const [saving,      setSaving]      = useState<VerificationStatus | null>(null)
+  const cfg = post.verification_status ? VSTATUS[post.verification_status] : null
+
+  const markAs = async (s: VerificationStatus) => {
+    setSaving(s)
+    await updateVerificationStatus(post.id, s, notes || undefined)
+    setSaving(null)
+    onUpdated()
+  }
+
+  return (
+    <div className="rounded-xl overflow-hidden transition-all"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderLeft: `3px solid ${cfg ? cfg.leftBorder : 'rgba(255,255,255,0.12)'}`,
+      }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 p-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium text-white truncate">{post.title || post.body.slice(0, 60) + '…'}</p>
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {post.client_name && (
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)' }}>
+                {post.client_name}
+              </span>
+            )}
+            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.35)' }}>
+              {WORKFLOW_STATUS_LABEL[post.status] ?? post.status}
+            </span>
+          </div>
+        </div>
+        {/* Verification badge */}
+        {cfg ? (
+          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+            style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
+            <cfg.Icon className="w-3 h-3" />{cfg.label}
+          </span>
+        ) : (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.35)' }}>
+            Unchecked
+          </span>
+        )}
+        <button onClick={() => setExpanded(e => !e)} className="text-gray-500 hover:text-white transition-colors flex-shrink-0">
+          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+
+      {/* Expanded */}
+      {expanded && (
+        <div className="px-3 pb-3 space-y-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          {/* Post body preview */}
+          <div className="mt-3 p-3 rounded-lg text-xs text-white/60 whitespace-pre-wrap leading-relaxed"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', maxHeight: 120, overflowY: 'auto' }}>
+            {post.body}
+          </div>
+          {/* Notes field */}
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Add verification notes or error details…"
+            rows={2}
+            className="w-full text-xs px-3 py-2 rounded-lg text-white placeholder-gray-600 outline-none resize-none"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+          />
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {(Object.keys(VSTATUS) as VerificationStatus[]).map(s => {
+              const c = VSTATUS[s]
+              const isActive = post.verification_status === s
+              return (
+                <button key={s} onClick={() => markAs(s)} disabled={!!saving}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all hover:scale-105 disabled:opacity-50"
+                  style={isActive
+                    ? { background: c.bg, border: `1px solid ${c.border}`, color: c.color, boxShadow: `0 0 10px ${c.color}30` }
+                    : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }
+                  }>
+                  {saving === s ? <Loader2 className="w-3 h-3 animate-spin" /> : <c.Icon className="w-3 h-3" />}
+                  {c.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VerificationPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefresh: () => void }) {
+  const [posts,    setPosts]    = useState<VerifiablePost[]>([])
+  const [stats,    setStats]    = useState<VerificationStats>({ total: 0, verified: 0, in_review: 0, has_errors: 0, unchecked: 0 })
+  const [loading,  setLoading]  = useState(false)
+  const [filter,   setFilter]   = useState<'all' | VerificationStatus | 'unchecked'>('all')
+  const [expanded, setExpanded] = useState(false)
+
+  const loadPosts = useCallback(async () => {
+    setLoading(true)
+    const r = await getPostsForVerification()
+    setPosts(r.data); setStats(r.stats); setLoading(false)
+  }, [])
+
+  useEffect(() => { if (expanded) loadPosts() }, [expanded, loadPosts])
+
+  const filtered = filter === 'all'      ? posts
+    : filter === 'unchecked'             ? posts.filter(p => !p.verification_status)
+    : posts.filter(p => p.verification_status === filter)
+
+  const pct = (n: number) => stats.total > 0 ? (n / stats.total) * 100 : 0
+
+  return (
+    <div className="rounded-2xl overflow-hidden"
+      style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.18)' }}>
+      {/* Card header */}
+      <button className="w-full flex items-center gap-3 p-4 text-left transition-colors hover:bg-white/[0.02]"
+        onClick={() => setExpanded(e => !e)}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)', boxShadow: '0 4px 12px rgba(34,197,94,0.3)' }}>
+          <ShieldCheck className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white">Verification Agent</p>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            Checks spelling & punctuation on all content posts
+          </p>
+        </div>
+        {/* Signal chips */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {stats.has_errors > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md font-bold" style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444' }}>{stats.has_errors}</span>}
+          {stats.in_review  > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md font-bold" style={{ background: 'rgba(249,115,22,0.2)', color: '#f97316' }}>{stats.in_review}</span>}
+          {stats.verified   > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md font-bold" style={{ background: 'rgba(34,197,94,0.2)', color: '#22c55e' }}>{stats.verified}</span>}
+          {expanded ? <ChevronUp className="w-4 h-4 text-gray-500 ml-1" /> : <ChevronDown className="w-4 h-4 text-gray-500 ml-1" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t px-4 pb-4" style={{ borderColor: 'rgba(34,197,94,0.12)' }}>
+          {loading ? (
+            <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-green-400" /></div>
+          ) : (
+            <>
+              {/* ── Progress bar ── */}
+              <div className="mt-4 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-white">Verification Progress</span>
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{stats.total} posts total</span>
+                </div>
+                {/* Stacked bar */}
+                <div className="w-full h-4 rounded-full overflow-hidden flex gap-0.5"
+                  style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  {stats.verified > 0 && (
+                    <div title={`Verified: ${stats.verified}`} className="h-full rounded-l-full transition-all duration-700"
+                      style={{ width: `${pct(stats.verified)}%`, background: 'linear-gradient(90deg,#22c55e,#16a34a)', boxShadow: '2px 0 8px rgba(34,197,94,0.4)' }} />
+                  )}
+                  {stats.in_review > 0 && (
+                    <div title={`In Review: ${stats.in_review}`} className="h-full transition-all duration-700"
+                      style={{ width: `${pct(stats.in_review)}%`, background: 'linear-gradient(90deg,#f97316,#ea580c)', boxShadow: '2px 0 8px rgba(249,115,22,0.4)' }} />
+                  )}
+                  {stats.has_errors > 0 && (
+                    <div title={`Has Errors: ${stats.has_errors}`} className="h-full transition-all duration-700"
+                      style={{ width: `${pct(stats.has_errors)}%`, background: 'linear-gradient(90deg,#ef4444,#dc2626)', boxShadow: '2px 0 8px rgba(239,68,68,0.4)' }} />
+                  )}
+                  {stats.unchecked > 0 && (
+                    <div title={`Unchecked: ${stats.unchecked}`} className="h-full rounded-r-full transition-all duration-700"
+                      style={{ width: `${pct(stats.unchecked)}%`, background: 'rgba(255,255,255,0.1)' }} />
+                  )}
+                </div>
+                {/* Legend */}
+                <div className="flex items-center gap-4 mt-2.5 flex-wrap">
+                  {[
+                    { label: 'Verified',   val: stats.verified,   color: '#22c55e' },
+                    { label: 'In Review',  val: stats.in_review,  color: '#f97316' },
+                    { label: 'Has Errors', val: stats.has_errors, color: '#ef4444' },
+                    { label: 'Unchecked',  val: stats.unchecked,  color: 'rgba(255,255,255,0.25)' },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                      <span className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>{item.label}</span>
+                      <span className="text-xs font-bold text-white">{item.val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter tabs */}
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                {[
+                  { key: 'all',       label: `All (${stats.total})`,              color: null },
+                  { key: 'unchecked', label: `Unchecked (${stats.unchecked})`,    color: 'rgba(255,255,255,0.25)' },
+                  { key: 'in_review', label: `In Review (${stats.in_review})`,    color: '#f97316' },
+                  { key: 'has_errors',label: `Has Errors (${stats.has_errors})`,  color: '#ef4444' },
+                  { key: 'verified',  label: `Verified (${stats.verified})`,      color: '#22c55e' },
+                ].map(tab => (
+                  <button key={tab.key} onClick={() => setFilter(tab.key as any)}
+                    className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+                    style={filter === tab.key
+                      ? { background: tab.color ? `${tab.color}20` : 'rgba(255,255,255,0.1)', color: tab.color ?? '#fff', border: `1px solid ${tab.color ? tab.color + '40' : 'rgba(255,255,255,0.2)'}` }
+                      : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.07)' }
+                    }>
+                    {tab.label}
+                  </button>
+                ))}
+                <button onClick={loadPosts} className="ml-auto text-xs px-2 py-1.5 rounded-lg transition-all"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
+                  ↺ Refresh
+                </button>
+              </div>
+
+              {/* Post list */}
+              {filtered.length === 0 ? (
+                <div className="text-center py-8 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                  No posts in this filter
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filtered.map(p => (
+                    <VerificationPostCard key={p.id} post={p} onUpdated={loadPosts} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Generic Add Task Form ──────────────────────────────────────────────────
 function AddTaskForm({ agentId, onClose, onCreated }: { agentId: string; onClose: () => void; onCreated: () => void }) {
   const [title,  setTitle]  = useState('')
@@ -574,8 +825,12 @@ export default function AgentsPanel() {
   const totalTasks = subAgents.reduce((n, a) => n + (a.task_counts?.total   ?? 0), 0)
   const totalUrgent= subAgents.reduce((n, a) => n + (a.task_counts?.urgent  ?? 0), 0)
 
-  const socialMediaAgent = subAgents.find(a => a.name.toLowerCase().includes('social media'))
-  const otherAgents      = subAgents.filter(a => !a.name.toLowerCase().includes('social media'))
+  const socialMediaAgent   = subAgents.find(a => a.name.toLowerCase().includes('social media'))
+  const verificationAgent  = subAgents.find(a => a.name.toLowerCase().includes('verification'))
+  const otherAgents        = subAgents.filter(a =>
+    !a.name.toLowerCase().includes('social media') &&
+    !a.name.toLowerCase().includes('verification')
+  )
 
   if (loading) {
     return (
@@ -657,6 +912,16 @@ export default function AgentsPanel() {
             Social Media
           </p>
           <SocialMediaPanel agent={socialMediaAgent} onRefresh={loadAgents} />
+        </div>
+      )}
+
+      {/* Verification Agent — full-width, featured */}
+      {verificationAgent && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Content Verification
+          </p>
+          <VerificationPanel agent={verificationAgent} onRefresh={loadAgents} />
         </div>
       )}
 
