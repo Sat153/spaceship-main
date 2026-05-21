@@ -23,6 +23,9 @@ export interface AgentTask {
   title: string
   description: string | null
   status: 'urgent' | 'pending' | 'approved'
+  content_type: 'post' | 'reel' | 'vlog' | null
+  photo_notes: string | null
+  caption: string | null
   assigned_to: string | null
   due_date: string | null
   created_at: string
@@ -52,7 +55,7 @@ export async function getAgents(): Promise<{ data: WorkflowAgent[]; error: strin
     }
 
     const parents = (agents ?? []).filter(a => a.type === 'parent')
-    const subs = (agents ?? []).filter(a => a.type === 'sub')
+    const subs    = (agents ?? []).filter(a => a.type === 'sub')
 
     return {
       data: parents.map(p => ({
@@ -90,16 +93,22 @@ export async function createAgentTask(input: {
   title: string
   description?: string
   status: 'urgent' | 'pending' | 'approved'
+  content_type?: 'post' | 'reel' | 'vlog'
+  photo_notes?: string
+  caption?: string
   due_date?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createAdminClient()
     const { error } = await supabase.from('agent_tasks').insert({
-      agent_id: input.agent_id,
-      title: input.title,
-      description: input.description || null,
-      status: input.status,
-      due_date: input.due_date || null,
+      agent_id:     input.agent_id,
+      title:        input.title,
+      description:  input.description  || null,
+      status:       input.status,
+      content_type: input.content_type || null,
+      photo_notes:  input.photo_notes  || null,
+      caption:      input.caption      || null,
+      due_date:     input.due_date     || null,
     })
     if (error) return { success: false, error: error.message }
     return { success: true }
