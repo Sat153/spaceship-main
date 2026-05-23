@@ -450,6 +450,7 @@ export async function getPendingApprovals(): Promise<{
             .from('content_posts')
             .select('*, clients:client_id (name)')
             .in('status', ['pending_review', 'awaiting_approval'])
+            .not('source', 'in', '("twitter","facebook")')
             .order('created_at', { ascending: false })
 
         if (error) return { data: null, error: error.message }
