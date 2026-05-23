@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
 const TEXT_PROMPT = `You are a professional Hindi/English content proofreader for a government media agency.
 
