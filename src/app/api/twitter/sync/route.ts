@@ -6,6 +6,10 @@ const NITTER_INSTANCES = [
   'https://nitter.privacyredirect.com',
   'https://nitter.1d4.us',
   'https://nitter.cz',
+  'https://nitter.net',
+  'https://nitter.it',
+  'https://nitter.nl',
+  'https://nitter.mint.lgbt',
 ]
 
 const SYNC_ACCOUNTS = [
@@ -115,12 +119,12 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  const summary: Record<string, { synced: number; patched: number; error?: string }> = {}
+  const summary: Record<string, { synced: number; patched: number; found: number; instance?: string; error?: string }> = {}
 
   for (const account of accounts) {
     const result = await fetchNitterRSS(account.username)
     if (!result) {
-      summary[account.handle] = { synced: 0, patched: 0, error: 'Nitter unavailable' }
+      summary[account.handle] = { synced: 0, patched: 0, found: 0, error: 'Nitter unavailable — all instances failed' }
       continue
     }
 
@@ -160,7 +164,7 @@ export async function GET(req: NextRequest) {
       if (!error) synced++
     }
 
-    summary[account.handle] = { synced, patched }
+    summary[account.handle] = { synced, patched, found: tweets.length, instance: result.instance }
   }
 
   const totalSynced = Object.values(summary).reduce((n, r) => n + r.synced, 0)
