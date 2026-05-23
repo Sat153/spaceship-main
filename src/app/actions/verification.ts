@@ -124,7 +124,7 @@ export async function getPostStatsBySource(): Promise<{
     }
 
     const by_account: Record<string, SourceStats> = {}
-    for (const handle of handleSet) {
+    for (const handle of Array.from(handleSet)) {
       by_account[handle] = calcFromList(
         twitterRows.filter((p: any) =>
           p.source_url?.toLowerCase().includes(`/${handle}/`)
