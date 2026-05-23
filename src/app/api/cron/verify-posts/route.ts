@@ -1,30 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Anthropic from '@anthropic-ai/sdk'
 import Groq from 'groq-sdk'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
-const CHECK_SYSTEM = `You are a professional Hindi/English content proofreader for a government media agency.
-
-Check the following post content for:
-1. Spelling mistakes (in both Hindi and English if present)
-2. Punctuation errors (wrong use of । , . ! ?)
-3. Grammar issues
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "status": "verified" | "has_errors",
-  "errors": ["error 1", "error 2"]
-}
-
-- Use "verified" if the content is clean with no issues
-- Use "has_errors" if you found any spelling, punctuation, or grammar mistakes
-- List each specific error found in the "errors" array (empty array if verified)
-- Be strict but fair — minor stylistic choices are NOT errors
-- Transliterated English words in Hindi script (like फॉरेस्ट, पुलिस) are acceptable
-- For Hindi text: check for correct use of पूर्ण विराम (।), missing spaces, and common Devanagari spelling errors`
 
 const CHECK_SYSTEM_GROQ = `You are a strict Hindi/English proofreader for a government media agency. You have deep knowledge of Hindi grammar and Devanagari script.
 
@@ -58,14 +36,6 @@ Respond ONLY with valid JSON:
 
 - Transliterated English words in Hindi script (फॉरेस्ट, पुलिस, कैबिनेट) are acceptable — do NOT flag these`
 
-const CORRECT_SYSTEM = `You are a grammar and punctuation editor for a government media agency.
-
-Your ONLY job is to fix the errors listed below in the post. Do NOT change the meaning, tone, style, or structure. Only fix spelling mistakes, punctuation, grammar, and capitalization errors.
-
-For Hindi text: use correct पूर्ण विराम (।), fix spacing issues, correct Devanagari spelling.
-
-Return ONLY the corrected post text. Nothing else — no explanation, no JSON, no quotes.`
-
 const CORRECT_SYSTEM_GROQ = `You are an expert Hindi/English editor for a government media agency.
 
 Fix ONLY the specific errors listed. Rules:
@@ -78,19 +48,6 @@ Fix ONLY the specific errors listed. Rules:
 - Do NOT change the meaning or tone
 
 Return ONLY the corrected text. No explanation, no quotes, no JSON.`
-
-async function checkWithClaude(content: string): Promise<{ status: string; errors: string[] }> {
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
-    messages: [
-      { role: 'user', content: `${CHECK_SYSTEM}\n\nContent to check:\n${content}` },
-    ],
-  })
-  const raw = (msg.content[0] as any).text?.trim() ?? '{}'
-  const jsonText = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim()
-  return JSON.parse(jsonText)
-}
 
 async function checkWithGroq(content: string): Promise<{ status: string; errors: string[] }> {
   const completion = await groq.chat.completions.create({
@@ -106,17 +63,6 @@ async function checkWithGroq(content: string): Promise<{ status: string; errors:
   return JSON.parse(raw)
 }
 
-async function correctWithClaude(body: string, errors: string[]): Promise<string | null> {
-  const msg = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [
-      { role: 'user', content: `${CORRECT_SYSTEM}\n\nErrors found:\n${errors.join('\n')}\n\nOriginal post:\n${body}` },
-    ],
-  })
-  return (msg.content[0] as any).text?.trim() || null
-}
-
 async function correctWithGroq(body: string, errors: string[]): Promise<string | null> {
   const completion = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
@@ -130,23 +76,13 @@ async function correctWithGroq(body: string, errors: string[]): Promise<string |
 }
 
 async function checkContent(content: string): Promise<{ status: string; errors: string[]; engine: string }> {
-  try {
-    const result = await checkWithClaude(content)
-    return { ...result, engine: 'claude' }
-  } catch {
-    const result = await checkWithGroq(content)
-    return { ...result, engine: 'groq' }
-  }
+  const result = await checkWithGroq(content)
+  return { ...result, engine: 'groq' }
 }
 
 async function correctContent(body: string, errors: string[]): Promise<{ text: string | null; engine: string }> {
-  try {
-    const text = await correctWithClaude(body, errors)
-    return { text, engine: 'claude' }
-  } catch {
-    const text = await correctWithGroq(body, errors)
-    return { text, engine: 'groq' }
-  }
+  const text = await correctWithGroq(body, errors)
+  return { text, engine: 'groq' }
 }
 
 export async function GET() {
