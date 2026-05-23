@@ -26,6 +26,38 @@ Respond ONLY with valid JSON in this exact format:
 - Transliterated English words in Hindi script (like फॉरेस्ट, पुलिस) are acceptable
 - For Hindi text: check for correct use of पूर्ण विराम (।), missing spaces, and common Devanagari spelling errors`
 
+const CHECK_SYSTEM_GROQ = `You are a strict Hindi/English proofreader for a government media agency. You have deep knowledge of Hindi grammar and Devanagari script.
+
+Check the content for ALL of the following:
+
+HINDI-SPECIFIC RULES:
+- पूर्ण विराम (।) must be used at sentence endings, NOT English full stop (.)
+- No space before पूर्ण विराम (।) — "शब्द ।" is WRONG, "शब्द।" is correct
+- Correct matra usage: की/कि, में/मैं, है/हैं, ने/में confusion
+- Correct conjuncts and half-letters in Devanagari
+- Verb-subject agreement: singular/plural, gender agreement
+- No unnecessary repetition of words
+- Correct use of ने, को, से, पर, में (case markers)
+- Anusvara (ं) vs Anunasika (ँ) correct usage
+
+ENGLISH-SPECIFIC RULES (if English text present):
+- Correct capitalization of proper nouns
+- No missing articles (a, an, the)
+- Subject-verb agreement
+
+GENERAL:
+- No extra spaces between words
+- No duplicate punctuation (!!, ..)
+- Numbers written consistently
+
+Respond ONLY with valid JSON:
+{
+  "status": "verified" | "has_errors",
+  "errors": ["specific error description with location"]
+}
+
+- Transliterated English words in Hindi script (फॉरेस्ट, पुलिस, कैबिनेट) are acceptable — do NOT flag these`
+
 const CORRECT_SYSTEM = `You are a grammar and punctuation editor for a government media agency.
 
 Your ONLY job is to fix the errors listed below in the post. Do NOT change the meaning, tone, style, or structure. Only fix spelling mistakes, punctuation, grammar, and capitalization errors.
@@ -33,6 +65,19 @@ Your ONLY job is to fix the errors listed below in the post. Do NOT change the m
 For Hindi text: use correct पूर्ण विराम (।), fix spacing issues, correct Devanagari spelling.
 
 Return ONLY the corrected post text. Nothing else — no explanation, no JSON, no quotes.`
+
+const CORRECT_SYSTEM_GROQ = `You are an expert Hindi/English editor for a government media agency.
+
+Fix ONLY the specific errors listed. Rules:
+- Replace English full stops (.) with पूर्ण विराम (।) at Hindi sentence endings
+- Remove space before पूर्ण विराम: "शब्द ।" → "शब्द।"
+- Fix matra errors: की/कि, में/मैं, है/हैं
+- Fix verb-subject agreement
+- Do NOT change any words, facts, names, numbers, or sentence structure
+- Do NOT add or remove sentences
+- Do NOT change the meaning or tone
+
+Return ONLY the corrected text. No explanation, no quotes, no JSON.`
 
 async function checkWithClaude(content: string): Promise<{ status: string; errors: string[] }> {
   const msg = await anthropic.messages.create({
@@ -51,7 +96,7 @@ async function checkWithGroq(content: string): Promise<{ status: string; errors:
   const completion = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
-      { role: 'system', content: CHECK_SYSTEM },
+      { role: 'system', content: CHECK_SYSTEM_GROQ },
       { role: 'user', content: content },
     ],
     temperature: 0.1,
@@ -76,8 +121,8 @@ async function correctWithGroq(body: string, errors: string[]): Promise<string |
   const completion = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
-      { role: 'system', content: CORRECT_SYSTEM },
-      { role: 'user', content: `Errors found:\n${errors.join('\n')}\n\nOriginal post:\n${body}` },
+      { role: 'system', content: CORRECT_SYSTEM_GROQ },
+      { role: 'user', content: `Errors to fix:\n${errors.join('\n')}\n\nOriginal post:\n${body}` },
     ],
     temperature: 0.1,
   })
