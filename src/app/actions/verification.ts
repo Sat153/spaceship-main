@@ -88,8 +88,6 @@ export interface SourceStats {
   unchecked: number
 }
 
-const TWITTER_HANDLES = ['dipr_uk', 'pushkardhami', 'bjp4uk']
-
 export async function getPostStatsBySource(): Promise<{
   twitter: SourceStats
   facebook: SourceStats
@@ -118,11 +116,18 @@ export async function getPostStatsBySource(): Promise<{
 
     const twitterRows = rows.filter((p: any) => p.source === 'twitter')
 
+    // Derive handles dynamically from source_url
+    const handleSet = new Set<string>()
+    for (const row of twitterRows) {
+      const m = row.source_url?.match(/x\.com\/([^/]+)\//i)
+      if (m) handleSet.add(m[1].toLowerCase())
+    }
+
     const by_account: Record<string, SourceStats> = {}
-    for (const handle of TWITTER_HANDLES) {
+    for (const handle of handleSet) {
       by_account[handle] = calcFromList(
         twitterRows.filter((p: any) =>
-          p.source_url?.toLowerCase().includes(`/${handle.toLowerCase()}/`)
+          p.source_url?.toLowerCase().includes(`/${handle}/`)
         )
       )
     }
