@@ -5,15 +5,15 @@ import {
   Crown, Share2, Building2, ShieldCheck,
   Plus, Trash2, AlertTriangle, Clock, CheckCircle2,
   ChevronDown, ChevronUp, Calendar, Loader2, X,
-  Bot, Image, Film, Clapperboard, ExternalLink, Globe,
+  Bot, Image, Film, Clapperboard, ExternalLink, Globe, User,
 } from 'lucide-react'
 import {
   getAgents, getAgentTasks, createAgentTask, updateTaskStatus, deleteAgentTask,
   type WorkflowAgent, type AgentTask,
 } from '@/app/actions/agent-workflow'
 import {
-  getPostsForVerification, updateVerificationStatus,
-  type VerifiablePost, type VerificationStats, type VerificationStatus,
+  getPostsForVerification, updateVerificationStatus, getPostStatsBySource,
+  type VerifiablePost, type VerificationStats, type VerificationStatus, type SourceStats,
 } from '@/app/actions/verification'
 
 // ─── Status config ─────────────────────────────────────────────────────────
@@ -249,12 +249,46 @@ function SocialMediaTaskCard({ task, onStatusChange, onDelete }: {
 
 // ─── Social Media Analyst Sub-Panel ─────────────────────────────────────────
 function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefresh: () => void }) {
-  const [tasks,       setTasks]       = useState<AgentTask[]>([])
-  const [loading,     setLoading]     = useState(false)
-  const [filter,      setFilter]      = useState<'all' | ContentTypeKey>('all')
-  const [showForm,    setShowForm]    = useState(false)
-  const [expanded,    setExpanded]    = useState(false)
+  const [tasks,        setTasks]        = useState<AgentTask[]>([])
+  const [loading,      setLoading]      = useState(false)
+  const [filter,       setFilter]       = useState<'all' | ContentTypeKey>('all')
+  const [showForm,     setShowForm]     = useState(false)
+  const [expanded,     setExpanded]     = useState(false)
+  const [syncing,      setSyncing]      = useState<'fb' | 'tw' | null>(null)
+  const [syncMsg,      setSyncMsg]      = useState<string | null>(null)
+  const [twitterStats, setTwitterStats] = useState<SourceStats>({ total: 0, verified: 0, has_errors: 0, in_review: 0, unchecked: 0 })
   const counts = agent.task_counts ?? { urgent: 0, pending: 0, approved: 0, total: 0 }
+
+  const loadStats = useCallback(async () => {
+    const r = await getPostStatsBySource()
+    setTwitterStats(r.twitter)
+  }, [])
+
+  const handleFacebookSync = async () => {
+    setSyncing('fb'); setSyncMsg(null)
+    try {
+      const res = await fetch('/api/facebook/sync')
+      const json = await res.json()
+      if (json.error) setSyncMsg(`Facebook: ${json.error}`)
+      else setSyncMsg(`Facebook: synced ${json.synced} new post${json.synced !== 1 ? 's' : ''}`)
+    } catch {
+      setSyncMsg('Facebook sync failed')
+    }
+    setSyncing(null); loadStats(); onRefresh()
+  }
+
+  const handleTwitterSync = async () => {
+    setSyncing('tw'); setSyncMsg(null)
+    try {
+      const res = await fetch('/api/twitter/sync')
+      const json = await res.json()
+      if (json.error) setSyncMsg(`Twitter: ${json.error}`)
+      else setSyncMsg(`Twitter: synced ${json.synced} new tweet${json.synced !== 1 ? 's' : ''}`)
+    } catch {
+      setSyncMsg('Twitter sync failed')
+    }
+    setSyncing(null); loadStats(); onRefresh()
+  }
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -263,7 +297,7 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
     setLoading(false)
   }, [agent.id])
 
-  useEffect(() => { if (expanded) loadTasks() }, [expanded, loadTasks])
+  useEffect(() => { if (expanded) { loadTasks(); loadStats() } }, [expanded, loadTasks, loadStats])
 
   const handleStatusChange = async (id: string, s: StatusKey) => {
     await updateTaskStatus(id, s); await loadTasks(); onRefresh()
@@ -332,6 +366,73 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
             </a>
           </div>
 
+          {/* Sync buttons */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button onClick={handleFacebookSync} disabled={!!syncing}
+              className="flex items-center gap-2 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all disabled:opacity-50 hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg,#1877f2,#0d5bbf)', boxShadow: '0 2px 12px rgba(24,119,242,0.35)' }}>
+              {syncing === 'fb' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+              {syncing === 'fb' ? 'Fetching…' : 'Sync Facebook'}
+            </button>
+            <button onClick={handleTwitterSync} disabled={!!syncing}
+              className="flex items-center gap-2 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all disabled:opacity-50 hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg,#1d9bf0,#0d8bd9)', boxShadow: '0 2px 12px rgba(29,155,240,0.35)' }}>
+              {syncing === 'tw' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+              {syncing === 'tw' ? 'Fetching…' : 'Sync Twitter / X'}
+            </button>
+            {syncMsg && (
+              <p className="text-xs mt-2 w-full px-1" style={{ color: syncMsg.includes('Error') || syncMsg.includes('failed') ? '#f87171' : '#86efac' }}>
+                {syncMsg}
+              </p>
+            )}
+          </div>
+
+          {/* Twitter Stats Bar */}
+          {twitterStats.total > 0 && (
+            <div className="mb-4 p-3 rounded-xl" style={{ background: 'rgba(29,155,240,0.06)', border: '1px solid rgba(29,155,240,0.15)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                  <Share2 className="w-3.5 h-3.5 text-sky-400" />
+                  Twitter / X Posts — Verification Status
+                </span>
+                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{twitterStats.total} synced</span>
+              </div>
+              {/* Stacked bar */}
+              <div className="w-full h-3 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                {twitterStats.verified > 0 && (
+                  <div className="h-full transition-all duration-700"
+                    style={{ width: `${(twitterStats.verified / twitterStats.total) * 100}%`, background: 'linear-gradient(90deg,#22c55e,#16a34a)' }} />
+                )}
+                {twitterStats.has_errors > 0 && (
+                  <div className="h-full transition-all duration-700"
+                    style={{ width: `${(twitterStats.has_errors / twitterStats.total) * 100}%`, background: 'linear-gradient(90deg,#ef4444,#dc2626)' }} />
+                )}
+                {twitterStats.in_review > 0 && (
+                  <div className="h-full transition-all duration-700"
+                    style={{ width: `${(twitterStats.in_review / twitterStats.total) * 100}%`, background: 'linear-gradient(90deg,#f97316,#ea580c)' }} />
+                )}
+                {twitterStats.unchecked > 0 && (
+                  <div className="h-full rounded-r-full transition-all duration-700"
+                    style={{ width: `${(twitterStats.unchecked / twitterStats.total) * 100}%`, background: 'rgba(255,255,255,0.1)' }} />
+                )}
+              </div>
+              <div className="flex items-center gap-4 mt-2 flex-wrap">
+                {[
+                  { label: 'Verified',   val: twitterStats.verified,   color: '#22c55e' },
+                  { label: 'Has Errors', val: twitterStats.has_errors, color: '#ef4444' },
+                  { label: 'In Review',  val: twitterStats.in_review,  color: '#f97316' },
+                  { label: 'Unchecked',  val: twitterStats.unchecked,  color: 'rgba(255,255,255,0.25)' },
+                ].map(item => item.val > 0 && (
+                  <div key={item.label} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>{item.label}</span>
+                    <span className="text-xs font-bold text-white">{item.val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Content type filter tabs */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <button onClick={() => setFilter('all')}
@@ -399,11 +500,19 @@ const WORKFLOW_STATUS_LABEL: Record<string, string> = {
   scheduled: 'Scheduled', published: 'Published', rejected: 'Rejected',
 }
 
+function proxyImg(url: string | null): string | null {
+  if (!url) return null
+  return `/api/img?url=${encodeURIComponent(url)}`
+}
+
 function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpdated: () => void }) {
-  const [expanded,    setExpanded]    = useState(false)
-  const [notes,       setNotes]       = useState(post.verification_notes ?? '')
-  const [saving,      setSaving]      = useState<VerificationStatus | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [notes,    setNotes]    = useState(post.verification_notes ?? '')
+  const [saving,   setSaving]   = useState<VerificationStatus | null>(null)
   const cfg = post.verification_status ? VSTATUS[post.verification_status] : null
+  const isFacebook = post.source === 'facebook'
+  const isTwitter  = post.source === 'twitter'
+  const imgSrc = proxyImg(post.featured_image)
 
   const markAs = async (s: VerificationStatus) => {
     setSaving(s)
@@ -420,9 +529,28 @@ function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpd
         borderLeft: `3px solid ${cfg ? cfg.leftBorder : 'rgba(255,255,255,0.12)'}`,
       }}>
       {/* Header */}
-      <div className="flex items-center gap-3 p-3">
+      <div className="flex items-start gap-3 p-3">
+        {/* Photo thumbnail */}
+        {imgSrc && (
+          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imgSrc} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            {isFacebook && (
+              <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
+                style={{ background: 'rgba(24,119,242,0.18)', color: '#60a5fa', border: '1px solid rgba(24,119,242,0.3)' }}>
+                <span className="font-bold">f</span> Facebook
+              </span>
+            )}
+            {isTwitter && (
+              <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
+                style={{ background: 'rgba(29,155,240,0.18)', color: '#38bdf8', border: '1px solid rgba(29,155,240,0.3)' }}>
+                <Share2 className="w-3 h-3" /> Twitter / X
+              </span>
+            )}
             <p className="text-sm font-medium text-white truncate">{post.title || post.body.slice(0, 60) + '…'}</p>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -456,16 +584,42 @@ function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpd
       {/* Expanded */}
       {expanded && (
         <div className="px-3 pb-3 space-y-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          {/* Post body preview */}
-          <div className="mt-3 p-3 rounded-lg text-xs text-white/60 whitespace-pre-wrap leading-relaxed"
+          {/* Full photo if available */}
+          {imgSrc && (
+            <div className="mt-3 rounded-lg overflow-hidden" style={{ maxHeight: 220 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imgSrc} alt="" className="w-full object-cover rounded-lg" style={{ maxHeight: 220 }} />
+            </div>
+          )}
+          {/* Post body */}
+          <div className="p-3 rounded-lg text-xs text-white/60 whitespace-pre-wrap leading-relaxed"
             style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', maxHeight: 120, overflowY: 'auto' }}>
             {post.body}
           </div>
-          {/* Notes field */}
+          {/* Source link */}
+          {post.source_url && (
+            <a href={post.source_url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs w-fit px-2 py-1 rounded-lg transition-all hover:scale-105"
+              style={isTwitter
+                ? { background: 'rgba(29,155,240,0.12)', border: '1px solid rgba(29,155,240,0.25)', color: '#38bdf8' }
+                : { background: 'rgba(24,119,242,0.12)', border: '1px solid rgba(24,119,242,0.25)', color: '#60a5fa' }
+              }>
+              <ExternalLink className="w-3 h-3" />
+              {isTwitter ? 'View on Twitter / X' : 'View on Facebook'}
+            </a>
+          )}
+          {/* Error notes from Gemini */}
+          {post.verification_notes && (
+            <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <p className="font-semibold mb-1" style={{ color: '#fca5a5' }}>Issues found by AI:</p>
+              <p className="text-white/60 whitespace-pre-wrap">{post.verification_notes}</p>
+            </div>
+          )}
+          {/* Manual notes */}
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="Add verification notes or error details…"
+            placeholder="Add manual verification notes…"
             rows={2}
             className="w-full text-xs px-3 py-2 rounded-lg text-white placeholder-gray-600 outline-none resize-none"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
@@ -626,6 +780,342 @@ function VerificationPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefre
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Official Accounts Panel ────────────────────────────────────────────────
+const ACCOUNTS = {
+  dipr_official: {
+    label: 'DIPR Official',
+    shortLabel: 'DIPR',
+    color: '#f59e0b',
+    bg: 'rgba(245,158,11,0.12)',
+    border: 'rgba(245,158,11,0.35)',
+    gradient: 'linear-gradient(135deg,#f59e0b,#d97706)',
+    shadow: 'rgba(245,158,11,0.35)',
+    Icon: Building2,
+    desc: 'Social Media · Official',
+  },
+  bjp_uk: {
+    label: 'BJP Uttarakhand',
+    shortLabel: 'BJP UK',
+    color: '#f97316',
+    bg: 'rgba(249,115,22,0.12)',
+    border: 'rgba(249,115,22,0.35)',
+    gradient: 'linear-gradient(135deg,#f97316,#ea580c)',
+    shadow: 'rgba(249,115,22,0.35)',
+    Icon: Globe,
+    desc: 'Party · Official Account',
+  },
+  pushkar_dhami: {
+    label: 'Pushkar Singh Dhami',
+    shortLabel: 'CM Dhami',
+    color: '#60a5fa',
+    bg: 'rgba(96,165,250,0.12)',
+    border: 'rgba(96,165,250,0.35)',
+    gradient: 'linear-gradient(135deg,#60a5fa,#3b82f6)',
+    shadow: 'rgba(96,165,250,0.35)',
+    Icon: User,
+    desc: 'Chief Minister · Official',
+  },
+} as const
+type AccountKey = keyof typeof ACCOUNTS
+
+function OfficialAddForm({ agentId, defaultAccount, onClose, onCreated }: {
+  agentId: string
+  defaultAccount: AccountKey
+  onClose: () => void
+  onCreated: () => void
+}) {
+  const [title,   setTitle]   = useState('')
+  const [desc,    setDesc]    = useState('')
+  const [account, setAccount] = useState<AccountKey>(defaultAccount)
+  const [status,  setStatus]  = useState<StatusKey>('pending')
+  const [due,     setDue]     = useState('')
+  const [saving,  setSaving]  = useState(false)
+
+  const acct = ACCOUNTS[account]
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim()) return
+    setSaving(true)
+    await createAgentTask({
+      agent_id:    agentId,
+      title:       title.trim(),
+      description: desc.trim() || undefined,
+      status,
+      account_tag: account,
+      due_date:    due || undefined,
+    })
+    setSaving(false); onCreated(); onClose()
+  }
+
+  return (
+    <div className="rounded-xl p-4 mt-3" style={{ background: `${acct.bg}`, border: `1px solid ${acct.border}` }}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-semibold text-white">New Task</span>
+        <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {/* Account selector */}
+        <div className="flex gap-2 flex-wrap">
+          {(Object.keys(ACCOUNTS) as AccountKey[]).map(a => {
+            const c = ACCOUNTS[a]
+            return (
+              <button key={a} type="button" onClick={() => setAccount(a)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={account === a
+                  ? { background: c.bg, border: `1px solid ${c.border}`, color: c.color }
+                  : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)' }
+                }>
+                <c.Icon className="w-3.5 h-3.5" />{c.shortLabel}
+              </button>
+            )
+          })}
+        </div>
+
+        <input type="text" placeholder="Task title *" value={title} onChange={e => setTitle(e.target.value)} required
+          className="w-full text-sm px-3 py-2 rounded-lg text-white placeholder-gray-500 outline-none"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
+
+        <textarea placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} rows={2}
+          className="w-full text-sm px-3 py-2 rounded-lg text-white placeholder-gray-500 outline-none resize-none"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1.5">
+            {(Object.keys(STATUS) as StatusKey[]).map(s => {
+              const cfg = STATUS[s]; const Icon = cfg.Icon
+              return (
+                <button key={s} type="button" onClick={() => setStatus(s)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={status === s
+                    ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
+                    : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }
+                  }>
+                  <Icon className="w-3 h-3" />{cfg.label}
+                </button>
+              )
+            })}
+          </div>
+          <input type="date" value={due} onChange={e => setDue(e.target.value)}
+            className="text-xs px-2 py-1.5 rounded-lg text-white outline-none"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }} />
+          <button type="submit" disabled={saving || !title.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40 ml-auto"
+            style={{ background: acct.gradient, boxShadow: `0 2px 8px ${acct.shadow}` }}>
+            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+            Add Task
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function OfficialTaskCard({ task, onStatusChange, onDelete }: {
+  task: AgentTask
+  onStatusChange: (id: string, s: StatusKey) => void
+  onDelete: (id: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const statusCfg = STATUS[task.status as StatusKey] ?? STATUS.pending
+  const StatusIcon = statusCfg.Icon
+  const acct = task.account_tag ? ACCOUNTS[task.account_tag as AccountKey] : null
+
+  return (
+    <div className="rounded-xl overflow-hidden transition-all"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderLeft: `3px solid ${statusCfg.leftBorder}`,
+      }}>
+      <div className="flex items-center gap-2 p-3">
+        {acct && (
+          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+            style={{ background: acct.bg, border: `1px solid ${acct.border}`, color: acct.color }}>
+            <acct.Icon className="w-3 h-3" />{acct.shortLabel}
+          </span>
+        )}
+        <p className="text-sm font-medium text-white flex-1 truncate">{task.title}</p>
+        <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+          style={{ background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, color: statusCfg.color }}>
+          <StatusIcon className="w-3 h-3" />{statusCfg.label}
+        </span>
+        <button onClick={() => setExpanded(e => !e)} className="text-gray-500 hover:text-white transition-colors flex-shrink-0">
+          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          {task.description && (
+            <p className="text-xs text-white/60 mt-2 leading-relaxed">{task.description}</p>
+          )}
+          {task.due_date && (
+            <p className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              <Calendar className="w-3 h-3" />
+              Due: {new Date(task.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          )}
+          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+            <span className="text-xs mr-1" style={{ color: 'rgba(255,255,255,0.25)' }}>Move to:</span>
+            {(Object.keys(STATUS) as StatusKey[]).filter(s => s !== task.status).map(s => {
+              const c = STATUS[s]; const Icon = c.Icon
+              return (
+                <button key={s} onClick={() => onStatusChange(task.id, s)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all hover:scale-105"
+                  style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.color }}>
+                  <Icon className="w-3 h-3" />{c.label}
+                </button>
+              )
+            })}
+            <button onClick={() => onDelete(task.id)}
+              className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all hover:scale-105"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+              <Trash2 className="w-3 h-3" /> Delete
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OfficialAccountsPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefresh: () => void }) {
+  const [tasks,    setTasks]    = useState<AgentTask[]>([])
+  const [loading,  setLoading]  = useState(false)
+  const [filter,   setFilter]   = useState<'all' | AccountKey>('all')
+  const [showForm, setShowForm] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const counts = agent.task_counts ?? { urgent: 0, pending: 0, approved: 0, total: 0 }
+
+  const loadTasks = useCallback(async () => {
+    setLoading(true)
+    const r = await getAgentTasks(agent.id)
+    setTasks(r.data); setLoading(false)
+  }, [agent.id])
+
+  useEffect(() => { if (expanded) loadTasks() }, [expanded, loadTasks])
+
+  const handleStatusChange = async (id: string, s: StatusKey) => { await updateTaskStatus(id, s); await loadTasks(); onRefresh() }
+  const handleDelete = async (id: string) => { await deleteAgentTask(id); await loadTasks(); onRefresh() }
+
+  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.account_tag === filter)
+
+  const acctCounts = (Object.keys(ACCOUNTS) as AccountKey[]).reduce((acc, a) => {
+    acc[a] = tasks.filter(t => t.account_tag === a).length
+    return acc
+  }, {} as Record<AccountKey, number>)
+
+  const activeAccount = filter !== 'all' ? ACCOUNTS[filter] : null
+
+  return (
+    <div className="rounded-2xl overflow-hidden"
+      style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.18)' }}>
+      {/* Card header */}
+      <button className="w-full flex items-center gap-3 p-4 text-left transition-colors hover:bg-white/[0.02]"
+        onClick={() => setExpanded(e => !e)}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', boxShadow: '0 4px 12px rgba(245,158,11,0.35)' }}>
+          <Building2 className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white">Official Accounts</p>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            DIPR Official · BJP UK · Pushkar Singh Dhami
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {counts.urgent  > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md font-bold" style={{ background: 'rgba(239,68,68,0.2)',  color: '#ef4444' }}>{counts.urgent}</span>}
+          {counts.pending > 0 && <span className="text-xs px-1.5 py-0.5 rounded-md font-bold" style={{ background: 'rgba(249,115,22,0.2)', color: '#f97316' }}>{counts.pending}</span>}
+          {counts.approved> 0 && <span className="text-xs px-1.5 py-0.5 rounded-md font-bold" style={{ background: 'rgba(34,197,94,0.2)',  color: '#22c55e' }}>{counts.approved}</span>}
+          {expanded ? <ChevronUp className="w-4 h-4 text-gray-500 ml-1" /> : <ChevronDown className="w-4 h-4 text-gray-500 ml-1" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t px-4 pb-4" style={{ borderColor: 'rgba(245,158,11,0.12)' }}>
+          {/* Account cards row */}
+          <div className="grid grid-cols-3 gap-3 mt-4 mb-4">
+            {(Object.keys(ACCOUNTS) as AccountKey[]).map(a => {
+              const c = ACCOUNTS[a]
+              const isActive = filter === a
+              const cnt = acctCounts[a]
+              return (
+                <button key={a} onClick={() => setFilter(isActive ? 'all' : a)}
+                  className="rounded-xl p-3 text-left transition-all hover:scale-[1.02]"
+                  style={isActive
+                    ? { background: c.bg, border: `1px solid ${c.border}`, boxShadow: `0 0 16px ${c.shadow}` }
+                    : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }
+                  }>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
+                    style={{ background: isActive ? c.gradient : 'rgba(255,255,255,0.08)' }}>
+                    <c.Icon className="w-4 h-4" style={{ color: isActive ? '#fff' : c.color }} />
+                  </div>
+                  <p className="text-xs font-semibold text-white leading-tight">{c.shortLabel}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{cnt} task{cnt !== 1 ? 's' : ''}</p>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Filter bar + Add Task */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <button onClick={() => setFilter('all')}
+              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+              style={filter === 'all'
+                ? { background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }
+                : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              All ({tasks.length})
+            </button>
+            {(Object.keys(ACCOUNTS) as AccountKey[]).map(a => {
+              const c = ACCOUNTS[a]
+              return (
+                <button key={a} onClick={() => setFilter(a)}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+                  style={filter === a
+                    ? { background: c.bg, color: c.color, border: `1px solid ${c.border}` }
+                    : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <c.Icon className="w-3 h-3" />{c.shortLabel} ({acctCounts[a]})
+                </button>
+              )
+            })}
+            <button onClick={() => setShowForm(f => !f)}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ml-auto"
+              style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}>
+              <Plus className="w-3 h-3" /> Add Task
+            </button>
+          </div>
+
+          {showForm && (
+            <OfficialAddForm
+              agentId={agent.id}
+              defaultAccount={filter !== 'all' ? filter : 'dipr_official'}
+              onClose={() => setShowForm(false)}
+              onCreated={() => { loadTasks(); onRefresh() }}
+            />
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+              No tasks for {activeAccount ? activeAccount.label : 'any account'} yet
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map(t => (
+                <OfficialTaskCard key={t.id} task={t} onStatusChange={handleStatusChange} onDelete={handleDelete} />
+              ))}
+            </div>
           )}
         </div>
       )}
@@ -827,9 +1317,11 @@ export default function AgentsPanel() {
 
   const socialMediaAgent   = subAgents.find(a => a.name.toLowerCase().includes('social media'))
   const verificationAgent  = subAgents.find(a => a.name.toLowerCase().includes('verification'))
+  const officialAgent      = subAgents.find(a => a.name.toLowerCase().includes('official'))
   const otherAgents        = subAgents.filter(a =>
     !a.name.toLowerCase().includes('social media') &&
-    !a.name.toLowerCase().includes('verification')
+    !a.name.toLowerCase().includes('verification') &&
+    !a.name.toLowerCase().includes('official')
   )
 
   if (loading) {
@@ -922,6 +1414,16 @@ export default function AgentsPanel() {
             Content Verification
           </p>
           <VerificationPanel agent={verificationAgent} onRefresh={loadAgents} />
+        </div>
+      )}
+
+      {/* Official Accounts Agent — full-width, featured */}
+      {officialAgent && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Official Accounts
+          </p>
+          <OfficialAccountsPanel agent={officialAgent} onRefresh={loadAgents} />
         </div>
       )}
 

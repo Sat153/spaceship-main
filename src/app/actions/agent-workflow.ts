@@ -26,6 +26,7 @@ export interface AgentTask {
   content_type: 'post' | 'reel' | 'vlog' | null
   photo_notes: string | null
   caption: string | null
+  account_tag: string | null
   assigned_to: string | null
   due_date: string | null
   created_at: string
@@ -96,6 +97,7 @@ export async function createAgentTask(input: {
   content_type?: 'post' | 'reel' | 'vlog'
   photo_notes?: string
   caption?: string
+  account_tag?: string
   due_date?: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
@@ -108,6 +110,7 @@ export async function createAgentTask(input: {
       content_type: input.content_type || null,
       photo_notes:  input.photo_notes  || null,
       caption:      input.caption      || null,
+      account_tag:  input.account_tag  || null,
       due_date:     input.due_date     || null,
     })
     if (error) return { success: false, error: error.message }
