@@ -54,10 +54,11 @@ export async function startTask(taskId: string): Promise<{ success: boolean; err
     if (authError || !user) return { success: false, error: 'Unauthorized' }
 
     const admin = createAdminClient()
-    const { data: task } = await admin.from('admin_tasks').select('id').eq('id', taskId).eq('assigned_to', user.id).single()
+    const { data: task } = await admin.from('admin_tasks').select('id, status').eq('id', taskId).eq('assigned_to', user.id).single()
     if (!task) return { success: false, error: 'Task not found' }
 
-    const { error } = await admin.from('admin_tasks').update({ status: 'in_progress' }).eq('id', taskId)
+    const nextStatus = (task as any).status === 'in_progress' ? 'review' : 'in_progress'
+    const { error } = await admin.from('admin_tasks').update({ status: nextStatus }).eq('id', taskId)
     if (error) return { success: false, error: error.message }
     return { success: true }
   } catch (e: any) {

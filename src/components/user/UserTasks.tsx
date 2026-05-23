@@ -154,7 +154,7 @@ function TaskModal({ task, onClose, onComplete, onProgress, completing, progress
         {/* Footer action */}
         {task.status !== 'completed' && task.status !== 'cancelled' && (
           <div className="px-5 py-4 border-t border-gray-800 flex gap-2">
-            {task.status === 'todo' && (
+            {(task.status === 'todo' || task.status === 'in_progress') && (
               <button
                 onClick={() => onProgress(task.id)}
                 disabled={progressing === task.id}
@@ -162,7 +162,7 @@ function TaskModal({ task, onClose, onComplete, onProgress, completing, progress
               >
                 {progressing === task.id
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Starting…</>
-                  : <><PlayCircle className="h-4 w-4" /> Mark In Progress</>
+                  : <><PlayCircle className="h-4 w-4" /> {task.status === 'todo' ? 'Mark In Progress' : 'Move to Review'}</>
                 }
               </button>
             )}
@@ -295,14 +295,14 @@ export default function UserTasks() {
                         ) : <div />}
                         {task.status !== 'completed' && task.status !== 'cancelled' && (
                           <div className="flex items-center gap-2">
-                            {task.status === 'todo' && (
+                            {(task.status === 'todo' || task.status === 'in_progress') && (
                               <button
                                 onClick={() => handleProgress(task.id)}
                                 disabled={progressing === task.id}
                                 className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-blue-600/10 text-blue-400 border border-blue-600/20 hover:bg-blue-600/20 transition-colors disabled:opacity-50"
                               >
                                 <PlayCircle className="h-3.5 w-3.5" />
-                                {progressing === task.id ? 'Starting...' : 'In Progress'}
+                                {progressing === task.id ? 'Starting...' : task.status === 'todo' ? 'In Progress' : 'Move to Review'}
                               </button>
                             )}
                             <button
