@@ -851,136 +851,6 @@ function VerificationPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefre
 }
 
 // ─── Official Accounts Panel ────────────────────────────────────────────────
-const ACCOUNTS = {
-  dipr_official: {
-    label: 'DIPR Official',
-    shortLabel: 'DIPR',
-    color: '#f59e0b',
-    bg: 'rgba(245,158,11,0.12)',
-    border: 'rgba(245,158,11,0.35)',
-    gradient: 'linear-gradient(135deg,#f59e0b,#d97706)',
-    shadow: 'rgba(245,158,11,0.35)',
-    Icon: Building2,
-    desc: 'Social Media · Official',
-  },
-  bjp_uk: {
-    label: 'BJP Uttarakhand',
-    shortLabel: 'BJP UK',
-    color: '#f97316',
-    bg: 'rgba(249,115,22,0.12)',
-    border: 'rgba(249,115,22,0.35)',
-    gradient: 'linear-gradient(135deg,#f97316,#ea580c)',
-    shadow: 'rgba(249,115,22,0.35)',
-    Icon: Globe,
-    desc: 'Party · Official Account',
-  },
-  pushkar_dhami: {
-    label: 'Pushkar Singh Dhami',
-    shortLabel: 'CM Dhami',
-    color: '#60a5fa',
-    bg: 'rgba(96,165,250,0.12)',
-    border: 'rgba(96,165,250,0.35)',
-    gradient: 'linear-gradient(135deg,#60a5fa,#3b82f6)',
-    shadow: 'rgba(96,165,250,0.35)',
-    Icon: User,
-    desc: 'Chief Minister · Official',
-  },
-} as const
-type AccountKey = keyof typeof ACCOUNTS
-
-function OfficialAddForm({ agentId, defaultAccount, onClose, onCreated }: {
-  agentId: string
-  defaultAccount: AccountKey
-  onClose: () => void
-  onCreated: () => void
-}) {
-  const [title,   setTitle]   = useState('')
-  const [desc,    setDesc]    = useState('')
-  const [account, setAccount] = useState<AccountKey>(defaultAccount)
-  const [status,  setStatus]  = useState<StatusKey>('pending')
-  const [due,     setDue]     = useState('')
-  const [saving,  setSaving]  = useState(false)
-
-  const acct = ACCOUNTS[account]
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim()) return
-    setSaving(true)
-    await createAgentTask({
-      agent_id:    agentId,
-      title:       title.trim(),
-      description: desc.trim() || undefined,
-      status,
-      account_tag: account,
-      due_date:    due || undefined,
-    })
-    setSaving(false); onCreated(); onClose()
-  }
-
-  return (
-    <div className="rounded-xl p-4 mt-3" style={{ background: `${acct.bg}`, border: `1px solid ${acct.border}` }}>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold text-white">New Task</span>
-        <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Account selector */}
-        <div className="flex gap-2 flex-wrap">
-          {(Object.keys(ACCOUNTS) as AccountKey[]).map(a => {
-            const c = ACCOUNTS[a]
-            return (
-              <button key={a} type="button" onClick={() => setAccount(a)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={account === a
-                  ? { background: c.bg, border: `1px solid ${c.border}`, color: c.color }
-                  : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)' }
-                }>
-                <c.Icon className="w-3.5 h-3.5" />{c.shortLabel}
-              </button>
-            )
-          })}
-        </div>
-
-        <input type="text" placeholder="Task title *" value={title} onChange={e => setTitle(e.target.value)} required
-          className="w-full text-sm px-3 py-2 rounded-lg text-white placeholder-gray-500 outline-none"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
-
-        <textarea placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} rows={2}
-          className="w-full text-sm px-3 py-2 rounded-lg text-white placeholder-gray-500 outline-none resize-none"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1.5">
-            {(Object.keys(STATUS) as StatusKey[]).map(s => {
-              const cfg = STATUS[s]; const Icon = cfg.Icon
-              return (
-                <button key={s} type="button" onClick={() => setStatus(s)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                  style={status === s
-                    ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
-                    : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }
-                  }>
-                  <Icon className="w-3 h-3" />{cfg.label}
-                </button>
-              )
-            })}
-          </div>
-          <input type="date" value={due} onChange={e => setDue(e.target.value)}
-            className="text-xs px-2 py-1.5 rounded-lg text-white outline-none"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }} />
-          <button type="submit" disabled={saving || !title.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40 ml-auto"
-            style={{ background: acct.gradient, boxShadow: `0 2px 8px ${acct.shadow}` }}>
-            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-            Add Task
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
 function OfficialTaskCard({ task, onStatusChange, onDelete }: {
   task: AgentTask
   onStatusChange: (id: string, s: StatusKey) => void
@@ -989,7 +859,6 @@ function OfficialTaskCard({ task, onStatusChange, onDelete }: {
   const [expanded, setExpanded] = useState(false)
   const statusCfg = STATUS[task.status as StatusKey] ?? STATUS.pending
   const StatusIcon = statusCfg.Icon
-  const acct = task.account_tag ? ACCOUNTS[task.account_tag as AccountKey] : null
 
   return (
     <div className="rounded-xl overflow-hidden transition-all"
@@ -999,12 +868,6 @@ function OfficialTaskCard({ task, onStatusChange, onDelete }: {
         borderLeft: `3px solid ${statusCfg.leftBorder}`,
       }}>
       <div className="flex items-center gap-2 p-3">
-        {acct && (
-          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-            style={{ background: acct.bg, border: `1px solid ${acct.border}`, color: acct.color }}>
-            <acct.Icon className="w-3 h-3" />{acct.shortLabel}
-          </span>
-        )}
         <p className="text-sm font-medium text-white flex-1 truncate">{task.title}</p>
         <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
           style={{ background: statusCfg.bg, border: `1px solid ${statusCfg.border}`, color: statusCfg.color }}>
@@ -1053,7 +916,6 @@ function OfficialTaskCard({ task, onStatusChange, onDelete }: {
 function OfficialAccountsPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefresh: () => void }) {
   const [tasks,    setTasks]    = useState<AgentTask[]>([])
   const [loading,  setLoading]  = useState(false)
-  const [filter,   setFilter]   = useState<'all' | AccountKey>('all')
   const [showForm, setShowForm] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const counts = agent.task_counts ?? { urgent: 0, pending: 0, approved: 0, total: 0 }
@@ -1069,15 +931,6 @@ function OfficialAccountsPanel({ agent, onRefresh }: { agent: WorkflowAgent; onR
   const handleStatusChange = async (id: string, s: StatusKey) => { await updateTaskStatus(id, s); await loadTasks(); onRefresh() }
   const handleDelete = async (id: string) => { await deleteAgentTask(id); await loadTasks(); onRefresh() }
 
-  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.account_tag === filter)
-
-  const acctCounts = (Object.keys(ACCOUNTS) as AccountKey[]).reduce((acc, a) => {
-    acc[a] = tasks.filter(t => t.account_tag === a).length
-    return acc
-  }, {} as Record<AccountKey, number>)
-
-  const activeAccount = filter !== 'all' ? ACCOUNTS[filter] : null
-
   return (
     <div className="rounded-2xl overflow-hidden"
       style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.18)' }}>
@@ -1091,7 +944,7 @@ function OfficialAccountsPanel({ agent, onRefresh }: { agent: WorkflowAgent; onR
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white">Official Accounts</p>
           <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            DIPR Official · BJP UK · Pushkar Singh Dhami
+            {counts.total} task{counts.total !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -1104,62 +957,18 @@ function OfficialAccountsPanel({ agent, onRefresh }: { agent: WorkflowAgent; onR
 
       {expanded && (
         <div className="border-t px-4 pb-4" style={{ borderColor: 'rgba(245,158,11,0.12)' }}>
-          {/* Account cards row */}
-          <div className="grid grid-cols-3 gap-3 mt-4 mb-4">
-            {(Object.keys(ACCOUNTS) as AccountKey[]).map(a => {
-              const c = ACCOUNTS[a]
-              const isActive = filter === a
-              const cnt = acctCounts[a]
-              return (
-                <button key={a} onClick={() => setFilter(isActive ? 'all' : a)}
-                  className="rounded-xl p-3 text-left transition-all hover:scale-[1.02]"
-                  style={isActive
-                    ? { background: c.bg, border: `1px solid ${c.border}`, boxShadow: `0 0 16px ${c.shadow}` }
-                    : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }
-                  }>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
-                    style={{ background: isActive ? c.gradient : 'rgba(255,255,255,0.08)' }}>
-                    <c.Icon className="w-4 h-4" style={{ color: isActive ? '#fff' : c.color }} />
-                  </div>
-                  <p className="text-xs font-semibold text-white leading-tight">{c.shortLabel}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{cnt} task{cnt !== 1 ? 's' : ''}</p>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Filter bar + Add Task */}
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <button onClick={() => setFilter('all')}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
-              style={filter === 'all'
-                ? { background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }
-                : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              All ({tasks.length})
-            </button>
-            {(Object.keys(ACCOUNTS) as AccountKey[]).map(a => {
-              const c = ACCOUNTS[a]
-              return (
-                <button key={a} onClick={() => setFilter(a)}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
-                  style={filter === a
-                    ? { background: c.bg, color: c.color, border: `1px solid ${c.border}` }
-                    : { background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <c.Icon className="w-3 h-3" />{c.shortLabel} ({acctCounts[a]})
-                </button>
-              )
-            })}
+          {/* Add Task button */}
+          <div className="flex items-center justify-end mt-3 mb-3">
             <button onClick={() => setShowForm(f => !f)}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ml-auto"
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
               style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}>
               <Plus className="w-3 h-3" /> Add Task
             </button>
           </div>
 
           {showForm && (
-            <OfficialAddForm
+            <AddTaskForm
               agentId={agent.id}
-              defaultAccount={filter !== 'all' ? filter : 'dipr_official'}
               onClose={() => setShowForm(false)}
               onCreated={() => { loadTasks(); onRefresh() }}
             />
@@ -1169,13 +978,13 @@ function OfficialAccountsPanel({ agent, onRefresh }: { agent: WorkflowAgent; onR
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : tasks.length === 0 ? (
             <div className="text-center py-8 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
-              No tasks for {activeAccount ? activeAccount.label : 'any account'} yet
+              No tasks yet
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map(t => (
+              {tasks.map(t => (
                 <OfficialTaskCard key={t.id} task={t} onStatusChange={handleStatusChange} onDelete={handleDelete} />
               ))}
             </div>
