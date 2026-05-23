@@ -82,7 +82,7 @@ export async function GET() {
     .not('status', 'eq', 'draft')
     .is('verification_status', null)
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(10)
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
@@ -93,6 +93,8 @@ export async function GET() {
   }
 
   const results: { id: string; status: string; errors: number; imageChecked: boolean }[] = []
+
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
   for (const post of posts) {
     try {
@@ -123,14 +125,20 @@ export async function GET() {
         .eq('id', post.id)
 
       results.push({ id: post.id, status, errors: parsed.errors?.length ?? 0, imageChecked: !!imgPart })
-    } catch {
+    } catch (err: any) {
+      const isRateLimit = err?.message?.includes('429') || err?.message?.toLowerCase().includes('quota') || err?.message?.toLowerCase().includes('rate')
       await supabase
         .from('content_posts')
-        .update({ verification_status: 'in_review', verification_notes: 'Auto-verification failed — please review manually.' })
+        .update({
+          verification_status: 'in_review',
+          verification_notes: isRateLimit ? 'Rate limit — will retry next run.' : 'Auto-verification failed — please review manually.',
+        })
         .eq('id', post.id)
 
       results.push({ id: post.id, status: 'in_review', errors: -1, imageChecked: false })
     }
+    // Stay within Gemini free tier rate limit (15 RPM)
+    await sleep(4500)
   }
 
   return NextResponse.json({
