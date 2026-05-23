@@ -20,6 +20,7 @@ export interface VerifiablePost {
   featured_image: string | null
   source_url: string | null
   source: string | null
+  ai_corrected_body: string | null
 }
 
 export interface VerificationStats {
@@ -42,7 +43,7 @@ export async function getPostsForVerification(): Promise<{
 
     const { data, error } = await supabase
       .from('content_posts')
-      .select('id, title, body, status, platforms, created_at, verification_status, verification_notes, featured_image, source_url, source')
+      .select('id, title, body, status, platforms, created_at, verification_status, verification_notes, featured_image, source_url, source, ai_corrected_body')
       .not('status', 'eq', 'draft')
       .order('created_at', { ascending: false })
 
@@ -62,6 +63,7 @@ export async function getPostsForVerification(): Promise<{
       featured_image: p.featured_image ?? null,
       source_url: p.source_url ?? null,
       source: p.source ?? null,
+      ai_corrected_body: p.ai_corrected_body ?? null,
     }))
 
     const stats: VerificationStats = {

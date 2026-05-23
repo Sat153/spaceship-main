@@ -4,7 +4,7 @@ import Groq from 'groq-sdk'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
-const SYSTEM_PROMPT = `You are a professional Hindi/English content proofreader for a government media agency.
+const CHECK_PROMPT = `You are a professional Hindi/English content proofreader for a government media agency.
 
 Check the following post content for:
 1. Spelling mistakes (in both Hindi and English if present)
@@ -22,6 +22,29 @@ Respond ONLY with valid JSON in this exact format:
 - List each specific error found in the "errors" array (empty array if verified)
 - Be strict but fair — minor stylistic choices are NOT errors
 - Transliterated English words in Hindi script (like फॉरेस्ट, पुलिस) are acceptable`
+
+const CORRECT_PROMPT = `You are a grammar and punctuation editor for a government media agency.
+
+Your ONLY job is to fix the errors listed below in the post. Do NOT change the meaning, tone, style, or structure. Only fix spelling mistakes, punctuation, grammar, and capitalization errors.
+
+Return ONLY the corrected post text. Nothing else — no explanation, no JSON, no quotes.`
+
+async function autoCorrect(body: string, errors: string[]): Promise<string | null> {
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: CORRECT_PROMPT },
+        { role: 'user', content: `Errors found:\n${errors.join('\n')}\n\nOriginal post:\n${body}` },
+      ],
+      temperature: 0.1,
+    })
+    const corrected = completion.choices[0]?.message?.content?.trim()
+    return corrected || null
+  } catch {
+    return null
+  }
+}
 
 export async function GET() {
   const supabase = createAdminClient()
@@ -42,7 +65,7 @@ export async function GET() {
     return NextResponse.json({ message: 'No unverified posts found', processed: 0 })
   }
 
-  const results: { id: string; status: string; errors: number }[] = []
+  const results: { id: string; status: string; errors: number; corrected?: boolean }[] = []
 
   for (const post of posts) {
     try {
@@ -51,7 +74,7 @@ export async function GET() {
       const completion = await groq.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: CHECK_PROMPT },
           { role: 'user', content: content },
         ],
         temperature: 0.1,
@@ -60,16 +83,30 @@ export async function GET() {
 
       const raw = completion.choices[0]?.message?.content ?? '{}'
       const parsed = JSON.parse(raw)
+      const hasErrors = parsed.status === 'has_errors' && parsed.errors?.length > 0
+      const notes: string | null = hasErrors ? parsed.errors.join('\n') : null
 
-      const status: 'verified' | 'has_errors' = parsed.status === 'has_errors' ? 'has_errors' : 'verified'
-      const notes: string | null = parsed.errors?.length > 0 ? parsed.errors.join('\n') : null
+      if (hasErrors) {
+        // Auto-correct and put in_review for human review
+        const corrected = await autoCorrect(post.body, parsed.errors)
+        await supabase
+          .from('content_posts')
+          .update({
+            verification_status: 'in_review',
+            verification_notes: notes,
+            ...(corrected ? { ai_corrected_body: corrected } : {}),
+          })
+          .eq('id', post.id)
 
-      await supabase
-        .from('content_posts')
-        .update({ verification_status: status, verification_notes: notes })
-        .eq('id', post.id)
+        results.push({ id: post.id, status: 'in_review', errors: parsed.errors.length, corrected: !!corrected })
+      } else {
+        await supabase
+          .from('content_posts')
+          .update({ verification_status: 'verified', verification_notes: null })
+          .eq('id', post.id)
 
-      results.push({ id: post.id, status, errors: parsed.errors?.length ?? 0 })
+        results.push({ id: post.id, status: 'verified', errors: 0 })
+      }
     } catch (err: any) {
       const errMsg = err?.message ?? String(err)
       await supabase
@@ -84,6 +121,7 @@ export async function GET() {
   return NextResponse.json({
     message: 'Verification complete',
     processed: results.length,
+    autoCorreected: results.filter(r => r.corrected).length,
     results,
   })
 }

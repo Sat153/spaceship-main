@@ -664,11 +664,18 @@ function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpd
               {isTwitter ? 'View on Twitter / X' : 'View on Facebook'}
             </a>
           )}
-          {/* Error notes from Gemini */}
-          {post.verification_notes && (
+          {/* Error notes from AI */}
+          {post.verification_notes && !post.verification_notes.startsWith('Error:') && (
             <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
               <p className="font-semibold mb-1" style={{ color: '#fca5a5' }}>Issues found by AI:</p>
               <p className="text-white/60 whitespace-pre-wrap">{post.verification_notes}</p>
+            </div>
+          )}
+          {/* AI corrected version */}
+          {post.ai_corrected_body && (
+            <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
+              <p className="font-semibold mb-1" style={{ color: '#86efac' }}>✦ AI Corrected Version:</p>
+              <p className="text-white/70 whitespace-pre-wrap leading-relaxed">{post.ai_corrected_body}</p>
             </div>
           )}
           {/* Manual notes */}
