@@ -96,8 +96,7 @@ export async function getPostStatsBySource(): Promise<{
 }> {
   const empty: SourceStats = { total: 0, verified: 0, has_errors: 0, in_review: 0, unchecked: 0 }
   try {
-    const cookieStore = await cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('content_posts')
       .select('source, source_url, verification_status')

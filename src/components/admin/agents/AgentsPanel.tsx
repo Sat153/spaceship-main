@@ -606,13 +606,17 @@ function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpd
             <p className="text-sm font-medium text-white truncate">{post.title || post.body.slice(0, 60) + '…'}</p>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {post.client_name && (
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)' }}>
-                {post.client_name}
-              </span>
-            )}
+            {isTwitter && post.source_url && (() => {
+              const m = post.source_url.match(/x\.com\/([^/]+)\//)
+              return m ? (
+                <span className="text-xs px-1.5 py-0.5 rounded font-medium"
+                  style={{ background: 'rgba(29,155,240,0.1)', color: '#38bdf8', border: '1px solid rgba(29,155,240,0.2)' }}>
+                  @{m[1]}
+                </span>
+              ) : null
+            })()}
             <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.35)' }}>
-              {WORKFLOW_STATUS_LABEL[post.status] ?? post.status}
+              {new Date(post.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
             </span>
           </div>
         </div>
