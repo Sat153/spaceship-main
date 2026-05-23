@@ -730,6 +730,24 @@ function VerificationPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefre
     : filter === 'unchecked'             ? posts.filter(p => !p.verification_status)
     : posts.filter(p => p.verification_status === filter)
 
+  const extractHandle = (p: VerifiablePost) => {
+    const m = p.source_url?.match(/x\.com\/([^/]+)\//i)
+    return m ? m[1].toLowerCase() : null
+  }
+
+  const groups: { handle: string | null; label: string; posts: VerifiablePost[] }[] = []
+  const handlesSeen = new Set<string>()
+  for (const p of filtered) {
+    const h = extractHandle(p)
+    if (h && !handlesSeen.has(h)) { handlesSeen.add(h); groups.push({ handle: h, label: `@${h}`, posts: [] }) }
+  }
+  if (filtered.some(p => !extractHandle(p))) groups.push({ handle: null, label: 'Other', posts: [] })
+  for (const p of filtered) {
+    const h = extractHandle(p)
+    const g = groups.find(g => g.handle === h) ?? groups.find(g => g.handle === null)
+    g?.posts.push(p)
+  }
+
   const pct = (n: number) => stats.total > 0 ? (n / stats.total) * 100 : 0
 
   return (
@@ -830,15 +848,30 @@ function VerificationPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefre
                 </button>
               </div>
 
-              {/* Post list */}
+              {/* Post list — grouped by account */}
               {filtered.length === 0 ? (
                 <div className="text-center py-8 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
                   No posts in this filter
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {filtered.map(p => (
-                    <VerificationPostCard key={p.id} post={p} onUpdated={loadPosts} />
+                <div className="space-y-6">
+                  {groups.filter(g => g.posts.length > 0).map(g => (
+                    <div key={g.label}>
+                      {/* Section header */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-1.5 h-4 rounded-full flex-shrink-0" style={{ background: 'rgba(29,155,240,0.7)' }} />
+                        <span className="text-xs font-bold text-white">{g.label}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-medium" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.4)' }}>
+                          {g.posts.length} post{g.posts.length !== 1 ? 's' : ''}
+                        </span>
+                        <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      </div>
+                      <div className="space-y-2">
+                        {g.posts.map(p => (
+                          <VerificationPostCard key={p.id} post={p} onUpdated={loadPosts} />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
