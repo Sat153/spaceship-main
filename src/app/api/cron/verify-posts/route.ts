@@ -126,16 +126,13 @@ export async function GET() {
 
       results.push({ id: post.id, status, errors: parsed.errors?.length ?? 0, imageChecked: !!imgPart })
     } catch (err: any) {
-      const isRateLimit = err?.message?.includes('429') || err?.message?.toLowerCase().includes('quota') || err?.message?.toLowerCase().includes('rate')
+      const errMsg = err?.message ?? String(err)
       await supabase
         .from('content_posts')
-        .update({
-          verification_status: 'in_review',
-          verification_notes: isRateLimit ? 'Rate limit — will retry next run.' : 'Auto-verification failed — please review manually.',
-        })
+        .update({ verification_status: 'in_review', verification_notes: `Error: ${errMsg}` })
         .eq('id', post.id)
 
-      results.push({ id: post.id, status: 'in_review', errors: -1, imageChecked: false })
+      results.push({ id: post.id, status: 'in_review', errors: -1, imageChecked: false, error: errMsg } as any)
     }
     // Stay within Gemini free tier rate limit (15 RPM)
     await sleep(4500)
