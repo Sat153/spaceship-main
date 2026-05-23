@@ -86,9 +86,12 @@ export interface SourceStats {
   unchecked: number
 }
 
+const TWITTER_HANDLES = ['dipr_uk', 'pushkardhami', 'bjp4uk']
+
 export async function getPostStatsBySource(): Promise<{
   twitter: SourceStats
   facebook: SourceStats
+  by_account: Record<string, SourceStats>
   error: string | null
 }> {
   const empty: SourceStats = { total: 0, verified: 0, has_errors: 0, in_review: 0, unchecked: 0 }
@@ -97,25 +100,40 @@ export async function getPostStatsBySource(): Promise<{
     const supabase = createClient(cookieStore)
     const { data, error } = await supabase
       .from('content_posts')
-      .select('source, verification_status')
+      .select('source, source_url, verification_status')
       .in('source', ['twitter', 'facebook'])
 
-    if (error) return { twitter: empty, facebook: empty, error: error.message }
+    if (error) return { twitter: empty, facebook: empty, by_account: {}, error: error.message }
 
-    const calc = (src: string): SourceStats => {
-      const posts = (data ?? []).filter((p: any) => p.source === src)
-      return {
-        total:      posts.length,
-        verified:   posts.filter((p: any) => p.verification_status === 'verified').length,
-        has_errors: posts.filter((p: any) => p.verification_status === 'has_errors').length,
-        in_review:  posts.filter((p: any) => p.verification_status === 'in_review').length,
-        unchecked:  posts.filter((p: any) => !p.verification_status).length,
-      }
+    const rows = data ?? []
+
+    const calcFromList = (list: any[]): SourceStats => ({
+      total:      list.length,
+      verified:   list.filter((p: any) => p.verification_status === 'verified').length,
+      has_errors: list.filter((p: any) => p.verification_status === 'has_errors').length,
+      in_review:  list.filter((p: any) => p.verification_status === 'in_review').length,
+      unchecked:  list.filter((p: any) => !p.verification_status).length,
+    })
+
+    const twitterRows = rows.filter((p: any) => p.source === 'twitter')
+
+    const by_account: Record<string, SourceStats> = {}
+    for (const handle of TWITTER_HANDLES) {
+      by_account[handle] = calcFromList(
+        twitterRows.filter((p: any) =>
+          p.source_url?.toLowerCase().includes(`/${handle.toLowerCase()}/`)
+        )
+      )
     }
 
-    return { twitter: calc('twitter'), facebook: calc('facebook'), error: null }
+    return {
+      twitter:    calcFromList(twitterRows),
+      facebook:   calcFromList(rows.filter((p: any) => p.source === 'facebook')),
+      by_account,
+      error: null,
+    }
   } catch (e: any) {
-    return { twitter: empty, facebook: empty, error: e.message }
+    return { twitter: empty, facebook: empty, by_account: {}, error: e.message }
   }
 }
 

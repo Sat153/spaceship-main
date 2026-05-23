@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const TWITTER_USERNAME = 'dipr_uk'
 const NITTER_INSTANCES = [
   'https://nitter.poast.org',
   'https://nitter.privacyredirect.com',
@@ -9,10 +8,16 @@ const NITTER_INSTANCES = [
   'https://nitter.cz',
 ]
 
-async function fetchNitterRSS(): Promise<{ xml: string; instance: string } | null> {
+const SYNC_ACCOUNTS = [
+  { username: 'DIPR_UK',      handle: 'dipr_uk',       label: 'DIPR Official'    },
+  { username: 'pushkardhami', handle: 'pushkardhami',   label: 'CM Pushkar Dhami' },
+  { username: 'bjp4uk',       handle: 'bjp4uk',         label: 'BJP Uttarakhand'  },
+]
+
+async function fetchNitterRSS(username: string): Promise<{ xml: string; instance: string } | null> {
   for (const instance of NITTER_INSTANCES) {
     try {
-      const res = await fetch(`${instance}/${TWITTER_USERNAME}/rss`, {
+      const res = await fetch(`${instance}/${username}/rss`, {
         signal: AbortSignal.timeout(8000),
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RSS/1.0)' },
         next: { revalidate: 0 },
@@ -41,12 +46,10 @@ function stripHtml(html: string): string {
     .trim()
 }
 
-// Convert Nitter-proxied image URLs back to original pbs.twimg.com CDN URLs
 function deproxyImage(url: string | null): string | null {
   if (!url) return null
   const picIdx = url.indexOf('/pic/')
   if (picIdx === -1) return url
-
   const encodedPath = url.slice(picIdx + 5)
   try {
     const decoded = decodeURIComponent(encodedPath)
@@ -64,7 +67,7 @@ interface ParsedTweet {
   sourceUrl: string
 }
 
-function parseRSS(xml: string, instance: string): ParsedTweet[] {
+function parseRSS(xml: string, instance: string, handle: string): ParsedTweet[] {
   const tweets: ParsedTweet[] = []
   const itemRegex = /<item>([\s\S]*?)<\/item>/g
   let match
@@ -72,7 +75,6 @@ function parseRSS(xml: string, instance: string): ParsedTweet[] {
   while ((match = itemRegex.exec(xml)) !== null) {
     const item = match[1]
 
-    // guid may be a bare numeric ID or a full URL — handle both
     const guid = extractTag(item, 'guid')
     const link = extractTag(item, 'link')
 
@@ -84,20 +86,16 @@ function parseRSS(xml: string, instance: string): ParsedTweet[] {
       if (m) tweetId = m[1]
     }
     if (!tweetId) continue
-    const sourceUrl = `https://x.com/${TWITTER_USERNAME}/status/${tweetId}`
+    const sourceUrl = `https://x.com/${handle}/status/${tweetId}`
 
-    // Get tweet text from description (strip HTML) then fall back to title
     const rawDesc = extractTag(item, 'description')
     const text = rawDesc ? stripHtml(rawDesc) : stripHtml(extractTag(item, 'title').replace(/^[^:]+:\s*/, ''))
-
     if (!text || text.startsWith('RT @')) continue
 
-    // Image: try media:content url attr, then img src inside description
     const mediaMatch = item.match(/media:content[^>]+url="([^"]+)"/i)
     const imgMatch = rawDesc.match(/<img[^>]+src="([^"]+)"/i)
     let rawImage = mediaMatch?.[1] ?? imgMatch?.[1] ?? null
     if (rawImage?.startsWith('/')) rawImage = `${instance}${rawImage}`
-
     const imageUrl = deproxyImage(rawImage)
 
     tweets.push({ tweetId, text, imageUrl, sourceUrl })
@@ -106,49 +104,49 @@ function parseRSS(xml: string, instance: string): ParsedTweet[] {
   return tweets
 }
 
-export async function GET() {
-  const result = await fetchNitterRSS()
+export async function GET(req: NextRequest) {
+  const accountFilter = req.nextUrl.searchParams.get('account')
+  const accounts = accountFilter
+    ? SYNC_ACCOUNTS.filter(a => a.handle === accountFilter)
+    : SYNC_ACCOUNTS
 
-  if (!result) {
-    return NextResponse.json(
-      { error: 'Could not reach any Nitter instance. Try again later.' },
-      { status: 503 }
-    )
-  }
-
-  const tweets = parseRSS(result.xml, result.instance)
-
-  if (tweets.length === 0) {
-    return NextResponse.json({ message: 'No tweets found in RSS feed', synced: 0 })
+  if (accounts.length === 0) {
+    return NextResponse.json({ error: 'Unknown account' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
-  const results: { id: string; title: string; action: string }[] = []
+  const summary: Record<string, { synced: number; patched: number; error?: string }> = {}
 
-  for (const tweet of tweets) {
-    const title = tweet.text.split('\n')[0].slice(0, 120)
-
-    const { data: existing } = await supabase
-      .from('content_posts')
-      .select('id')
-      .eq('source_url', tweet.sourceUrl)
-      .maybeSingle()
-
-    if (existing) {
-      // Also patch the featured_image in case it was stored as a Nitter proxy URL
-      if (tweet.imageUrl) {
-        await supabase
-          .from('content_posts')
-          .update({ featured_image: tweet.imageUrl })
-          .eq('id', existing.id)
-      }
-      results.push({ id: existing.id, title, action: 'skipped (already imported)' })
+  for (const account of accounts) {
+    const result = await fetchNitterRSS(account.username)
+    if (!result) {
+      summary[account.handle] = { synced: 0, patched: 0, error: 'Nitter unavailable' }
       continue
     }
 
-    const { data: inserted, error } = await supabase
-      .from('content_posts')
-      .insert({
+    const tweets = parseRSS(result.xml, result.instance, account.handle)
+    let synced = 0, patched = 0
+
+    for (const tweet of tweets) {
+      const title = tweet.text.split('\n')[0].slice(0, 120)
+
+      const { data: existing } = await supabase
+        .from('content_posts')
+        .select('id')
+        .eq('source_url', tweet.sourceUrl)
+        .maybeSingle()
+
+      if (existing) {
+        if (tweet.imageUrl) {
+          await supabase.from('content_posts')
+            .update({ featured_image: tweet.imageUrl })
+            .eq('id', existing.id)
+          patched++
+        }
+        continue
+      }
+
+      const { error } = await supabase.from('content_posts').insert({
         title,
         body:                tweet.text,
         status:              'pending_review',
@@ -158,20 +156,18 @@ export async function GET() {
         featured_image:      tweet.imageUrl,
         verification_status: null,
       })
-      .select('id')
-      .single()
 
-    if (error) {
-      results.push({ id: '', title, action: `error: ${error.message}` })
-    } else {
-      results.push({ id: inserted.id, title, action: 'imported' })
+      if (!error) synced++
     }
+
+    summary[account.handle] = { synced, patched }
   }
 
+  const totalSynced = Object.values(summary).reduce((n, r) => n + r.synced, 0)
+
   return NextResponse.json({
-    message: 'Twitter sync complete (via Nitter RSS)',
-    synced: results.filter(r => r.action === 'imported').length,
-    patched: results.filter(r => r.action === 'skipped (already imported)').length,
-    results,
+    message: 'Twitter sync complete',
+    synced: totalSynced,
+    summary,
   })
 }

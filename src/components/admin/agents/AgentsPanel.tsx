@@ -247,6 +247,23 @@ function SocialMediaTaskCard({ task, onStatusChange, onDelete }: {
   )
 }
 
+// ─── Twitter account definitions ────────────────────────────────────────────
+const TWITTER_ACCOUNTS = {
+  dipr_uk: {
+    handle: 'dipr_uk', username: 'DIPR_UK', label: 'DIPR Official',
+    color: '#1d9bf0', gradient: 'linear-gradient(135deg,#1d9bf0,#0d8bd9)', shadow: 'rgba(29,155,240,0.35)',
+  },
+  pushkardhami: {
+    handle: 'pushkardhami', username: 'pushkardhami', label: 'CM Pushkar Dhami',
+    color: '#60a5fa', gradient: 'linear-gradient(135deg,#60a5fa,#3b82f6)', shadow: 'rgba(96,165,250,0.35)',
+  },
+  bjp4uk: {
+    handle: 'bjp4uk', username: 'bjp4uk', label: 'BJP Uttarakhand',
+    color: '#f97316', gradient: 'linear-gradient(135deg,#f97316,#ea580c)', shadow: 'rgba(249,115,22,0.35)',
+  },
+} as const
+type TwitterAccountKey = keyof typeof TWITTER_ACCOUNTS
+
 // ─── Social Media Analyst Sub-Panel ─────────────────────────────────────────
 function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefresh: () => void }) {
   const [tasks,        setTasks]        = useState<AgentTask[]>([])
@@ -254,15 +271,32 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
   const [filter,       setFilter]       = useState<'all' | ContentTypeKey>('all')
   const [showForm,     setShowForm]     = useState(false)
   const [expanded,     setExpanded]     = useState(false)
-  const [syncing,      setSyncing]      = useState<'fb' | 'tw' | null>(null)
+  const [syncing,      setSyncing]      = useState<string | null>(null)
   const [syncMsg,      setSyncMsg]      = useState<string | null>(null)
   const [twitterStats, setTwitterStats] = useState<SourceStats>({ total: 0, verified: 0, has_errors: 0, in_review: 0, unchecked: 0 })
+  const [byAccount,    setByAccount]    = useState<Record<string, SourceStats>>({})
   const counts = agent.task_counts ?? { urgent: 0, pending: 0, approved: 0, total: 0 }
 
   const loadStats = useCallback(async () => {
     const r = await getPostStatsBySource()
     setTwitterStats(r.twitter)
+    setByAccount(r.by_account)
   }, [])
+
+  const handleSync = async (account?: string) => {
+    const key = account ?? 'all'
+    setSyncing(key); setSyncMsg(null)
+    try {
+      const url = account ? `/api/twitter/sync?account=${account}` : '/api/twitter/sync'
+      const res = await fetch(url)
+      const json = await res.json()
+      if (json.error) setSyncMsg(`Error: ${json.error}`)
+      else setSyncMsg(`Synced ${json.synced} new tweet${json.synced !== 1 ? 's' : ''}${account ? ` from @${TWITTER_ACCOUNTS[account as TwitterAccountKey]?.username ?? account}` : ' across all accounts'}`)
+    } catch {
+      setSyncMsg('Sync failed')
+    }
+    setSyncing(null); loadStats(); onRefresh()
+  }
 
   const handleFacebookSync = async () => {
     setSyncing('fb'); setSyncMsg(null)
@@ -273,19 +307,6 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
       else setSyncMsg(`Facebook: synced ${json.synced} new post${json.synced !== 1 ? 's' : ''}`)
     } catch {
       setSyncMsg('Facebook sync failed')
-    }
-    setSyncing(null); loadStats(); onRefresh()
-  }
-
-  const handleTwitterSync = async () => {
-    setSyncing('tw'); setSyncMsg(null)
-    try {
-      const res = await fetch('/api/twitter/sync')
-      const json = await res.json()
-      if (json.error) setSyncMsg(`Twitter: ${json.error}`)
-      else setSyncMsg(`Twitter: synced ${json.synced} new tweet${json.synced !== 1 ? 's' : ''}`)
-    } catch {
-      setSyncMsg('Twitter sync failed')
     }
     setSyncing(null); loadStats(); onRefresh()
   }
@@ -348,73 +369,85 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
 
       {expanded && (
         <div className="border-t px-4 pb-4" style={{ borderColor: 'rgba(24,119,242,0.15)' }}>
-          {/* FB page banner */}
-          <div className="flex items-center gap-3 py-3 px-3 rounded-xl mt-3 mb-4"
-            style={{ background: 'rgba(24,119,242,0.08)', border: '1px solid rgba(24,119,242,0.15)' }}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: '#1877f2' }}>
-              <span className="text-white font-bold text-xs">f</span>
+
+          {/* ── Twitter account cards ── */}
+          <div className="mt-4 mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                Twitter / X Accounts
+              </span>
+              <button onClick={() => handleSync()} disabled={!!syncing}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all disabled:opacity-50 hover:scale-[1.02]"
+                style={{ background: 'linear-gradient(135deg,#1d9bf0,#0d8bd9)', boxShadow: '0 2px 8px rgba(29,155,240,0.3)' }}>
+                {syncing === 'all' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Share2 className="w-3 h-3" />}
+                {syncing === 'all' ? 'Syncing all…' : 'Sync All'}
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">UttarakhandDIPR</p>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>facebook.com/UttarakhandDIPR</p>
+
+            <div className="grid grid-cols-3 gap-3">
+              {(Object.keys(TWITTER_ACCOUNTS) as TwitterAccountKey[]).map(key => {
+                const acct = TWITTER_ACCOUNTS[key]
+                const stats = byAccount[key] ?? { total: 0, verified: 0, has_errors: 0, in_review: 0, unchecked: 0 }
+                const isSyncing = syncing === key
+                const verifiedPct = stats.total > 0 ? Math.round((stats.verified / stats.total) * 100) : 0
+                return (
+                  <div key={key} className="rounded-xl p-3"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {/* Account header */}
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
+                      style={{ background: acct.gradient }}>
+                      <Share2 className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-xs font-semibold text-white leading-tight">{acct.label}</p>
+                    <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>@{acct.username}</p>
+
+                    {/* Mini stats */}
+                    {stats.total > 0 && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>{stats.total} posts</span>
+                          <span className="text-xs font-bold" style={{ color: verifiedPct === 100 ? '#22c55e' : verifiedPct > 50 ? '#f97316' : '#ef4444' }}>
+                            {verifiedPct}% ✓
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                          {stats.verified > 0 && <div className="h-full rounded-full" style={{ width: `${(stats.verified/stats.total)*100}%`, background: '#22c55e' }} />}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sync button */}
+                    <button onClick={() => handleSync(key)} disabled={!!syncing}
+                      className="w-full flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-lg font-medium transition-all disabled:opacity-40 hover:scale-[1.02]"
+                      style={{ background: `${acct.color}22`, border: `1px solid ${acct.color}44`, color: acct.color }}>
+                      {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Share2 className="w-3 h-3" />}
+                      {isSyncing ? 'Syncing…' : 'Sync'}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
-            <a href="https://www.facebook.com/UttarakhandDIPR" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-all hover:scale-105"
-              style={{ background: 'rgba(24,119,242,0.2)', border: '1px solid rgba(24,119,242,0.3)', color: '#60a5fa' }}>
-              <ExternalLink className="w-3 h-3" /> Open
-            </a>
           </div>
 
-          {/* Sync buttons */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button onClick={handleFacebookSync} disabled={!!syncing}
-              className="flex items-center gap-2 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all disabled:opacity-50 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg,#1877f2,#0d5bbf)', boxShadow: '0 2px 12px rgba(24,119,242,0.35)' }}>
-              {syncing === 'fb' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
-              {syncing === 'fb' ? 'Fetching…' : 'Sync Facebook'}
-            </button>
-            <button onClick={handleTwitterSync} disabled={!!syncing}
-              className="flex items-center gap-2 text-xs px-4 py-2 rounded-lg font-semibold text-white transition-all disabled:opacity-50 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg,#1d9bf0,#0d8bd9)', boxShadow: '0 2px 12px rgba(29,155,240,0.35)' }}>
-              {syncing === 'tw' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
-              {syncing === 'tw' ? 'Fetching…' : 'Sync Twitter / X'}
-            </button>
-            {syncMsg && (
-              <p className="text-xs mt-2 w-full px-1" style={{ color: syncMsg.includes('Error') || syncMsg.includes('failed') ? '#f87171' : '#86efac' }}>
-                {syncMsg}
-              </p>
-            )}
-          </div>
+          {/* Sync status message */}
+          {syncMsg && (
+            <p className="text-xs mb-3 px-1" style={{ color: syncMsg.includes('Error') || syncMsg.includes('failed') ? '#f87171' : '#86efac' }}>
+              {syncMsg}
+            </p>
+          )}
 
-          {/* Twitter Stats Bar */}
+          {/* Overall Twitter verification stats bar */}
           {twitterStats.total > 0 && (
             <div className="mb-4 p-3 rounded-xl" style={{ background: 'rgba(29,155,240,0.06)', border: '1px solid rgba(29,155,240,0.15)' }}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                  <Share2 className="w-3.5 h-3.5 text-sky-400" />
-                  Twitter / X Posts — Verification Status
-                </span>
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{twitterStats.total} synced</span>
+                <span className="text-xs font-semibold text-white">All Accounts — Verification Status</span>
+                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{twitterStats.total} total</span>
               </div>
-              {/* Stacked bar */}
               <div className="w-full h-3 rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                {twitterStats.verified > 0 && (
-                  <div className="h-full transition-all duration-700"
-                    style={{ width: `${(twitterStats.verified / twitterStats.total) * 100}%`, background: 'linear-gradient(90deg,#22c55e,#16a34a)' }} />
-                )}
-                {twitterStats.has_errors > 0 && (
-                  <div className="h-full transition-all duration-700"
-                    style={{ width: `${(twitterStats.has_errors / twitterStats.total) * 100}%`, background: 'linear-gradient(90deg,#ef4444,#dc2626)' }} />
-                )}
-                {twitterStats.in_review > 0 && (
-                  <div className="h-full transition-all duration-700"
-                    style={{ width: `${(twitterStats.in_review / twitterStats.total) * 100}%`, background: 'linear-gradient(90deg,#f97316,#ea580c)' }} />
-                )}
-                {twitterStats.unchecked > 0 && (
-                  <div className="h-full rounded-r-full transition-all duration-700"
-                    style={{ width: `${(twitterStats.unchecked / twitterStats.total) * 100}%`, background: 'rgba(255,255,255,0.1)' }} />
-                )}
+                {twitterStats.verified > 0 && <div className="h-full transition-all duration-700" style={{ width: `${(twitterStats.verified/twitterStats.total)*100}%`, background: 'linear-gradient(90deg,#22c55e,#16a34a)' }} />}
+                {twitterStats.has_errors > 0 && <div className="h-full transition-all duration-700" style={{ width: `${(twitterStats.has_errors/twitterStats.total)*100}%`, background: 'linear-gradient(90deg,#ef4444,#dc2626)' }} />}
+                {twitterStats.in_review > 0 && <div className="h-full transition-all duration-700" style={{ width: `${(twitterStats.in_review/twitterStats.total)*100}%`, background: 'linear-gradient(90deg,#f97316,#ea580c)' }} />}
+                {twitterStats.unchecked > 0 && <div className="h-full rounded-r-full transition-all duration-700" style={{ width: `${(twitterStats.unchecked/twitterStats.total)*100}%`, background: 'rgba(255,255,255,0.1)' }} />}
               </div>
               <div className="flex items-center gap-4 mt-2 flex-wrap">
                 {[
@@ -432,6 +465,25 @@ function SocialMediaPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefres
               </div>
             </div>
           )}
+
+          {/* Facebook — pending App Review */}
+          <div className="flex items-center gap-3 py-2.5 px-3 rounded-xl mb-4"
+            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 opacity-40"
+              style={{ background: '#1877f2' }}>
+              <span className="text-white font-bold text-xs">f</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white opacity-40">UttarakhandDIPR · Facebook</p>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>Pending Meta App Review approval</p>
+            </div>
+            <button onClick={handleFacebookSync} disabled={!!syncing}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-all opacity-40 hover:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(24,119,242,0.15)', border: '1px solid rgba(24,119,242,0.2)', color: '#60a5fa' }}>
+              {syncing === 'fb' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+              Sync
+            </button>
+          </div>
 
           {/* Content type filter tabs */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -1303,12 +1355,16 @@ function SubAgentCard({ agent, onRefresh }: { agent: WorkflowAgent; onRefresh: (
 export default function AgentsPanel() {
   const [agents,  setAgents]  = useState<WorkflowAgent[]>([])
   const [loading, setLoading] = useState(true)
+  const [health,  setHealth]  = useState<{ twitter: SourceStats; by_account: Record<string, SourceStats> } | null>(null)
 
   const loadAgents = useCallback(async () => {
     const r = await getAgents(); setAgents(r.data); setLoading(false)
   }, [])
 
-  useEffect(() => { loadAgents() }, [loadAgents])
+  useEffect(() => {
+    loadAgents()
+    getPostStatsBySource().then(r => setHealth(r))
+  }, [loadAgents])
 
   const parent     = agents[0]
   const subAgents  = parent?.sub_agents ?? []
@@ -1394,6 +1450,74 @@ export default function AgentsPanel() {
               )}
             </div>
           </div>
+
+          {/* ── Sub-agent health monitor ── */}
+          {health && (
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: 'rgba(139,92,246,0.15)' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                System Health
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {/* Social Media health */}
+                {(() => {
+                  const t = health.twitter
+                  const ok = t.total > 0
+                  const dot = !ok ? '#f97316' : t.unchecked === 0 ? '#22c55e' : '#f97316'
+                  return (
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(29,155,240,0.06)', border: '1px solid rgba(29,155,240,0.12)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: dot }} />
+                        <span className="text-xs font-semibold text-white">Social Media</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">{t.total}</p>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>posts across 3 accounts</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {Object.entries(health.by_account).map(([h, s]) => (
+                          <span key={h} className="text-xs font-bold px-1.5 py-0.5 rounded"
+                            style={{ background: 'rgba(255,255,255,0.06)', color: s.total > 0 ? '#22c55e' : 'rgba(255,255,255,0.25)' }}>
+                            {s.total}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Verification health */}
+                {(() => {
+                  const t = health.twitter
+                  const pct = t.total > 0 ? Math.round(((t.verified + t.has_errors) / t.total) * 100) : 0
+                  const dot = pct === 100 ? '#22c55e' : pct > 50 ? '#f97316' : '#ef4444'
+                  return (
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.12)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: dot }} />
+                        <span className="text-xs font-semibold text-white">Verification</span>
+                      </div>
+                      <p className="text-lg font-bold text-white">{pct}%</p>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>content checked</p>
+                      <div className="mt-2 w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: dot }} />
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Official accounts health */}
+                <div className="rounded-xl p-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.12)' }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: totalUrgent > 0 ? '#ef4444' : '#22c55e' }} />
+                    <span className="text-xs font-semibold text-white">Official Accts</span>
+                  </div>
+                  <p className="text-lg font-bold text-white">{totalTasks}</p>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>active tasks</p>
+                  {totalUrgent > 0 && (
+                    <p className="text-xs mt-2 font-semibold" style={{ color: '#ef4444' }}>{totalUrgent} urgent</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
