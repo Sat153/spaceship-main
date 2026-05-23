@@ -848,25 +848,25 @@ function VerificationPanel({ agent, onRefresh }: { agent: WorkflowAgent; onRefre
                 </button>
               </div>
 
-              {/* Post list — grouped by account */}
+              {/* Post list — columns by account */}
               {filtered.length === 0 ? (
                 <div className="text-center py-8 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
                   No posts in this filter
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${groups.filter(g => g.posts.length > 0).length}, 1fr)`, gap: '12px', alignItems: 'start' }}>
                   {groups.filter(g => g.posts.length > 0).map(g => (
-                    <div key={g.label}>
-                      {/* Section header */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-1.5 h-4 rounded-full flex-shrink-0" style={{ background: 'rgba(29,155,240,0.7)' }} />
-                        <span className="text-xs font-bold text-white">{g.label}</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md font-medium" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.4)' }}>
-                          {g.posts.length} post{g.posts.length !== 1 ? 's' : ''}
+                    <div key={g.label} className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      {/* Column header */}
+                      <div className="flex items-center gap-2 px-3 py-2.5 sticky top-0" style={{ background: 'rgba(15,15,15,0.95)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div className="w-1.5 h-4 rounded-full flex-shrink-0" style={{ background: 'rgba(29,155,240,0.8)' }} />
+                        <span className="text-xs font-bold text-white truncate">{g.label}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-md font-medium ml-auto flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.4)' }}>
+                          {g.posts.length}
                         </span>
-                        <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
                       </div>
-                      <div className="space-y-2">
+                      {/* Column posts */}
+                      <div className="p-2 space-y-2">
                         {g.posts.map(p => (
                           <VerificationPostCard key={p.id} post={p} onUpdated={loadPosts} />
                         ))}
