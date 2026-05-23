@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '')
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
 const TEXT_PROMPT = `You are a professional Hindi/English content proofreader for a government media agency.
 
@@ -82,7 +82,7 @@ export async function GET() {
     .not('status', 'eq', 'draft')
     .is('verification_status', null)
     .order('created_at', { ascending: false })
-    .limit(10)
+    .limit(20)
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
@@ -93,8 +93,6 @@ export async function GET() {
   }
 
   const results: { id: string; status: string; errors: number; imageChecked: boolean }[] = []
-
-  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
   for (const post of posts) {
     try {
@@ -134,8 +132,6 @@ export async function GET() {
 
       results.push({ id: post.id, status: 'in_review', errors: -1, imageChecked: false, error: errMsg } as any)
     }
-    // Stay within Gemini free tier rate limit (15 RPM)
-    await sleep(4500)
   }
 
   return NextResponse.json({
