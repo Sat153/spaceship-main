@@ -581,60 +581,64 @@ function VerificationPostCard({ post, onUpdated }: { post: VerifiablePost; onUpd
         borderLeft: `3px solid ${cfg ? cfg.leftBorder : 'rgba(255,255,255,0.12)'}`,
       }}>
       {/* Header */}
-      <div className="flex items-start gap-3 p-3">
-        {/* Photo thumbnail */}
-        {imgSrc && (
-          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-800">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imgSrc} alt="" className="w-full h-full object-cover" />
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {isFacebook && (
-              <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
-                style={{ background: 'rgba(24,119,242,0.18)', color: '#60a5fa', border: '1px solid rgba(24,119,242,0.3)' }}>
-                <span className="font-bold">f</span> Facebook
-              </span>
-            )}
-            {isTwitter && (
-              <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
-                style={{ background: 'rgba(29,155,240,0.18)', color: '#38bdf8', border: '1px solid rgba(29,155,240,0.3)' }}>
-                <Share2 className="w-3 h-3" /> Twitter / X
-              </span>
-            )}
-            <p className="text-sm font-medium text-white truncate">{post.title || post.body.slice(0, 60) + '…'}</p>
-          </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {isTwitter && post.source_url && (() => {
-              const m = post.source_url.match(/x\.com\/([^/]+)\//)
-              return m ? (
-                <span className="text-xs px-1.5 py-0.5 rounded font-medium"
-                  style={{ background: 'rgba(29,155,240,0.1)', color: '#38bdf8', border: '1px solid rgba(29,155,240,0.2)' }}>
-                  @{m[1]}
-                </span>
-              ) : null
-            })()}
-            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.35)' }}>
-              {new Date(post.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+      <div className="p-3 space-y-1.5">
+        {/* Row 1: source badge + verification badge + chevron */}
+        <div className="flex items-center gap-1.5">
+          {isFacebook && (
+            <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold"
+              style={{ background: 'rgba(24,119,242,0.18)', color: '#60a5fa', border: '1px solid rgba(24,119,242,0.3)' }}>
+              <span className="font-bold">f</span> Facebook
             </span>
-          </div>
+          )}
+          {isTwitter && (
+            <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold"
+              style={{ background: 'rgba(29,155,240,0.18)', color: '#38bdf8', border: '1px solid rgba(29,155,240,0.3)' }}>
+              <Share2 className="w-3 h-3" /> Twitter
+            </span>
+          )}
+          <span className="flex-1" />
+          {cfg ? (
+            <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium"
+              style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
+              <cfg.Icon className="w-3 h-3" />{cfg.label}
+            </span>
+          ) : (
+            <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.35)' }}>
+              Unchecked
+            </span>
+          )}
+          <button onClick={() => setExpanded(e => !e)} className="text-gray-500 hover:text-white transition-colors ml-1">
+            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
         </div>
-        {/* Verification badge */}
-        {cfg ? (
-          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-            style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
-            <cfg.Icon className="w-3 h-3" />{cfg.label}
+        {/* Row 2: thumbnail + title */}
+        <div className="flex items-start gap-2">
+          {imgSrc && (
+            <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-800">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imgSrc} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <p className="text-xs font-medium text-white leading-snug line-clamp-2">
+            {post.title || post.body.slice(0, 80) + '…'}
+          </p>
+        </div>
+        {/* Row 3: handle + date */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isTwitter && post.source_url && (() => {
+            const m = post.source_url.match(/x\.com\/([^/]+)\//)
+            return m ? (
+              <span className="text-xs px-1.5 py-0.5 rounded font-medium"
+                style={{ background: 'rgba(29,155,240,0.1)', color: '#38bdf8', border: '1px solid rgba(29,155,240,0.2)' }}>
+                @{m[1]}
+              </span>
+            ) : null
+          })()}
+          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            {new Date(post.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
           </span>
-        ) : (
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.35)' }}>
-            Unchecked
-          </span>
-        )}
-        <button onClick={() => setExpanded(e => !e)} className="text-gray-500 hover:text-white transition-colors flex-shrink-0">
-          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
+        </div>
       </div>
 
       {/* Expanded */}
