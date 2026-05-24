@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
+import { CyberHeader } from '@/components/ui/cyber-header'
 import { useClients, useClient, Client, CreateClientData, UpdateClientData } from '@/hooks/useClients'
 import { useDepartments } from '@/hooks/admin/useDepartments'
 import { generateClientSummary } from '@/app/actions/ai-analysis'
@@ -529,28 +530,30 @@ export default function AdminClients({ user }: AdminClientsProps) {
       {/* Full-width panel for create / detail */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-white">Clients</h2>
-              <p className="text-gray-400 text-sm">
-                {filteredClients.length} of {clients.length} clients
-              </p>
-            </div>
-            {profile?.role === 'admin' && (
-              <Button
-                onClick={() => {
-                  setIsCreatingClient(true)
-                  setSelectedClient(null)
-                  setIsEditMode(false)
-                }}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+        <div className="px-6 pt-6 border-b border-gray-700">
+          <CyberHeader
+            title="Clients"
+            subtitle={`${filteredClients.length} of ${clients.length} clients`}
+            accent="#ef4444"
+            badge="CLIENT OPS"
+            icon={<Briefcase className="h-6 w-6 text-white" />}
+            stats={[{ label: 'CLIENTS', value: clients.length, color: '#fca5a5' }]}
+            actions={
+              profile?.role === 'admin' ? (
+                <Button
+                  onClick={() => {
+                    setIsCreatingClient(true)
+                    setSelectedClient(null)
+                    setIsEditMode(false)
+                  }}
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              ) : undefined
+            }
+          />
 
           {/* Search */}
           <div className="relative mb-4">

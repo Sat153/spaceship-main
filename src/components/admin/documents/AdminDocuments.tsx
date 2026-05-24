@@ -39,6 +39,7 @@ import {
   type UpdateDocumentData
 } from "@/app/actions/admin-documents"
 import * as React from "react"
+import { CyberHeader } from "@/components/ui/cyber-header"
 
 interface AdminDocumentsProps {
   user: any
@@ -279,27 +280,30 @@ export default function AdminDocuments({ user }: AdminDocumentsProps) {
       {/* Center Panel - Documents List */}
       <div className="flex-1 flex flex-col max-w-md border-r border-gray-700">
         {/* Header */}
-        <div className="p-6 border-b border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold text-white">Knowledge Base</h2>
-              <p className="text-gray-400 text-sm">
-                {filteredDocuments.length} of {documents.length} documents
-              </p>
-            </div>
-            <Button 
-              onClick={() => {
-                setIsCreatingDoc(true)
-                setSelectedDoc(null)
-                setIsEditMode(false)
-              }}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          
+        <div className="px-4 pt-4">
+          <CyberHeader
+            title="Knowledge Base"
+            subtitle={`${filteredDocuments.length} of ${documents.length} documents`}
+            accent="#ec4899"
+            badge="KNOWLEDGE BASE"
+            icon={<FileText className="h-6 w-6 text-white" />}
+            stats={[{ label: 'DOCS', value: documents.length, color: '#f9a8d4' }]}
+            actions={
+              <Button
+                onClick={() => {
+                  setIsCreatingDoc(true)
+                  setSelectedDoc(null)
+                  setIsEditMode(false)
+                }}
+                size="sm"
+                className="bg-pink-600 hover:bg-pink-700"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            }
+          />
+        </div>
+        <div className="px-6 pb-4 border-b border-gray-700">
           {/* Search */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />

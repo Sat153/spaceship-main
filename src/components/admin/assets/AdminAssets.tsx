@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ChevronRight, FolderPlus, Upload, Grid, List as ListIcon, Home, Loader2, ArrowLeft, HardDrive, ScrollText } from "lucide-react"
+import { CyberHeader } from "@/components/ui/cyber-header"
 import { cn } from "@/lib/utils"
 
 interface Breadcrumb {
@@ -158,16 +159,14 @@ export default function AdminAssets() {
     return (
         <div className="space-y-5 h-full flex flex-col">
 
-            {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <HardDrive className="h-6 w-6 text-blue-400" />
-                        Asset Library
-                    </h2>
-                    <p className="text-gray-400 text-sm mt-0.5">Manage files, folders and client assets</p>
-                </div>
-            </div>
+            <CyberHeader
+                title="Asset Library"
+                subtitle="Manage files, folders and client assets"
+                accent="#f97316"
+                badge="ASSET LIBRARY"
+                icon={<HardDrive className="h-6 w-6 text-white" />}
+                stats={[{ label: 'ITEMS', value: assets.length, color: '#fdba74' }]}
+            />
 
             {/* Toolbar */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-800/60 p-3 rounded-xl border border-gray-700/80">

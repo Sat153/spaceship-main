@@ -18,6 +18,7 @@ import { useDepartments } from "@/hooks/admin/useDepartments"
 import { inviteTeamMember, deleteTeamMember, updateTeamMember } from "@/app/actions/admin-team"
 import { createDepartment } from "@/app/actions/admin-departments"
 import { useAdminTeamMembers } from "@/hooks/useSWR"
+import { CyberHeader } from "@/components/ui/cyber-header"
 
 interface TeamMember {
     id: string
@@ -194,17 +195,20 @@ export default function AdminTeamMembers() {
     if (view === 'departments') {
         return (
             <div className="space-y-6 p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-bold text-white">Team Members</h2>
-                        <p className="text-gray-400 mt-1">Select a department to view its members</p>
-                    </div>
-                    <Button onClick={() => setIsInviteOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invite Member
-                    </Button>
-                </div>
+                <CyberHeader
+                    title="Team Members"
+                    subtitle="Select a department to view its members"
+                    accent="#8b5cf6"
+                    badge="TEAM ONLINE"
+                    icon={<Users className="h-6 w-6 text-white" />}
+                    stats={[{ label: 'TOTAL MEMBERS', value: teamMembers.length, color: '#a78bfa' }]}
+                    actions={
+                        <Button onClick={() => setIsInviteOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Invite Member
+                        </Button>
+                    }
+                />
 
                 {loading ? (
                     <div className="flex justify-center py-16">
@@ -298,25 +302,25 @@ export default function AdminTeamMembers() {
 
         return (
             <div className="space-y-6 p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon" onClick={() => setView('departments')} className="text-gray-400 hover:text-white">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                        <div className={`p-2 rounded-lg ${style.bg} border ${style.border}`}>
-                            <DeptIcon className={`h-5 w-5 ${style.iconColor}`} />
+                <CyberHeader
+                    title={activeDept}
+                    subtitle={`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+                    accent="#8b5cf6"
+                    badge="TEAM ONLINE"
+                    icon={<DeptIcon className="h-6 w-6 text-white" />}
+                    stats={[{ label: 'MEMBERS', value: members.length, color: '#a78bfa' }]}
+                    actions={
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => setView('departments')} className="text-gray-400 hover:text-white border border-gray-600">
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                            <Button onClick={() => setIsInviteOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Invite Member
+                            </Button>
                         </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-white">{activeDept}</h2>
-                            <p className="text-gray-400 text-sm">{members.length} {members.length === 1 ? 'member' : 'members'}</p>
-                        </div>
-                    </div>
-                    <Button onClick={() => setIsInviteOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invite Member
-                    </Button>
-                </div>
+                    }
+                />
 
                 {members.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-center">

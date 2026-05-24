@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { Users, FileText, Settings, PenTool, Clock, AlertCircle, TrendingUp, Activity, Zap, CheckSquare, BarChart2, Menu, Bell, CheckCheck } from "lucide-react"
+import { CyberHeader } from "@/components/ui/cyber-header"
 import { getNotifications, markAllRead, type Notification } from "@/app/actions/notifications"
 import { getAdminStats } from "@/app/actions/admin-stats"
 import AdminRoute from "@/components/AdminRoute"
@@ -164,34 +165,18 @@ function AdminDashboardContent() {
 
     return (
     <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
-            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>Live Dashboard</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Welcome back, <span style={{
-              background: 'linear-gradient(135deg, #a78bfa, #ec4899)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>{[profile?.first_name, profile?.last_name].filter(Boolean).join(' ')}</span>
-          </h1>
-          <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            Here&apos;s what&apos;s happening across your platform today.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium" style={{
-          background: 'rgba(139,92,246,0.1)',
-          border: '1px solid rgba(139,92,246,0.25)',
-          color: '#c4b5fd',
-        }}>
-          <Zap className="w-3.5 h-3.5" />
-          Admin Access
-        </div>
-      </div>
+      <CyberHeader
+        title={`Welcome back, ${[profile?.first_name, profile?.last_name].filter(Boolean).join(' ')}`}
+        subtitle="Here's what's happening across your platform today."
+        accent="#8b5cf6"
+        badge="COMMAND CENTER"
+        icon={<Activity className="h-6 w-6 text-white" />}
+        stats={[
+          { label: 'MEMBERS', value: stats.total_members, color: '#a78bfa' },
+          { label: 'DOCUMENTS', value: stats.total_documents, color: '#f9a8d4' },
+          { label: 'THIS MONTH', value: stats.content_this_month, color: '#6ee7b7' },
+        ]}
+      />
 
       {/* Row 1: core stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">

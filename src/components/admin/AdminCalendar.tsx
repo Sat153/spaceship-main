@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Filter, Search } from "lucide-react";
+import { Plus, Filter, Search, Calendar as CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   type EventPayload
 } from "@/app/actions/admin-calendar";
 import { useAdminEvents, useAdminDepartments, useAdminUsers, useAdminClients, useContentPosts } from "@/hooks/useSWR";
+import { CyberHeader } from "@/components/ui/cyber-header";
 
 
 export default function AdminCalendar() {
@@ -183,20 +184,23 @@ export default function AdminCalendar() {
   return (
     <div className="h-full bg-black text-white">
       <div className="p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Admin Calendar</h1>
-            <p className="text-gray-400">Manage events, meetings, and deadlines</p>
-          </div>
-          <Button
-            onClick={handleCreateEvent}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Event
-          </Button>
-        </div>
+        <CyberHeader
+          title="Admin Calendar"
+          subtitle="Manage events, meetings, and deadlines"
+          accent="#10b981"
+          badge="SCHEDULE ONLINE"
+          icon={<CalendarIcon className="h-6 w-6 text-white" />}
+          stats={[{ label: 'EVENTS', value: events.length, color: '#6ee7b7' }]}
+          actions={
+            <Button
+              onClick={handleCreateEvent}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Event
+            </Button>
+          }
+        />
 
         {/* Filters and Search */}
         <div className="flex space-x-4 mb-6">

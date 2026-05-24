@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
     Plus, Search, Copy, Check, Trash2, Edit2, X, Loader2,
-    BookMarked, Wheat, Heart, Building, Zap, CalendarDays, Tag, Maximize2
+    BookMarked, Wheat, Heart, Building, Zap, CalendarDays, Tag, Maximize2, MessageSquare
 } from 'lucide-react'
+import { CyberHeader } from '@/components/ui/cyber-header'
 import {
     getMessageTemplates, createMessageTemplate, updateMessageTemplate,
     deleteMessageTemplate, MessageTemplate, CreateTemplateData
@@ -120,19 +121,22 @@ export default function MessagingBank({ readOnly = false }: { readOnly?: boolean
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-gray-800">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">Caption & Messaging Bank</h1>
-                        <p className="text-gray-400 text-sm mt-0.5">Pre-approved phrases and messaging templates</p>
-                    </div>
-                    {!readOnly && (
-                        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                            <Plus className="h-4 w-4" /> New Template
-                        </Button>
-                    )}
-                </div>
-
+            <div className="px-6 pt-6 border-b border-gray-800">
+                <CyberHeader
+                    title="Caption & Messaging Bank"
+                    subtitle="Pre-approved phrases and messaging templates"
+                    accent="#14b8a6"
+                    badge="MESSAGE BANK"
+                    icon={<MessageSquare className="h-6 w-6 text-white" />}
+                    stats={[{ label: 'TEMPLATES', value: templates.length, color: '#5eead4' }]}
+                    actions={
+                        !readOnly ? (
+                            <Button onClick={openCreate} className="bg-teal-600 hover:bg-teal-700 text-white gap-2">
+                                <Plus className="h-4 w-4" /> New Template
+                            </Button>
+                        ) : undefined
+                    }
+                />
                 {/* Category tabs */}
                 <div className="flex gap-2 flex-wrap mb-4">
                     {CATEGORIES.map(cat => {

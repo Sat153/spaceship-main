@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { PenTool, LayoutGrid } from 'lucide-react'
 import ContentCreator from './ContentCreator'
 import GridPlanner from './GridPlanner'
+import { CyberHeader } from '@/components/ui/cyber-header'
 
 type ContentView = 'posts' | 'grid'
 
@@ -17,8 +18,17 @@ export default function ContentHub() {
 
     return (
         <div className="h-full flex flex-col">
+            <div className="px-6 pt-5">
+                <CyberHeader
+                    title="Content Pipeline"
+                    subtitle="Create, review, and schedule social content"
+                    accent="#6366f1"
+                    badge="CONTENT PIPELINE"
+                    icon={<PenTool className="h-6 w-6 text-white" />}
+                />
+            </div>
             {/* Sub-nav */}
-            <div className="shrink-0 flex items-center gap-1 px-6 pt-5 pb-0"
+            <div className="shrink-0 flex items-center gap-1 px-6 pt-0 pb-0"
                 style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 {TABS.map(tab => {
                     const Icon = tab.icon

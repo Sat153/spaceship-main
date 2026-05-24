@@ -6,6 +6,7 @@ import type { WeeklyReportData, EmployeeSummary, FilterRange } from '@/app/actio
 import { Loader2, RefreshCw, CheckCircle2, Calendar, ChevronDown, Users, BarChart2, Image as ImageIcon, Video, Paperclip } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { CyberHeader } from '@/components/ui/cyber-header'
 
 const FILTERS: { value: FilterRange; label: string }[] = [
   { value: 'this_week', label: 'This Week' },
@@ -174,29 +175,32 @@ export default function AdminWeeklyReports() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-1">Weekly Reports</h2>
-          <p className="text-gray-400 text-sm">Auto-tracked performance for all team members</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setActiveView('overview')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${activeView === 'overview' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
-            <BarChart2 className="h-3.5 w-3.5" /> Overview
-          </button>
-          {selectedEmp && (
-            <button onClick={() => setActiveView('detail')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${activeView === 'detail' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
-              <Users className="h-3.5 w-3.5" /> {selectedEmp.first_name}
+      <CyberHeader
+        title="Weekly Reports"
+        subtitle="Auto-tracked performance for all team members"
+        accent="#f59e0b"
+        badge="ANALYTICS ONLINE"
+        icon={<BarChart2 className="h-6 w-6 text-white" />}
+        stats={[{ label: 'TEAM MEMBERS', value: summaries.length, color: '#fcd34d' }]}
+        actions={
+          <div className="flex gap-2">
+            <button onClick={() => setActiveView('overview')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${activeView === 'overview' ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+              <BarChart2 className="h-3.5 w-3.5" /> Overview
             </button>
-          )}
-          {activeView === 'detail' && selectedId && (
-            <Button onClick={handleGenerate} disabled={generating || loadingReport} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 h-8 text-xs">
-              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              {generating ? 'Generating...' : 'AI Report'}
-            </Button>
-          )}
-        </div>
-      </div>
+            {selectedEmp && (
+              <button onClick={() => setActiveView('detail')} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${activeView === 'detail' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}>
+                <Users className="h-3.5 w-3.5" /> {selectedEmp.first_name}
+              </button>
+            )}
+            {activeView === 'detail' && selectedId && (
+              <Button onClick={handleGenerate} disabled={generating || loadingReport} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 h-8 text-xs">
+                {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                {generating ? 'Generating...' : 'AI Report'}
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">

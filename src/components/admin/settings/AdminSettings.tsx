@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Settings, User, Bell, Building2, Loader2, Check, Pencil, Trash2, Plus, X } from 'lucide-react'
+import { CyberHeader } from '@/components/ui/cyber-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -362,19 +363,13 @@ export default function AdminSettings() {
 
     return (
         <div className="space-y-6 max-w-3xl">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                        style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
-                        <Settings className="h-5 w-5 text-white" />
-                    </div>
-                    Settings
-                </h1>
-                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    Manage your profile, approval workflow, and department structure.
-                </p>
-            </div>
+            <CyberHeader
+                title="Settings"
+                subtitle="Manage your profile, approval workflow, and department structure."
+                accent="#06b6d4"
+                badge="SYSTEM CONFIG"
+                icon={<Settings className="h-6 w-6 text-white" />}
+            />
 
             {/* Tab nav */}
             <div className="flex gap-1 p-1 rounded-xl w-fit"
