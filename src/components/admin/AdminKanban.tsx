@@ -271,174 +271,228 @@ export default function AdminKanban() {
 
   if (tasksLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-white">Loading kanban board...</div>
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <style>{`@keyframes kb-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes kb-flicker{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
+        <div className="relative w-14 h-14">
+          <div className="absolute inset-0 rounded-full border border-blue-500/20" />
+          <div className="absolute inset-0 rounded-full border-t-2 border-blue-400" style={{ animation: 'kb-spin 1s linear infinite' }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <FolderKanban className="w-5 h-5 text-blue-400" />
+          </div>
+        </div>
+        <p className="text-xs font-mono tracking-widest text-blue-400/60" style={{ animation: 'kb-flicker 2s ease-in-out infinite' }}>LOADING TASK BOARD...</p>
       </div>
     );
   }
 
   const activeProject = projects.find((p: any) => p.id === filterProject);
 
+  const statConfig = [
+    { label: 'TOTAL',       key: 'all',         value: stats.total,       color: '#e2e8f0', glow: 'rgba(226,232,240,0.15)', border: 'rgba(226,232,240,0.15)' },
+    { label: 'TO DO',       key: 'todo',         value: stats.todo,        color: '#94a3b8', glow: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.2)'  },
+    { label: 'IN PROGRESS', key: 'in_progress',  value: stats.in_progress, color: '#60a5fa', glow: 'rgba(96,165,250,0.2)',  border: 'rgba(96,165,250,0.3)'   },
+    { label: 'REVIEW',      key: 'review',       value: stats.review,      color: '#c084fc', glow: 'rgba(192,132,252,0.2)', border: 'rgba(192,132,252,0.3)'  },
+    { label: 'COMPLETED',   key: 'completed',    value: stats.completed,   color: '#4ade80', glow: 'rgba(74,222,128,0.2)',  border: 'rgba(74,222,128,0.3)'   },
+    { label: 'OVERDUE',     key: 'overdue',      value: stats.overdue,     color: stats.overdue > 0 ? '#f87171' : '#475569', glow: stats.overdue > 0 ? 'rgba(248,113,113,0.2)' : 'transparent', border: stats.overdue > 0 ? 'rgba(248,113,113,0.3)' : 'rgba(71,85,105,0.2)' },
+  ]
+
   return (
     <div className="h-full bg-black text-white">
-      <div className="p-4 md:p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Kanban Board</h1>
-            <p className="text-gray-400">Manage tasks and track progress</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowProjectList(v => !v)}
-              className="border-gray-700 text-gray-300 hover:text-white hover:bg-gray-800"
-            >
-              <FolderKanban className="h-4 w-4 mr-2" />
-              Projects
-              <ChevronDown className={`h-3.5 w-3.5 ml-2 transition-transform ${showProjectList ? 'rotate-180' : ''}`} />
-            </Button>
-            <Button
-              onClick={() => handleAddTask('todo')}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Button>
+      <style>{`
+        @keyframes kb-scan    { 0%{top:-5%} 100%{top:105%} }
+        @keyframes kb-spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes kb-glow    { 0%,100%{box-shadow:0 0 20px rgba(59,130,246,0.2)} 50%{box-shadow:0 0 40px rgba(59,130,246,0.5),0 0 80px rgba(59,130,246,0.1)} }
+        @keyframes kb-fadein  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes kb-flicker { 0%,19%,21%,23%,25%,54%,56%,100%{opacity:1} 20%,24%,55%{opacity:0.4} }
+        .kb-stat:hover { transform: translateY(-3px) scale(1.03); transition: all 0.2s ease; }
+        .kb-proj:hover { transform: translateY(-1px); transition: all 0.15s ease; }
+      `}</style>
+
+      <div className="p-4 md:p-6 space-y-6">
+
+        {/* ── HEADER ── */}
+        <div className="relative overflow-hidden rounded-2xl p-6" style={{
+          background: 'linear-gradient(135deg,#060610 0%,#0a0a1e 60%,#060a10 100%)',
+          border: '1px solid rgba(59,130,246,0.35)',
+          animation: 'kb-glow 4s ease-in-out infinite',
+        }}>
+          {/* scanline */}
+          <div className="absolute left-0 right-0 h-px pointer-events-none" style={{
+            background: 'linear-gradient(90deg,transparent,rgba(59,130,246,0.5),transparent)',
+            animation: 'kb-scan 3s linear infinite',
+          }} />
+          {/* grid bg */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{
+            backgroundImage: 'linear-gradient(rgba(59,130,246,1) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,1) 1px,transparent 1px)',
+            backgroundSize: '40px 40px',
+          }} />
+
+          <div className="relative flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4">
+              <div className="relative w-14 h-14 flex-shrink-0">
+                <div className="absolute inset-0 rounded-xl" style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', boxShadow: '0 0 24px rgba(59,130,246,0.6)' }} />
+                <div className="absolute inset-0 rounded-xl border border-blue-400/30" style={{ animation: 'kb-spin 8s linear infinite' }} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <FolderKanban className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#93c5fd' }}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    TASK BOARD ONLINE
+                  </div>
+                </div>
+                <h1 className="text-3xl font-black tracking-tight" style={{
+                  background: 'linear-gradient(135deg,#fff 0%,#93c5fd 50%,#3b82f6 100%)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                  animation: 'kb-flicker 10s linear infinite',
+                }}>Kanban Board</h1>
+                <p className="text-xs font-mono mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {filteredTasks.length} / {tasks.length} TASKS DISPLAYED
+                  {activeProject ? ` · PROJECT: ${activeProject.name.toUpperCase()}` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowProjectList(v => !v)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-mono font-medium transition-all"
+                style={{
+                  background: showProjectList ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${showProjectList ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.12)'}`,
+                  color: showProjectList ? '#93c5fd' : 'rgba(255,255,255,0.5)',
+                }}
+              >
+                <FolderKanban className="h-4 w-4" />
+                PROJECTS
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showProjectList ? 'rotate-180' : ''}`} />
+              </button>
+              <button
+                onClick={() => handleAddTask('todo')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-mono font-bold transition-all"
+                style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', boxShadow: '0 0 16px rgba(59,130,246,0.4)', color: '#fff' }}
+              >
+                <Plus className="h-4 w-4" /> NEW TASK
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Projects Panel */}
+        {/* ── PROJECTS PANEL ── */}
         {showProjectList && (
-          <div className="mb-6 bg-gray-900 border border-gray-700 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white">Projects</h3>
-              <Button size="sm" onClick={() => setIsProjectModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs">
-                <Plus className="h-3.5 w-3.5 mr-1" /> New Project
-              </Button>
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.2)', animation: 'kb-fadein 0.2s ease' }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full" style={{ background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
+                <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#60a5fa' }}>PROJECTS</span>
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.12)', color: 'rgba(255,255,255,0.4)' }}>{projects.length}</span>
+              </div>
+              <button onClick={() => setIsProjectModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all"
+                style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>
+                <Plus className="h-3.5 w-3.5" /> NEW PROJECT
+              </button>
             </div>
             {projects.length === 0 ? (
-              <p className="text-gray-500 text-sm">No projects yet. Create one to group your tasks.</p>
+              <p className="text-xs font-mono text-center py-4" style={{ color: 'rgba(255,255,255,0.2)' }}>NO PROJECTS YET</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {projects.map((p: any) => (
-                  <div
-                    key={p.id}
-                    onClick={() => { setFilterProject(filterProject === p.id ? 'all' : p.id); setShowProjectList(false); }}
-                    className={`group flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                      filterProject === p.id
-                        ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-white truncate">{p.name}</p>
-                      {p.clients?.name && <p className="text-xs text-gray-400 mt-0.5">{p.clients.name}</p>}
-                      {p.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{p.description}</p>}
-                      <span className={`inline-flex mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${STATUS_COLORS[p.status] || STATUS_COLORS.active}`}>
-                        {p.status.replace('_', ' ')}
-                      </span>
+                {projects.map((p: any) => {
+                  const isActive = filterProject === p.id
+                  return (
+                    <div key={p.id} className="kb-proj group flex items-start justify-between p-3 rounded-xl cursor-pointer transition-all" style={{
+                      background: isActive ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${isActive ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                      boxShadow: isActive ? '0 0 16px rgba(59,130,246,0.15)' : 'none',
+                    }}
+                      onClick={() => { setFilterProject(isActive ? 'all' : p.id); setShowProjectList(false); }}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-white truncate">{p.name}</p>
+                        {p.clients?.name && <p className="text-xs mt-0.5 font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>{p.clients.name}</p>}
+                        <span className={`inline-flex mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium border ${STATUS_COLORS[p.status] || STATUS_COLORS.active}`}>
+                          {p.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
+                        className="opacity-0 group-hover:opacity-100 ml-2 transition-all flex-shrink-0" style={{ color: 'rgba(248,113,113,0.6)' }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
-                      className="opacity-0 group-hover:opacity-100 ml-2 text-gray-500 hover:text-red-400 transition-all flex-shrink-0"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 md:gap-4 mb-6">
-          {[
-            { label: 'Total', key: 'all', value: stats.total, color: 'text-white', activeClass: 'ring-2 ring-white/40' },
-            { label: 'To Do', key: 'todo', value: stats.todo, color: 'text-gray-400', activeClass: 'ring-2 ring-gray-400/60' },
-            { label: 'In Progress', key: 'in_progress', value: stats.in_progress, color: 'text-blue-400', activeClass: 'ring-2 ring-blue-500/60' },
-            { label: 'Review', key: 'review', value: stats.review, color: 'text-purple-400', activeClass: 'ring-2 ring-purple-500/60' },
-            { label: 'Completed', key: 'completed', value: stats.completed, color: 'text-green-400', activeClass: 'ring-2 ring-green-500/60' },
-            { label: 'Overdue', key: 'overdue', value: stats.overdue, color: stats.overdue > 0 ? 'text-red-400' : 'text-gray-600', activeClass: 'ring-2 ring-red-500/60' },
-          ].map(s => {
-            const isActive = filterStatus === s.key;
+        {/* ── STAT TILES ── */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {statConfig.map((s, i) => {
+            const isActive = filterStatus === s.key
             return (
-              <Card
-                key={s.label}
-                onClick={() => setFilterStatus(isActive ? 'all' : s.key)}
-                className={`border-gray-700 cursor-pointer transition-all hover:border-gray-500 select-none
-                  ${s.key === 'overdue' && stats.overdue > 0 ? 'bg-red-900/20 border-red-700/40' : 'bg-gray-900'}
-                  ${isActive ? s.activeClass + ' bg-gray-800' : ''}`}
-              >
-                <CardHeader className="pb-2">
-                  <CardTitle className={`text-sm font-medium ${s.key === 'overdue' && stats.overdue > 0 ? 'text-red-400' : 'text-gray-400'}`}>{s.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-                </CardContent>
-              </Card>
-            );
+              <button key={s.key} className="kb-stat rounded-2xl p-4 text-left transition-all select-none" onClick={() => setFilterStatus(isActive ? 'all' : s.key)} style={{
+                background: isActive ? `${s.glow}` : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${isActive ? s.border : 'rgba(255,255,255,0.07)'}`,
+                boxShadow: isActive ? `0 0 20px ${s.glow}` : 'none',
+                animation: `kb-fadein 0.4s ease both`,
+                animationDelay: `${i * 0.06}s`,
+              }}>
+                <p className="text-3xl font-black mb-1" style={{ color: s.color, textShadow: isActive ? `0 0 16px ${s.color}` : 'none' }}>{s.value}</p>
+                <p className="text-[10px] font-mono tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>{s.label}</p>
+              </button>
+            )
           })}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="flex-1 min-w-0 w-full sm:w-auto relative">
-            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-gray-900 border-gray-700 text-white"
-            />
+        {/* ── FILTERS ── */}
+        <div className="flex flex-wrap gap-2 p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="flex-1 min-w-[180px] relative">
+            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'rgba(255,255,255,0.3)' }} />
+            <Input placeholder="Search tasks..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-9 text-xs font-mono bg-transparent border-gray-700/50 text-white placeholder:text-gray-600 focus-visible:ring-blue-500/30" />
           </div>
 
-          {/* Active project filter badge */}
           {filterProject !== 'all' && activeProject && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-md text-sm text-blue-300">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd' }}>
               <FolderKanban className="h-3.5 w-3.5" />
               {activeProject.name}
-              <button onClick={() => setFilterProject('all')} className="ml-1 hover:text-white">
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <button onClick={() => setFilterProject('all')} className="ml-1 hover:text-white"><X className="h-3 w-3" /></button>
             </div>
           )}
 
           <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Priority" />
+            <SelectTrigger className="w-36 h-9 text-xs font-mono bg-transparent border-gray-700/50 text-gray-300">
+              <Filter className="h-3.5 w-3.5 mr-1.5" /><SelectValue placeholder="Priority" />
             </SelectTrigger>
-            <SelectContent className="bg-gray-900 border-gray-700">
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
+            <SelectContent className="bg-gray-900 border-gray-700 font-mono text-xs">
+              <SelectItem value="all">ALL PRIORITY</SelectItem>
+              <SelectItem value="urgent">URGENT</SelectItem>
+              <SelectItem value="high">HIGH</SelectItem>
+              <SelectItem value="medium">MEDIUM</SelectItem>
+              <SelectItem value="low">LOW</SelectItem>
             </SelectContent>
           </Select>
 
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
+            <SelectTrigger className="w-36 h-9 text-xs font-mono bg-transparent border-gray-700/50 text-gray-300">
               <SelectValue placeholder="Assignee" />
             </SelectTrigger>
-            <SelectContent className="bg-gray-900 border-gray-700">
-              <SelectItem value="all">All Assignees</SelectItem>
+            <SelectContent className="bg-gray-900 border-gray-700 font-mono text-xs">
+              <SelectItem value="all">ALL ASSIGNEES</SelectItem>
               {users.map((u: any) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.first_name} {u.last_name}
-                </SelectItem>
+                <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select value={filterProject} onValueChange={setFilterProject}>
-            <SelectTrigger className="w-full sm:w-44 bg-gray-900 border-gray-700 text-white">
+            <SelectTrigger className="w-36 h-9 text-xs font-mono bg-transparent border-gray-700/50 text-gray-300">
               <SelectValue placeholder="Project" />
             </SelectTrigger>
-            <SelectContent className="bg-gray-900 border-gray-700">
-              <SelectItem value="all">All Projects</SelectItem>
+            <SelectContent className="bg-gray-900 border-gray-700 font-mono text-xs">
+              <SelectItem value="all">ALL PROJECTS</SelectItem>
               {projects.map((p: any) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
@@ -446,151 +500,97 @@ export default function AdminKanban() {
           </Select>
 
           <div className="relative" ref={calendarRef}>
-            <button
-              onClick={() => setCalendarOpen(v => !v)}
-              className={`flex items-center gap-2 h-10 px-3 rounded-md border text-sm transition-colors ${filterDateFrom ? 'bg-blue-600/20 border-blue-500/50 text-blue-300' : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500'}`}
-            >
-              <Calendar className="h-4 w-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">
-                {filterDateFrom && filterDateTo
-                  ? `${format(filterDateFrom,'MMM d')} – ${format(filterDateTo,'MMM d')}`
-                  : filterDateFrom
-                  ? `From ${format(filterDateFrom,'MMM d')}`
-                  : 'Pick Dates'}
-              </span>
-              {filterDateFrom && (
-                <X className="h-3.5 w-3.5 ml-1 hover:text-white" onClick={e => { e.stopPropagation(); setFilterDateFrom(null); setFilterDateTo(null); }} />
-              )}
+            <button onClick={() => setCalendarOpen(v => !v)}
+              className="flex items-center gap-2 h-9 px-3 rounded-lg border text-xs font-mono transition-colors"
+              style={filterDateFrom
+                ? { background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.4)', color: '#93c5fd' }
+                : { background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}>
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{filterDateFrom && filterDateTo ? `${format(filterDateFrom,'MMM d')}–${format(filterDateTo,'MMM d')}` : filterDateFrom ? `FROM ${format(filterDateFrom,'MMM d')}` : 'DATE RANGE'}</span>
+              {filterDateFrom && <X className="h-3 w-3 ml-1" onClick={e => { e.stopPropagation(); setFilterDateFrom(null); setFilterDateTo(null); }} />}
             </button>
-
             {calendarOpen && (
-              <div className="absolute right-0 top-12 z-50 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 w-72">
-                {/* Month nav */}
+              <div className="absolute right-0 top-11 z-50 rounded-2xl shadow-2xl p-4 w-72" style={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <button onClick={() => setCalendarMonth(m => subMonths(m, 1))} className="p-1 hover:bg-gray-700 rounded">
-                    <ChevronLeft className="h-4 w-4 text-gray-400" />
-                  </button>
-                  <span className="text-white font-medium text-sm">{format(calendarMonth, 'MMMM yyyy')}</span>
-                  <button onClick={() => setCalendarMonth(m => addMonths(m, 1))} className="p-1 hover:bg-gray-700 rounded">
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                  </button>
+                  <button onClick={() => setCalendarMonth(m => subMonths(m, 1))} className="p-1 rounded hover:bg-white/10"><ChevronLeft className="h-4 w-4 text-gray-400" /></button>
+                  <span className="text-white font-mono text-sm font-bold">{format(calendarMonth, 'MMMM yyyy').toUpperCase()}</span>
+                  <button onClick={() => setCalendarMonth(m => addMonths(m, 1))} className="p-1 rounded hover:bg-white/10"><ChevronRight className="h-4 w-4 text-gray-400" /></button>
                 </div>
-                {/* Day headers */}
-                <div className="grid grid-cols-7 mb-1">
-                  {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-                    <div key={d} className="text-center text-xs text-gray-500 py-1">{d}</div>
-                  ))}
-                </div>
-                {/* Days */}
+                <div className="grid grid-cols-7 mb-1">{['SU','MO','TU','WE','TH','FR','SA'].map(d => <div key={d} className="text-center text-[10px] font-mono text-gray-600 py-1">{d}</div>)}</div>
                 <div className="grid grid-cols-7 gap-y-1">
                   {eachDayOfInterval({ start: startOfWeek(startOfMonth(calendarMonth)), end: endOfWeek(endOfMonth(calendarMonth)) }).map(day => {
-                    const isFrom = filterDateFrom && isSameDay(day, filterDateFrom);
-                    const isTo = filterDateTo && isSameDay(day, filterDateTo);
-                    const inRange = filterDateFrom && filterDateTo && isWithinInterval(day, { start: filterDateFrom, end: filterDateTo });
-                    const isCurrentMonth = isSameMonth(day, calendarMonth);
+                    const isFrom = filterDateFrom && isSameDay(day, filterDateFrom)
+                    const isTo = filterDateTo && isSameDay(day, filterDateTo)
+                    const inRange = filterDateFrom && filterDateTo && isWithinInterval(day, { start: filterDateFrom, end: filterDateTo })
                     return (
-                      <button
-                        key={day.toISOString()}
-                        onClick={() => handleCalendarDayClick(day)}
-                        className={`text-xs py-1.5 rounded transition-colors
-                          ${!isCurrentMonth ? 'text-gray-600' : 'text-gray-300 hover:bg-gray-700'}
-                          ${(isFrom || isTo) ? '!bg-blue-600 !text-white font-bold' : ''}
-                          ${inRange && !isFrom && !isTo ? '!bg-blue-600/20 !text-blue-300' : ''}
-                        `}
-                      >
+                      <button key={day.toISOString()} onClick={() => handleCalendarDayClick(day)}
+                        className="text-xs py-1.5 rounded font-mono transition-colors"
+                        style={(isFrom || isTo) ? { background: '#3b82f6', color: '#fff', fontWeight: 'bold' } : inRange ? { background: 'rgba(59,130,246,0.15)', color: '#93c5fd' } : { color: isSameMonth(day, calendarMonth) ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)' }}>
                         {format(day, 'd')}
                       </button>
-                    );
+                    )
                   })}
                 </div>
-                <p className="text-xs text-gray-500 mt-3 text-center">
-                  {!filterDateFrom ? 'Click to set start date' : !filterDateTo ? 'Click to set end date' : ''}
+                <p className="text-[10px] font-mono text-center mt-3" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                  {!filterDateFrom ? 'SELECT START DATE' : !filterDateTo ? 'SELECT END DATE' : 'RANGE SELECTED'}
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Board */}
-        <div className="bg-gray-900 rounded-lg border border-gray-700 p-4">
-          <KanbanBoard
-            columns={kanbanColumns}
-            tasks={kanbanTasks}
-            onTaskMove={handleTaskMove}
-            onTaskClick={handleTaskClick}
-            onAddTask={handleAddTask}
-          />
+        {/* ── BOARD ── */}
+        <div className="rounded-2xl p-4 overflow-hidden" style={{
+          background: 'rgba(255,255,255,0.01)',
+          border: '1px solid rgba(59,130,246,0.15)',
+          boxShadow: '0 0 40px rgba(59,130,246,0.05)',
+        }}>
+          <KanbanBoard columns={kanbanColumns} tasks={kanbanTasks} onTaskMove={handleTaskMove} onTaskClick={handleTaskClick} onAddTask={handleAddTask} />
         </div>
 
         {/* Task Modal */}
-        <TaskModal
-          open={isTaskModalOpen}
-          onOpenChange={setIsTaskModalOpen}
+        <TaskModal open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}
           task={selectedTask ? convertToTaskModalData(selectedTask) : null}
-          onSave={handleSaveTask}
-          onDelete={handleDeleteTask}
-          departments={departments}
-          users={users}
-          projects={projects}
-          isLoading={isSubmitting}
-        />
+          onSave={handleSaveTask} onDelete={handleDeleteTask}
+          departments={departments} users={users} projects={projects} isLoading={isSubmitting} />
 
         {/* New Project Modal */}
         <Dialog open={isProjectModalOpen} onOpenChange={setIsProjectModalOpen}>
-          <DialogContent className="bg-gray-900 border-gray-700 text-white sm:max-w-md">
+          <DialogContent className="text-white sm:max-w-md" style={{ background: '#0d0d1a', border: '1px solid rgba(59,130,246,0.3)' }}>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FolderKanban className="h-5 w-5 text-blue-400" />
-                New Project
+              <DialogTitle className="flex items-center gap-2 font-mono">
+                <FolderKanban className="h-5 w-5 text-blue-400" /> NEW PROJECT
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div>
-                <label className="text-sm text-gray-400 mb-1 block">Project Name *</label>
-                <Input
-                  autoFocus
-                  placeholder="e.g. Nari Shakti Vardhan Event"
-                  value={newProjectName}
-                  onChange={e => setNewProjectName(e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white"
-                  onKeyDown={e => e.key === 'Enter' && handleCreateProject()}
-                />
+                <label className="text-xs font-mono text-gray-400 mb-1.5 block tracking-widest">PROJECT NAME *</label>
+                <Input autoFocus placeholder="e.g. Nari Shakti Vardhan Event" value={newProjectName}
+                  onChange={e => setNewProjectName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProject()}
+                  className="bg-gray-800/50 border-gray-700 text-white font-mono text-sm" />
               </div>
               <div>
-                <label className="text-sm text-gray-400 mb-1 block">Description</label>
-                <Textarea
-                  placeholder="What is this project about?"
-                  value={newProjectDesc}
+                <label className="text-xs font-mono text-gray-400 mb-1.5 block tracking-widest">DESCRIPTION</label>
+                <Textarea placeholder="What is this project about?" value={newProjectDesc}
                   onChange={e => setNewProjectDesc(e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white"
-                  rows={3}
-                />
+                  className="bg-gray-800/50 border-gray-700 text-white font-mono text-sm" rows={3} />
               </div>
               <div>
-                <label className="text-sm text-gray-400 mb-1 block">Link to Client (optional)</label>
+                <label className="text-xs font-mono text-gray-400 mb-1.5 block tracking-widest">CLIENT (OPTIONAL)</label>
                 <Select value={newProjectClientId} onValueChange={setNewProjectClientId}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                    <SelectValue placeholder="Select client" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectTrigger className="bg-gray-800/50 border-gray-700 text-white font-mono text-sm"><SelectValue placeholder="Select client" /></SelectTrigger>
+                  <SelectContent className="bg-gray-900 border-gray-700 font-mono text-sm">
                     <SelectItem value="no_client">No Client</SelectItem>
-                    {clients.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
+                    {clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => setIsProjectModalOpen(false)} className="text-gray-400 hover:text-white">
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateProject}
-                disabled={!newProjectName.trim() || projectCreating}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {projectCreating ? 'Creating...' : 'Create Project'}
+              <Button variant="ghost" onClick={() => setIsProjectModalOpen(false)} className="font-mono text-gray-400 hover:text-white text-xs">CANCEL</Button>
+              <Button onClick={handleCreateProject} disabled={!newProjectName.trim() || projectCreating}
+                className="font-mono text-xs font-bold" style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', boxShadow: '0 0 12px rgba(59,130,246,0.3)' }}>
+                {projectCreating ? 'CREATING...' : 'CREATE PROJECT'}
               </Button>
             </DialogFooter>
           </DialogContent>
