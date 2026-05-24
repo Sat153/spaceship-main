@@ -876,35 +876,28 @@ export default function ChatPanel() {
                                         )}
                                     </div>
 
-                                    {/* AI Suggest + History buttons (shown when non-all tab selected) */}
+                                    {/* AI Suggest button */}
                                     {assetTab !== 'all' && (
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleGenerate(assetTab)}
-                                                disabled={aiLoading}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-medium transition-all"
-                                            >
-                                                {aiLoading && aiSuggestTab === assetTab
-                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                    : <Sparkles className="h-3 w-3" />}
-                                                AI Suggest
-                                            </button>
-                                            <button
-                                                onClick={handleShowHistory}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showHistory ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
-                                            >
-                                                <History className="h-3 w-3" /> History
-                                            </button>
-                                        </div>
+                                        <button
+                                            onClick={() => handleGenerate(assetTab)}
+                                            disabled={aiLoading}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-medium transition-all"
+                                        >
+                                            {aiLoading && aiSuggestTab === assetTab
+                                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                : <Sparkles className="h-3 w-3" />}
+                                            AI Suggest
+                                        </button>
                                     )}
 
-                                    {/* AI Suggestions */}
+                                    {/* AI Suggestions — priority ordered */}
                                     {aiSuggestions.length > 0 && (
                                         <div className="space-y-1.5">
-                                            <p className="text-xs text-purple-400 font-medium">✨ AI Suggestions — click Use to copy & save</p>
+                                            <p className="text-xs text-purple-400 font-medium">✨ Priority Suggestions</p>
                                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
                                                 {aiSuggestions.filter(s => !assetSearch || s.toLowerCase().includes(assetSearch.toLowerCase())).map((s, i) => (
                                                     <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-purple-900/20 border border-purple-700/30">
+                                                        <span className="shrink-0 text-xs font-bold text-purple-400 w-5 pt-0.5">#{i + 1}</span>
                                                         <p className="flex-1 text-xs text-gray-200 leading-relaxed">{s}</p>
                                                         <button
                                                             onClick={() => handleUseSuggestion(s)}
@@ -916,24 +909,6 @@ export default function ChatPanel() {
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
-
-                                    {/* History */}
-                                    {showHistory && (
-                                        <div className="space-y-1.5">
-                                            <p className="text-xs text-gray-400 font-medium">History</p>
-                                            {suggestionHistory.length === 0
-                                                ? <p className="text-xs text-gray-600 italic">No history yet</p>
-                                                : <div className="space-y-1 max-h-[160px] overflow-y-auto">
-                                                    {suggestionHistory.filter(h => !assetSearch || h.suggestion.toLowerCase().includes(assetSearch.toLowerCase())).map(h => (
-                                                        <div key={h.id} className="p-2 rounded-lg bg-gray-800 space-y-0.5">
-                                                            <p className="text-xs text-gray-200">{h.suggestion}</p>
-                                                            <p className="text-xs text-gray-500">{h.used_by_name} · {new Date(h.used_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            }
                                         </div>
                                     )}
 
