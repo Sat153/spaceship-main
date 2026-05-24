@@ -1239,181 +1239,291 @@ export default function AgentsPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <style>{`
+          @keyframes radar-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        `}</style>
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-2 border-purple-500/30" />
+          <div className="absolute inset-0 rounded-full border-t-2 border-purple-400" style={{ animation: 'radar-spin 1s linear infinite' }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Bot className="w-6 h-6 text-purple-400" />
+          </div>
+        </div>
+        <p className="text-xs font-mono tracking-widest text-purple-400/60" style={{ animation: 'flicker 2s ease-in-out infinite' }}>INITIALIZING COMMAND CENTER...</p>
       </div>
     )
   }
 
+  const verPct = health ? (health.twitter.total > 0 ? Math.round(((health.twitter.verified + health.twitter.has_errors) / health.twitter.total) * 100) : 0) : 0
+  const verDot = verPct === 100 ? '#22c55e' : verPct > 50 ? '#f97316' : '#ef4444'
+  const smDot  = health && health.twitter.total > 0 && health.twitter.unchecked === 0 ? '#22c55e' : '#f97316'
+
   return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#8b5cf6', boxShadow: '0 0 8px #8b5cf6' }} />
-          <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>Workflow System</span>
-        </div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Agent Workflows</h1>
-        <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>Manage tasks and workflows across all agents</p>
-      </div>
+    <div className="space-y-8 max-w-5xl">
+      <style>{`
+        @keyframes radar-spin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes orbit        { from{transform:rotate(0deg) translateX(38px) rotate(0deg)} to{transform:rotate(360deg) translateX(38px) rotate(-360deg)} }
+        @keyframes orbit2       { from{transform:rotate(120deg) translateX(38px) rotate(-120deg)} to{transform:rotate(480deg) translateX(38px) rotate(-480deg)} }
+        @keyframes orbit3       { from{transform:rotate(240deg) translateX(38px) rotate(-240deg)} to{transform:rotate(600deg) translateX(38px) rotate(-600deg)} }
+        @keyframes glow-pulse   { 0%,100%{box-shadow:0 0 20px rgba(139,92,246,0.3)} 50%{box-shadow:0 0 40px rgba(139,92,246,0.7),0 0 80px rgba(139,92,246,0.2)} }
+        @keyframes scan-line    { 0%{top:-10%} 100%{top:110%} }
+        @keyframes neon-flicker { 0%,19%,21%,23%,25%,54%,56%,100%{opacity:1} 20%,24%,55%{opacity:0.4} }
+        @keyframes counter-in   { from{transform:translateY(8px);opacity:0} to{transform:translateY(0);opacity:1} }
+        @keyframes border-glow  { 0%,100%{border-color:rgba(139,92,246,0.3)} 50%{border-color:rgba(139,92,246,0.7)} }
+        @keyframes data-stream  { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        .cmd-section-label::before { content:''; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; vertical-align:middle; }
+        .cmd-card:hover { transform: translateY(-2px); transition: transform 0.2s ease; }
+      `}</style>
 
-      {/* Status legend */}
-      <div className="flex items-center gap-5 flex-wrap">
-        {(Object.keys(STATUS) as StatusKey[]).map(s => {
-          const cfg = STATUS[s]; const Icon = cfg.Icon
-          return (
-            <div key={s} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: cfg.color }}>
-              <Icon className="w-3.5 h-3.5" />
-              {cfg.label}
-              <span style={{ color: 'rgba(255,255,255,0.25)' }}>
-                = {s === 'urgent' ? 'High Priority' : s === 'pending' ? 'In Progress' : 'Done'}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      {/* ── COMMAND CENTER HEADER ── */}
+      <div className="relative overflow-hidden rounded-3xl p-8" style={{
+        background: 'linear-gradient(135deg, #0a0a0f 0%, #0d0a1a 50%, #0a0f0a 100%)',
+        border: '1px solid rgba(139,92,246,0.4)',
+        animation: 'glow-pulse 4s ease-in-out infinite',
+      }}>
+        {/* Scanline effect */}
+        <div className="absolute left-0 right-0 h-px pointer-events-none" style={{
+          background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.6), transparent)',
+          animation: 'scan-line 3s linear infinite',
+        }} />
+        {/* Grid background */}
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: 'linear-gradient(rgba(139,92,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.5) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }} />
 
-      {/* Parent Agent card */}
-      {parent && (
-        <div className="rounded-2xl p-5" style={{
-          background: 'linear-gradient(135deg,rgba(139,92,246,0.12) 0%,rgba(109,40,217,0.06) 100%)',
-          border: '1px solid rgba(139,92,246,0.25)',
-          boxShadow: '0 0 40px rgba(139,92,246,0.06)',
-        }}>
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', boxShadow: '0 4px 20px rgba(139,92,246,0.4)' }}>
-              <Crown className="w-7 h-7 text-white" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                  style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)' }}>
-                  Parent Agent
-                </span>
+        <div className="relative flex items-center gap-8">
+          {/* Orbital crown icon */}
+          <div className="relative w-24 h-24 flex-shrink-0">
+            <div className="absolute inset-0 rounded-full border border-purple-500/20" />
+            <div className="absolute inset-2 rounded-full border border-purple-500/20" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{
+                background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+                boxShadow: '0 0 30px rgba(139,92,246,0.6), 0 0 60px rgba(139,92,246,0.2)',
+              }}>
+                <Crown className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-white">{parent.name}</h2>
-              <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{parent.description}</p>
             </div>
-            <div className="flex items-center gap-4 flex-shrink-0 text-right">
-              <div><p className="text-2xl font-bold text-white">{subAgents.length}</p><p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>Sub Agents</p></div>
-              <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.1)' }} />
-              <div><p className="text-2xl font-bold text-white">{totalTasks}</p><p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>Total Tasks</p></div>
-              {totalUrgent > 0 && (
-                <>
-                  <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.1)' }} />
-                  <div><p className="text-2xl font-bold" style={{ color: '#ef4444' }}>{totalUrgent}</p><p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>Urgent</p></div>
-                </>
-              )}
-            </div>
+            {/* Orbiting dots */}
+            {[1,2,3].map((i) => (
+              <div key={i} className="absolute inset-0 flex items-center justify-center" style={{ animation: `${i===1?'orbit':i===2?'orbit2':'orbit3'} ${3+i*0.5}s linear infinite` }}>
+                <div className="w-2 h-2 rounded-full" style={{ background: i===1?'#8b5cf6':i===2?'#22c55e':'#38bdf8', boxShadow: `0 0 6px ${i===1?'#8b5cf6':i===2?'#22c55e':'#38bdf8'}` }} />
+              </div>
+            ))}
           </div>
 
-          {/* ── Sub-agent health monitor ── */}
-          {health && (
-            <div className="mt-4 pt-4 border-t" style={{ borderColor: 'rgba(139,92,246,0.15)' }}>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                System Health
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                {/* Social Media health */}
-                {(() => {
-                  const t = health.twitter
-                  const ok = t.total > 0
-                  const dot = !ok ? '#f97316' : t.unchecked === 0 ? '#22c55e' : '#f97316'
-                  return (
-                    <div className="rounded-xl p-3" style={{ background: 'rgba(29,155,240,0.06)', border: '1px solid rgba(29,155,240,0.12)' }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: dot }} />
-                        <span className="text-xs font-semibold text-white">Social Media</span>
-                      </div>
-                      <p className="text-lg font-bold text-white">{t.total}</p>
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>posts across 3 accounts</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        {Object.entries(health.by_account).map(([h, s]) => (
-                          <span key={h} className="text-xs font-bold px-1.5 py-0.5 rounded"
-                            style={{ background: 'rgba(255,255,255,0.06)', color: s.total > 0 ? '#22c55e' : 'rgba(255,255,255,0.25)' }}>
-                            {s.total}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Verification health */}
-                {(() => {
-                  const t = health.twitter
-                  const pct = t.total > 0 ? Math.round(((t.verified + t.has_errors) / t.total) * 100) : 0
-                  const dot = pct === 100 ? '#22c55e' : pct > 50 ? '#f97316' : '#ef4444'
-                  return (
-                    <div className="rounded-xl p-3" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.12)' }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: dot }} />
-                        <span className="text-xs font-semibold text-white">Verification</span>
-                      </div>
-                      <p className="text-lg font-bold text-white">{pct}%</p>
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>content checked</p>
-                      <div className="mt-2 w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: dot }} />
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Official accounts health */}
-                <div className="rounded-xl p-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.12)' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: totalUrgent > 0 ? '#ef4444' : '#22c55e' }} />
-                    <span className="text-xs font-semibold text-white">Official Accts</span>
-                  </div>
-                  <p className="text-lg font-bold text-white">{totalTasks}</p>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>active tasks</p>
-                  {totalUrgent > 0 && (
-                    <p className="text-xs mt-2 font-semibold" style={{ color: '#ef4444' }}>{totalUrgent} urgent</p>
-                  )}
-                </div>
+          {/* Title block */}
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-widest" style={{
+                background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.4)', color: '#c4b5fd',
+              }}>
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                SYSTEM ONLINE
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono" style={{
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)',
+              }}>
+                COMMAND CENTER v2.0
               </div>
             </div>
-          )}
-        </div>
-      )}
+            <h1 className="text-4xl font-black tracking-tight" style={{
+              background: 'linear-gradient(135deg, #fff 0%, #c4b5fd 50%, #8b5cf6 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              animation: 'neon-flicker 8s linear infinite',
+            }}>
+              {parent?.name ?? 'Agent Workflows'}
+            </h1>
+            <p className="text-sm mt-1 font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              {parent?.description ?? 'Manage tasks and workflows across all agents'}
+            </p>
+          </div>
 
-      {/* Social Media Analyst — full-width, featured */}
+          {/* Live stats */}
+          <div className="flex items-stretch gap-1 flex-shrink-0">
+            {[
+              { val: subAgents.length, label: 'AGENTS',     color: '#8b5cf6' },
+              { val: totalTasks,       label: 'TASKS',      color: '#38bdf8' },
+              { val: totalUrgent,      label: 'URGENT',     color: totalUrgent > 0 ? '#ef4444' : '#22c55e' },
+            ].map((s, i) => (
+              <div key={i} className="flex flex-col items-center justify-center px-5 py-3 rounded-2xl" style={{
+                background: `rgba(${i===0?'139,92,246':i===1?'56,189,248':'239,68,68'},0.08)`,
+                border: `1px solid rgba(${i===0?'139,92,246':i===1?'56,189,248':'239,68,68'},0.2)`,
+                minWidth: '72px',
+                animation: 'counter-in 0.5s ease both',
+                animationDelay: `${i*0.1}s`,
+              }}>
+                <p className="text-3xl font-black" style={{ color: s.color, textShadow: `0 0 20px ${s.color}` }}>{s.val}</p>
+                <p className="text-xs font-mono tracking-widest mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Health bar strip ── */}
+        {health && (
+          <div className="relative mt-6 grid grid-cols-3 gap-3">
+            {/* Social Media */}
+            {(() => {
+              const t = health.twitter
+              return (
+                <div className="cmd-card rounded-2xl p-4 cursor-default" style={{
+                  background: 'rgba(29,155,240,0.06)',
+                  border: `1px solid ${smDot}40`,
+                  boxShadow: `0 0 20px ${smDot}15`,
+                }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Share2 className="w-4 h-4" style={{ color: '#38bdf8' }} />
+                      <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#38bdf8' }}>SOCIAL MEDIA</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-mono" style={{
+                      background: `${smDot}20`, border: `1px solid ${smDot}50`, color: smDot,
+                    }}>
+                      <div className="w-1 h-1 rounded-full animate-pulse" style={{ background: smDot }} />
+                      {t.unchecked === 0 ? 'ALL CLEAR' : 'ACTIVE'}
+                    </div>
+                  </div>
+                  <p className="text-4xl font-black text-white mb-1" style={{ textShadow: '0 0 20px rgba(56,189,248,0.4)' }}>{t.total}</p>
+                  <p className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>POSTS TRACKED</p>
+                  <div className="mt-3 flex gap-1.5 flex-wrap">
+                    {Object.entries(health.by_account).map(([handle, s]) => (
+                      <span key={handle} className="text-xs font-mono px-2 py-0.5 rounded-lg" style={{
+                        background: s.total > 0 ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${s.total > 0 ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                        color: s.total > 0 ? '#4ade80' : 'rgba(255,255,255,0.2)',
+                      }}>@{handle} · {s.total}</span>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Verification */}
+            <div className="cmd-card rounded-2xl p-4 cursor-default" style={{
+              background: 'rgba(34,197,94,0.06)',
+              border: `1px solid ${verDot}40`,
+              boxShadow: `0 0 20px ${verDot}15`,
+            }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" style={{ color: '#4ade80' }} />
+                  <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#4ade80' }}>VERIFICATION</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-mono" style={{
+                  background: `${verDot}20`, border: `1px solid ${verDot}50`, color: verDot,
+                }}>
+                  <div className="w-1 h-1 rounded-full animate-pulse" style={{ background: verDot }} />
+                  {verPct === 100 ? 'COMPLETE' : 'IN PROGRESS'}
+                </div>
+              </div>
+              <p className="text-4xl font-black mb-1" style={{ color: verDot, textShadow: `0 0 20px ${verDot}60` }}>{verPct}<span className="text-2xl">%</span></p>
+              <p className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>CONTENT VERIFIED</p>
+              <div className="mt-3 w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full transition-all duration-1000" style={{
+                  width: `${verPct}%`,
+                  background: `linear-gradient(90deg, ${verDot}, ${verDot}aa)`,
+                  boxShadow: `0 0 8px ${verDot}`,
+                }} />
+              </div>
+            </div>
+
+            {/* Official Accounts */}
+            <div className="cmd-card rounded-2xl p-4 cursor-default" style={{
+              background: 'rgba(245,158,11,0.06)',
+              border: `1px solid ${totalUrgent > 0 ? '#ef444440' : '#f59e0b40'}`,
+              boxShadow: `0 0 20px ${totalUrgent > 0 ? '#ef444415' : '#f59e0b15'}`,
+            }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" style={{ color: '#fbbf24' }} />
+                  <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#fbbf24' }}>OFFICIAL ACCTS</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-mono" style={{
+                  background: totalUrgent > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+                  border: `1px solid ${totalUrgent > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.4)'}`,
+                  color: totalUrgent > 0 ? '#f87171' : '#4ade80',
+                }}>
+                  <div className="w-1 h-1 rounded-full animate-pulse" style={{ background: totalUrgent > 0 ? '#ef4444' : '#22c55e' }} />
+                  {totalUrgent > 0 ? `${totalUrgent} URGENT` : 'NOMINAL'}
+                </div>
+              </div>
+              <p className="text-4xl font-black text-white mb-1" style={{ textShadow: '0 0 20px rgba(245,158,11,0.4)' }}>{totalTasks}</p>
+              <p className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>ACTIVE TASKS</p>
+              <div className="mt-3 flex gap-2">
+                {(Object.keys(STATUS) as StatusKey[]).map(s => {
+                  const cfg = STATUS[s]
+                  return (
+                    <div key={s} className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.color }} />
+                      <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.3)' }}>{cfg.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── SECTION: Social Media ── */}
       {socialMediaAgent && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
-            Social Media
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(29,155,240,0.15)', border: '1px solid rgba(29,155,240,0.3)' }}>
+              <Share2 className="w-4 h-4" style={{ color: '#38bdf8' }} />
+            </div>
+            <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#38bdf8' }}>SOCIAL MEDIA ANALYST</span>
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(56,189,248,0.3),transparent)' }} />
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
+          </div>
           <SocialMediaPanel agent={socialMediaAgent} onRefresh={loadAgents} />
         </div>
       )}
 
-      {/* Verification Agent — full-width, featured */}
+      {/* ── SECTION: Verification ── */}
       {verificationAgent && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
-            Content Verification
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}>
+              <ShieldCheck className="w-4 h-4" style={{ color: '#4ade80' }} />
+            </div>
+            <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#4ade80' }}>CONTENT VERIFICATION</span>
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(74,222,128,0.3),transparent)' }} />
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} />
+          </div>
           <VerificationPanel agent={verificationAgent} onRefresh={loadAgents} />
         </div>
       )}
 
-      {/* Official Accounts Agent — full-width, featured */}
+      {/* ── SECTION: Official Accounts ── */}
       {officialAgent && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
-            Official Accounts
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)' }}>
+              <Building2 className="w-4 h-4" style={{ color: '#fbbf24' }} />
+            </div>
+            <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#fbbf24' }}>OFFICIAL ACCOUNTS</span>
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(251,191,36,0.3),transparent)' }} />
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#fbbf24', boxShadow: '0 0 6px #fbbf24' }} />
+          </div>
           <OfficialAccountsPanel agent={officialAgent} onRefresh={loadAgents} />
         </div>
       )}
 
-      {/* Other sub agents */}
+      {/* ── SECTION: Other Agents ── */}
       {otherAgents.length > 0 && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
-            Other Agents
-          </p>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)' }}>
+              <Bot className="w-4 h-4" style={{ color: '#c4b5fd' }} />
+            </div>
+            <span className="text-xs font-mono font-bold tracking-widest" style={{ color: '#c4b5fd' }}>OTHER AGENTS</span>
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg,rgba(196,181,253,0.3),transparent)' }} />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {otherAgents.map(a => <SubAgentCard key={a.id} agent={a} onRefresh={loadAgents} />)}
           </div>
