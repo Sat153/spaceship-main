@@ -47,7 +47,7 @@ Fix ONLY the specific errors listed. Rules:
 - Do NOT add or remove sentences
 - Do NOT change the meaning or tone
 
-Return ONLY the corrected text. No explanation, no quotes, no JSON.`
+CRITICAL: Return the corrected text EXACTLY ONCE. Do NOT repeat it. Do NOT add any heading, label, explanation, or separator. Output the corrected post one single time and stop.`
 
 async function checkWithGroq(content: string): Promise<{ status: string; errors: string[] }> {
   const completion = await groq.chat.completions.create({
@@ -63,6 +63,25 @@ async function checkWithGroq(content: string): Promise<{ status: string; errors:
   return JSON.parse(raw)
 }
 
+// Remove repeated blocks that LLaMA sometimes produces
+function deduplicateOutput(text: string): string {
+  const trimmed = text.trim()
+  // Try splitting by double newline and check if blocks repeat
+  const blocks = trimmed.split(/\n{2,}/)
+  if (blocks.length >= 2) {
+    const half = Math.floor(blocks.length / 2)
+    const firstHalf = blocks.slice(0, half).join('\n\n').trim()
+    const secondHalf = blocks.slice(half).join('\n\n').trim()
+    if (firstHalf === secondHalf) return firstHalf
+  }
+  // Try exact half-string repeat
+  const mid = Math.floor(trimmed.length / 2)
+  if (trimmed.slice(0, mid).trim() === trimmed.slice(mid).trim()) {
+    return trimmed.slice(0, mid).trim()
+  }
+  return trimmed
+}
+
 async function correctWithGroq(body: string, errors: string[]): Promise<string | null> {
   const completion = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
@@ -71,8 +90,10 @@ async function correctWithGroq(body: string, errors: string[]): Promise<string |
       { role: 'user', content: `Errors to fix:\n${errors.join('\n')}\n\nOriginal post:\n${body}` },
     ],
     temperature: 0.1,
+    max_tokens: 1024,
   })
-  return completion.choices[0]?.message?.content?.trim() || null
+  const raw = completion.choices[0]?.message?.content?.trim() || null
+  return raw ? deduplicateOutput(raw) : null
 }
 
 async function checkContent(content: string): Promise<{ status: string; errors: string[]; engine: string }> {
