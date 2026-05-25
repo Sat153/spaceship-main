@@ -18,9 +18,9 @@ WHAT NOT TO FLAG (these are all acceptable):
 ONLY FLAG THESE REAL ERRORS:
 1. English full stop (.) used AT THE END of a Hindi sentence instead of पूर्ण विराम (।) — ONLY if you literally see "." ending a Hindi sentence, not "।"
 2. Space before पूर्ण विराम: "शब्द ।" — ONLY if you see an actual space before "।"
-3. Clear matra errors: की/कि, में/मैं, है/हैं — ONLY if the wrong form is clearly used
+3. Clear matra errors: की/कि, में/मैं, है/हैं — ONLY if the wrong form is clearly used in context
 4. Obvious verb-subject disagreement (e.g., plural verb with singular subject)
-5. Duplicate words used back to back accidentally
+5. Same word repeated back-to-back accidentally, e.g. "है है" or "को को" — do NOT flag a sentence that appears once as a duplicate. Repeated sentences across different paragraphs are intentional emphasis, not errors.
 
 RULES:
 - If you are not 100% certain an error exists with proof from the text, do NOT include it.
@@ -133,16 +133,26 @@ export async function GET() {
 
       if (hasErrors) {
         const { text: corrected, engine: correctEngine } = await correctContent(post.body, errors)
-        await supabase
-          .from('content_posts')
-          .update({
-            verification_status: 'in_review',
-            verification_notes: notes,
-            ...(corrected ? { ai_corrected_body: corrected } : {}),
-          })
-          .eq('id', post.id)
 
-        results.push({ id: post.id, status: 'in_review', errors: errors.length, corrected: !!corrected, engines: `${checkEngine}+${correctEngine}` })
+        // If corrector returns identical text, the errors were false positives — mark verified
+        const isIdentical = corrected && corrected.trim() === post.body?.trim()
+        if (isIdentical) {
+          await supabase
+            .from('content_posts')
+            .update({ verification_status: 'verified', verification_notes: null })
+            .eq('id', post.id)
+          results.push({ id: post.id, status: 'verified (false positive)', errors: 0, engine: checkEngine })
+        } else {
+          await supabase
+            .from('content_posts')
+            .update({
+              verification_status: 'in_review',
+              verification_notes: notes,
+              ...(corrected ? { ai_corrected_body: corrected } : {}),
+            })
+            .eq('id', post.id)
+          results.push({ id: post.id, status: 'in_review', errors: errors.length, corrected: !!corrected, engines: `${checkEngine}+${correctEngine}` })
+        }
       } else {
         await supabase
           .from('content_posts')
