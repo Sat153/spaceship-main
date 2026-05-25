@@ -48,7 +48,7 @@ CRITICAL: Return the corrected text EXACTLY ONCE. Do NOT repeat it. Do NOT add a
 
 async function checkWithGroq(content: string): Promise<{ status: string; errors: string[] }> {
   const completion = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'llama-3.1-8b-instant',
     messages: [
       { role: 'system', content: CHECK_SYSTEM_GROQ },
       { role: 'user', content: content },
@@ -81,7 +81,7 @@ function deduplicateOutput(text: string): string {
 
 async function correctWithGroq(body: string, errors: string[]): Promise<string | null> {
   const completion = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'llama-3.1-8b-instant',
     messages: [
       { role: 'system', content: CORRECT_SYSTEM_GROQ },
       { role: 'user', content: `Errors to fix:\n${errors.join('\n')}\n\nOriginal post:\n${body}` },
