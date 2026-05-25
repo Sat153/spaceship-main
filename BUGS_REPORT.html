@@ -209,7 +209,7 @@
     <h1>Bug Report</h1>
     <p>All bugs identified and resolved during the development of the ANYA SEGEN Agency Operations Platform</p>
     <div class="meta">
-      <span><strong>25</strong> Total Bugs Fixed</span>
+      <span><strong>30</strong> Total Bugs Fixed</span>
       <span><strong>5</strong> Categories</span>
       <span><strong>May 2026</strong> Report Date</span>
       <span><strong>Satyam</strong> Engineer</span>
@@ -765,10 +765,118 @@
       </div>
     </div>
 
+    <!-- AI Verification & Code Bugs (Round 3) -->
+    <div class="section-title">AI Verification &amp; Code Bugs (Round 3)</div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ui">26</div>
+        <div>
+          <div class="bug-title">Twitter Verification Badge Overlapping Post Content in Narrow Columns</div>
+          <div class="bug-subtitle">src/components/admin/agents/VerificationPostCard.tsx</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The verification status badge was positioned absolutely inside a flex row alongside post content. In the Kanban-style grouped layout where each Twitter account column is narrow, the badge overlapped the post body text, making content unreadable.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Restructured <code>VerificationPostCard</code> layout: badge moved to its own row beneath the header using a flex column. Status badge now sits below the handle/title row with no overlap regardless of column width.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ai">27</div>
+        <div>
+          <div class="bug-title">Groq LLaMA Corrected Text Repeating 2–3× in Output</div>
+          <div class="bug-subtitle">src/app/api/cron/verify-posts/route.ts</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p><code>llama-3.3-70b-versatile</code> would sometimes output the corrected Hindi post body two or three times in a single response — separated by double newlines. The raw string was saved to <code>ai_corrected_body</code> verbatim, so editors saw the same paragraph repeated multiple times.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added <code>deduplicateOutput()</code> post-processing: splits by double newline and checks if first half equals second half; also checks exact mid-string repeat. Added <code>max_tokens: 1024</code> cap and a "CRITICAL: Return corrected text EXACTLY ONCE" prompt instruction. Switched model to <code>llama-3.1-8b-instant</code> (3× fewer tokens, more reliable output).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-ai">28</div>
+        <div>
+          <div class="bug-title">AI Hindi Proofreader Generating False Positives on Correct Text</div>
+          <div class="bug-subtitle">src/app/api/cron/verify-posts/route.ts — CHECK_SYSTEM_GROQ prompt</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The AI proofreader flagged three categories of false positives: (1) correct पूर्ण विराम (।) at sentence endings reported as missing punctuation, (2) hashtags like <code>#BJP4UK</code> flagged for not ending with पूर्ण विराम, (3) stylistic em-dashes (—) reported as grammatical errors. Corrected posts were marked <code>in_review</code> despite having zero real errors.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Added an explicit "WHAT NOT TO FLAG" section to the system prompt listing hashtags, em-dashes, correct पूर्ण विराम, and transliterated English words. Required AI to quote exact wrong text before reporting any error. Added identical-text guard: if corrected body equals original body → auto-mark as <code>verified</code> (false positive).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">29</div>
+        <div>
+          <div class="bug-title">TypeScript Build Error — Set Iteration Requires downlevelIteration</div>
+          <div class="bug-subtitle">src/components/admin/agents/AgentsPanel.tsx</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p><code>for (const handle of handleSet)</code> where <code>handleSet</code> is a <code>Set&lt;string&gt;</code> caused a TypeScript compile error: <em>"Type 'Set&lt;string&gt;' can only be iterated when '--downlevelIteration' flag is provided"</em>. The tsconfig target was too low for native Set iteration.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Replaced <code>for...of</code> on the Set with <code>Array.from(handleSet).forEach()</code>, which compiles without any tsconfig change and is semantically identical.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div class="bug-number num-code">30</div>
+        <div>
+          <div class="bug-title">Database Constraint Violation When Adding New User Role Values</div>
+          <div class="bug-subtitle">Supabase — profiles table, profiles_role_check constraint</div>
+        </div>
+        <span class="badge badge-fixed">Fixed</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <label>Root Cause</label>
+          <p>The <code>profiles</code> table has a <code>CHECK</code> constraint (<code>profiles_role_check</code>) that only allowed <code>'admin'</code> and <code>'user'</code> as valid role values. Attempting to insert or update a profile with a new role type (e.g. special user) threw a constraint violation error and the INSERT failed silently.</p>
+        </div>
+        <div class="bug-section fix">
+          <label>Fix Applied</label>
+          <p>Ran <code>ALTER TABLE profiles DROP CONSTRAINT profiles_role_check</code> followed by <code>ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('admin', 'user', ...))</code> to include all required role values. New roles now insert without errors.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Summary -->
     <div class="summary-box">
       <div class="summary-item">
-        <div class="count">9</div>
+        <div class="count">10</div>
         <div class="label">UI / Layout Bugs</div>
       </div>
       <div class="summary-item">
@@ -776,19 +884,23 @@
         <div class="label">Email &amp; DNS Bugs</div>
       </div>
       <div class="summary-item">
-        <div class="count">4</div>
+        <div class="count">6</div>
         <div class="label">AI / Content Bugs</div>
       </div>
       <div class="summary-item">
         <div class="count">8</div>
         <div class="label">Deployment &amp; Auth</div>
       </div>
+      <div class="summary-item">
+        <div class="count">2</div>
+        <div class="label">Code / DB Bugs</div>
+      </div>
     </div>
 
   </div>
 
   <div class="footer">
-    ANYA SEGEN CRM &nbsp;·&nbsp; Bug Report &nbsp;·&nbsp; May 2026 &nbsp;·&nbsp; All 25 bugs resolved &nbsp;·&nbsp; Ready for production deployment
+    ANYA SEGEN CRM &nbsp;·&nbsp; Bug Report &nbsp;·&nbsp; May 2026 &nbsp;·&nbsp; All 30 bugs resolved &nbsp;·&nbsp; Ready for production deployment
   </div>
 
 </div>

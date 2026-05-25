@@ -141,6 +141,19 @@ Role is assigned during account creation and can only be changed by an admin.
 |---|---|
 | FR-66 | Admin can save and manage reusable messaging templates |
 | FR-67 | Templates can be browsed and copied when creating content |
+| FR-67a | AI suggestions in the messaging panel are displayed as a priority-ordered list (#1, #2, #3) — no history tab |
+
+### 4.14 Agent Workflows & Twitter Verification
+| # | Requirement |
+|---|---|
+| FR-108a | Admin can view AI agent workflows with task lists per agent |
+| FR-108b | Admin can create, update, and delete tasks within each agent's workflow |
+| FR-108c | A Vercel cron job fetches unverified Twitter posts from `content_posts` and runs Groq AI (llama-3.1-8b-instant) Hindi proofreading on each |
+| FR-108d | The AI checker detects real grammar errors only — must not flag correct पूर्ण विराम (।), hashtags, em-dashes, or transliterated words |
+| FR-108e | If the AI finds errors, a corrected version is generated and saved to `ai_corrected_body` |
+| FR-108f | If the corrected text is identical to the original, the post is auto-marked as verified (false positive guard) |
+| FR-108g | Verified posts in the Agent Workflows panel are grouped side-by-side by Twitter account handle |
+| FR-108h | Each post card shows: original content, issues found by AI, AI corrected version, manual notes field, and action buttons (Approve / Reject / Mark Verified) |
 
 ### 4.11 Messages (Admin Chat)
 | # | Requirement |

@@ -21,13 +21,16 @@ Next.js 15 agency operations platform with admin and user dashboards, backed by 
 | Knowledge base (docs) | ✅ Live | Dept-scoped, published-only docs for regular users |
 | Client management | ✅ Live | Admin CRUD + sharing with specific users |
 | AI chat | ✅ Live | Per-client and global chat with Gemini/Groq |
-| Asset library | ✅ Live | Upload, grid display, Freepik/iStock browser |
+| Asset library | ✅ Live | Upload, grid display, Freepik/iStock browser; doc type support added via SQL migration |
 | Team management | ✅ Live | Invite, role editor, department assignment |
 | Messaging bank | ✅ Live | Saved messaging templates |
 | Telegram media capture | ✅ Live | Bot captures photos/videos from groups → Supabase Storage → Client Files |
 | Photo sharing in chat | ✅ Live | Team members can send images/videos in Messages tab |
 | Vercel deployment | ✅ Live | app.anyasegen.com — domain verified and assigned to correct project |
 | Dashboard performance | ✅ Optimised | Lazy-mount tabs, sessionStorage profile cache, parallel DB queries, 5s auth timeout fallback |
+| Cyber/Mission Control UI | ✅ Done | All 10+ admin tabs redesigned with scanline + grid bg + glowing headers via shared CyberHeader component |
+| AI Verification (cron) | ✅ Live | Groq-only (llama-3.1-8b-instant); false-positive guard; deduplication; hashtag/em-dash safe |
+| AI suggestions (messaging) | ✅ Updated | History tab removed; suggestions shown as priority-ordered list (#1, #2, #3) |
 
 ## Team & Access
 
@@ -151,6 +154,8 @@ spaceship-main/
 │   │   │   ├── user-departments.ts      # Department info for regular users
 │   │   │   ├── user-documents.ts        # Dept-scoped documents + getMyDepartmentName()
 │   │   │   ├── user-tasks.ts            # Tasks assigned to a regular user
+│   │   │   ├── verification.ts          # Twitter post verification: fetch, status update, stats by source
+│   │   │   ├── agent-workflow.ts        # Agent workflow CRUD: agents, tasks, status updates
 │   │   │   └── weekly-reports.ts        # Weekly report generation
 │   │   ├── admin/
 │   │   │   ├── assets/page.tsx          # Standalone admin assets page
@@ -161,6 +166,7 @@ spaceship-main/
 │   │   │   ├── admin/users/route.ts     # List/manage auth users
 │   │   │   ├── ai/generate-content/route.ts  # AI social content generation
 │   │   │   ├── approval-reminders/route.ts   # Cron: send approval reminder emails every 5 min
+│   │   │   ├── cron/verify-posts/route.ts    # Cron: Groq (llama-3.1-8b-instant) Hindi proofreader; false-positive guard; dedup output
 │   │   │   ├── auth/profile/route.ts    # Fetch current user profile
 │   │   │   ├── clients/[id]/route.ts    # Single client CRUD
 │   │   │   ├── clients/route.ts         # Clients list + auto-creates 6 workflow rooms on new client
@@ -224,6 +230,8 @@ spaceship-main/
 │   │   │   │   ├── AdminAssets.tsx
 │   │   │   │   ├── AssetGrid.tsx
 │   │   │   │   └── AssetUploader.tsx
+│   │   │   ├── agents/
+│   │   │   │   └── AgentsPanel.tsx      # Mission Control UI; Groq Hindi verification; posts grouped by Twitter handle
 │   │   │   ├── assignments/
 │   │   │   │   └── AdminAssignments.tsx # Task assignment management
 │   │   │   ├── clients/
@@ -252,9 +260,9 @@ spaceship-main/
 │   │   │   │   └── AdminSettings.tsx
 │   │   │   ├── team/
 │   │   │   │   └── AdminTeamMembers.tsx
-│   │   │   ├── AdminCalendar.tsx
-│   │   │   ├── AdminKanban.tsx          # Kanban: clickable stat cards, calendar date-range filter
-│   │   │   ├── AdminWeeklyReports.tsx
+│   │   │   ├── AdminCalendar.tsx        # Cyber UI header (green #10b981)
+│   │   │   ├── AdminKanban.tsx          # Full cyber redesign; clickable stat cards, calendar date-range filter
+│   │   │   ├── AdminWeeklyReports.tsx   # Cyber UI header (amber #f59e0b)
 │   │   │   └── AnySegenRights.tsx       # Rights/permissions overview
 │   │   ├── user/
 │   │   │   ├── AkhileshApproval.tsx     # Final approval UI for Akhilesh Ji
@@ -266,6 +274,7 @@ spaceship-main/
 │   │   │   ├── UserTasks.tsx
 │   │   │   └── WeeklyReport.tsx
 │   │   ├── ui/
+│   │   │   ├── cyber-header.tsx         # Shared CyberHeader, CyberSectionLabel, CyberCard components
 │   │   │   ├── badge.tsx
 │   │   │   ├── button.tsx
 │   │   │   ├── calendar.tsx             # Custom month-view calendar (used in AdminCalendar)
