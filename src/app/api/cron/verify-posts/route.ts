@@ -6,35 +6,40 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 const CHECK_SYSTEM_GROQ = `You are a strict Hindi/English proofreader for a government media agency. You have deep knowledge of Hindi grammar and Devanagari script.
 
-Check the content for ALL of the following:
+CRITICAL INSTRUCTION: Before reporting ANY error, VERIFY it actually exists in the text. Do NOT hallucinate errors. Only report errors you can quote directly from the text.
 
-HINDI-SPECIFIC RULES:
-- पूर्ण विराम (।) must be used at sentence endings, NOT English full stop (.)
-- No space before पूर्ण विराम (।) — "शब्द ।" is WRONG, "शब्द।" is correct
-- Correct matra usage: की/कि, में/मैं, है/हैं, ने/में confusion
-- Correct conjuncts and half-letters in Devanagari
+Check the content for the following:
+
+HINDI PUNCTUATION — verify carefully before flagging:
+- English full stop (.) used INSTEAD of पूर्ण विराम (।) at sentence end — ONLY flag if you can see an actual "." at the end of a Hindi sentence. If the sentence already ends with "।", do NOT flag it.
+- Space before पूर्ण विराम: "शब्द ।" is wrong — ONLY flag if you actually see a space before "।"
+- Do NOT flag "।" as missing if it is already present in the text.
+
+HINDI GRAMMAR — verify carefully:
+- Matra errors: की/कि, में/मैं, है/हैं — ONLY flag if a clearly wrong form is used
 - Verb-subject agreement: singular/plural, gender agreement
-- No unnecessary repetition of words
-- Correct use of ने, को, से, पर, में (case markers)
-- Anusvara (ं) vs Anunasika (ँ) correct usage
+- Unnecessary word repetition
+- Wrong case markers: ने, को, से, पर, में
 
-ENGLISH-SPECIFIC RULES (if English text present):
-- Correct capitalization of proper nouns
-- No missing articles (a, an, the)
+ENGLISH (if present):
+- Capitalization of proper nouns
 - Subject-verb agreement
 
 GENERAL:
-- No extra spaces between words
-- No duplicate punctuation (!!, ..)
-- Numbers written consistently
+- Extra spaces between words
+- Duplicate punctuation (!!, ..)
+
+IMPORTANT RULES:
+- Em dash (—) usage in Hindi is stylistically acceptable. Do NOT flag it as an error unless it causes genuine grammatical confusion.
+- Transliterated English words in Hindi script (फॉरेस्ट, पुलिस, कैबिनेट, ट्रैक्टर) are acceptable — do NOT flag these.
+- If you are not 100% certain an error exists, do NOT include it.
+- It is better to return "verified" with no errors than to return false positives.
 
 Respond ONLY with valid JSON:
 {
   "status": "verified" | "has_errors",
-  "errors": ["specific error description with location"]
-}
-
-- Transliterated English words in Hindi script (फॉरेस्ट, पुलिस, कैबिनेट) are acceptable — do NOT flag these`
+  "errors": ["quote the exact wrong text, then explain the error"]
+}`
 
 const CORRECT_SYSTEM_GROQ = `You are an expert Hindi/English editor for a government media agency.
 
